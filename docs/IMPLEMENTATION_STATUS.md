@@ -1,8 +1,7 @@
 # Implementation Status
 
-Updated through the roadmap phases (0-6), the continuous evaluation/cost work,
-and PRD 2 modules 1-2 (asset contracts and renderer interface) — package
-version 0.10.0.
+Updated through the roadmap phases (0-6), continuous evaluation/cost work,
+PRD 2 modules 1-2, and the Mermaid/Graphviz renderers — package version 0.11.0.
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -37,6 +36,9 @@ by a working code path.
 | Renderer interface (PRD 2) | Implemented | `validate_input`, `check_environment`, `estimate_resources`, `cancel`, `collect_outputs`, `validate`, `get_diagnostics`; ordered checks with recorded diagnostics |
 | Visual asset contract | Implemented | `VisualAsset` with workspace-relative paths, hashes, QA results; `internal/qa/visual_assets.json` per build |
 | Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
+| Mermaid diagrams | Implemented | Vendored runtime 12.2.0 (MIT, sha256-verified), offline Chromium, strict config, rejects init/click directives |
+| Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); missing `dot` is an environment error, never a fallback |
+| Renderer environment diagnostics | Implemented | `lces doctor` reports Mermaid runtime and Graphviz availability |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |
 | Chart rendering (Vega-Lite) | Implemented | `data_chart` renders static SVG through `vl-convert`; optional `charts` extra; no Node.js or network |
 | Custom SVG rendering | Implemented | `custom_svg` inlines XML-valid SVG after blocking scripts, handlers, `foreignObject`, and external references |
@@ -76,7 +78,7 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 149 passed |
+| `pytest -q` | 176 passed, 1 skipped (real Graphviz test) |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | no issues in 33 source files |
@@ -95,6 +97,9 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Stage fallback routing | local `ProviderError` retried with `mock`; `stage_runs` records one fail then one pass |
 | `lces run --only build` (asset contract) | `visual_assets.json`: `slide-003-block-01`, `table`, `html.table 1.0.0`, source + output sha256, status `rendered` |
 | `lces export-schemas` | 16 schemas, including `visual_asset`, `scene_contract`, `video_contract` |
+| `lces doctor` | reports `Mermaid: 可用 — vendored 12.2.0` and `Graphviz: 不可用 — ... winget ... 16.1.0` on this machine |
+| Mermaid renderer | flowchart + sequence render offline; invalid syntax, malicious labels, init directives, and a 1 ms timeout all fail explicitly |
+| Graphviz renderer | stubbed `dot` path covers success, syntax error, timeout, unsafe output; real `dot` test skipped until Graphviz is installed |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
 
 These results validate the implemented checks only. They do not prove

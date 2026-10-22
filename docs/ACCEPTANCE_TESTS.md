@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 149 passed |
+| `pytest -q` | 176 passed, 1 skipped (Graphviz not installed) |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -26,6 +26,8 @@ is considered passing because the code exists.
 | fallback routing | provider error retries once with the configured fallback; both attempts recorded |
 | `lces export-schemas` | 16 schemas, including asset/scene/video contracts |
 | `lces run --only build` | `internal/qa/visual_assets.json` records renderer version, source/output hashes, and QA status |
+| `lces doctor` | reports the vendored Mermaid runtime and Graphviz availability |
+| Mermaid/Graphviz adapters | offline SVG rendering, invalid input, missing dependency, timeout, and unsafe output all fail explicitly |
 
 ## Environment
 
@@ -80,6 +82,12 @@ is considered passing because the code exists.
   hashes, durations, rational fps, and enum validation; `tests/test_renderers.py`
   covers environment/input gating, diagnostics, resource estimates, and the
   asset manifest.
+- Mermaid: `tests/test_mermaid.py` covers runtime presence/hash, offline
+  flowchart and sequence rendering, init/click rejection, malicious labels,
+  invalid syntax, and timeout.
+- Graphviz: `tests/test_graphviz.py` covers the pinned install hint, version
+  parsing, unsafe input, render failures, timeouts, and unsafe output; the real
+  `dot` test is skipped when Graphviz is absent (run in the CI `graphviz` job).
 
 ## Manual checks that automation cannot replace
 

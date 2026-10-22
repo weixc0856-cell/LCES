@@ -12,8 +12,8 @@ bundle third-party fonts, images, music or icons.
 | Chromium headless shell | 156.0.8078.4 | BSD-3-Clause and others | Rendered by Playwright; downloaded at install time, not vendored |
 | vl-convert-python | 1.9.0.post1 | Apache-2.0 | Static SVG rendering for `data_chart` specs (optional `charts` extra) |
 | Vega-Lite / Vega | bundled by vl-convert | BSD-3-Clause / Apache-2.0 | Chart specification language; runs inside vl-convert |
-| Mermaid | not used | MIT | Considered for flowcharts; no vendored build in this repo |
-| Graphviz | not used | EPL-1.0 | Considered for graph layout; `dot` not required by LCES |
+| Mermaid | 12.2.0 (vendored) | MIT | Flowchart/sequence diagrams; runtime committed under `vendor/mermaid/` with sha256 manifest |
+| Graphviz | 16.1.0 (external, pinned) | EPL-1.0 | `graphviz.dot` renderer; installed by the user, not bundled (winget metadata lists CPL-1.0; check the installed package's licence file) |
 
 Chromium and Playwright are downloaded to the user's machine by
 `playwright install`; they are not committed to this repository. Charts are

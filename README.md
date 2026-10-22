@@ -211,8 +211,11 @@ uv sync --extra charts
 uv run lces render-spec .\spec.json --out .\build\visuals
 ```
 
-- 视觉类型与渲染器：`table → html.table`、`figure_image → html.figure`、`custom_svg → svg.custom`、`data_chart → vega_lite.chart`
+- 视觉类型与渲染器：`table → html.table`、`figure_image → html.figure`、`custom_svg → svg.custom`、`data_chart → vega_lite.chart`、`diagram → mermaid.diagram`、`graph → graphviz.dot`
 - 自定义 SVG 必须是合法 XML，且拒绝 `<script>`、事件处理器、`<foreignObject>` 与外部链接
+- Mermaid 运行时随仓库交付（`vendor/mermaid/`，12.2.0，MIT，sha256 校验），渲染在 `offline=True` 的 Chromium 中完成；拒绝 `%%{init}%%` 与 `click` 指令
+- Graphviz 是外部系统依赖：`LCES_DOT_BIN` 或 PATH 中的 `dot`（>= 2.40）。缺失时明确报环境错误，不会静默换渲染器；安装固定版本：`winget install --id Graphviz.Graphviz -e --version 16.1.0`
+- `lces doctor` 会报告 Mermaid 运行时与 Graphviz 的可用状态
 - 内联 SVG 带 `role="img"`、`aria-label` 和 `max-width:100%`，窄视口不会撑破布局
 - 未安装 `vl-convert` 时 `data_chart` 明确报错，不会静默输出空图
 - 渲染器接口含 `validate_input` / `check_environment` / `estimate_resources` / `collect_outputs`；环境或参数不合格在渲染前失败，失败详情写入 `registry.diagnostics()`
@@ -249,7 +252,7 @@ src/content_studio/
 uv run lces export-schemas    # 生成 16 个 JSON Schema
 ```
 
-`skills/` 保存五大 Skill 规范；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成（含 `visual_spec`、`visual_asset`、`scene_contract`、`video_contract`）；`templates/public_html/` 只渲染公开模型。内容与视觉规格的边界、渲染器规则与版本策略见 `docs/CONTENT_CONTRACTS.md`。
+`skills/` 保存五大 Skill 规范；`vendor/mermaid/` 保存离线 Mermaid 运行时（含版本清单、sha256 与 MIT 许可证）；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成（含 `visual_spec`、`visual_asset`、`scene_contract`、`video_contract`）；`templates/public_html/` 只渲染公开模型。内容与视觉规格的边界、渲染器规则与版本策略见 `docs/CONTENT_CONTRACTS.md`。
 
 ## 尚未实现
 
