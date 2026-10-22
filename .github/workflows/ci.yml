@@ -16,13 +16,13 @@ jobs:
           enable-cache: true
       - name: Set up Python
         run: uv python install 3.13
-      - name: Sync dependencies
-        # Switch to `uv sync --locked` after the regenerated uv.lock (Python 3.13)
-        # has been committed.
-        run: uv sync
+      - name: Sync dependencies (locked)
+        run: uv sync --locked
       - name: Lint
         run: uv run ruff check .
-      - name: Type check (advisory)
-        run: uv run mypy src || true
+      - name: Format check
+        run: uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy src
       - name: Tests
         run: uv run pytest

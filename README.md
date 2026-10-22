@@ -124,6 +124,16 @@ git push -u origin main
 
 推送需要本机已配置 GitHub SSH key。当前两个提交（`0e367ba`、`56c2cfb`）已在本地 `main` 分支；若远端仓库尚未创建，请先在 GitHub 建空仓库再推送。
 
+## 联调里程碑（Windows）
+
+一次生成可分享的诊断报告（自动脱敏 API key）：
+
+```powershell
+.\scripts\milestone-check.ps1
+```
+
+脚本依次检查：Git 状态、Python 3.13 与 `.venv`、`lces doctor`、pytest、ruff、mypy、本地服务探测、`lces models --test`。报告写入 `var/milestone-report.txt`（已被 `.gitignore` 排除）。任一项失败时退出码为 1。
+
 ## 质量门禁
 
 `lces validate` 只对真正实现的检查给出 PASS。当前包含：
