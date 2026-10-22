@@ -9,9 +9,9 @@ from the internal speaker script: no template may read narration fields, and
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from content_studio.utils import utc_now
 
@@ -257,6 +257,43 @@ PublicBlock = Annotated[
     ],
     Field(discriminator="type"),
 ]
+
+
+# Visual specs are a separate contract from the content blocks that reference
+# them: content says *what* to show, the spec says *how* it is rendered.
+VISUAL_SCHEMA_VERSION = "1.0"
+VISUAL_SCHEMA_MAJOR = "1"
+
+
+class VisualValidation(StrictModel):
+    """Renderer-reported state. A model can never set ``approved`` here."""
+
+    required: bool = True
+    status: Literal["pending", "valid", "invalid"] = "pending"
+    message: str = ""
+
+
+class VisualSpec(StrictModel):
+    schema_version: str = VISUAL_SCHEMA_VERSION
+    visual_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    visual_type: str = Field(min_length=1)
+    title: str = ""
+    # Empty means "use the registry default for this visual_type"; a non-empty
+    # value must match the resolved renderer or rendering fails.
+    renderer: str = ""
+    data: dict[str, Any] = Field(default_factory=dict)
+    validation: VisualValidation = Field(default_factory=VisualValidation)
+
+    @field_validator("schema_version")
+    @classmethod
+    def _supported_major(cls, value: str) -> str:
+        major = value.split(".", 1)[0]
+        if major != VISUAL_SCHEMA_MAJOR:
+            raise ValueError(
+                f"unsupported visual schema_version '{value}'; "
+                f"this build supports {VISUAL_SCHEMA_MAJOR}.x"
+            )
+        return value
 
 
 class PublicSlide(StrictModel):

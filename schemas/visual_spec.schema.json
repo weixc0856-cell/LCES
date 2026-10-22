@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "VisualValidation": {
+      "additionalProperties": false,
+      "description": "Renderer-reported state. A model can never set ``approved`` here.",
+      "properties": {
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "valid",
+            "invalid"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "title": "VisualValidation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "visual_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "title": "Visual Id",
+      "type": "string"
+    },
+    "visual_type": {
+      "minLength": 1,
+      "title": "Visual Type",
+      "type": "string"
+    },
+    "title": {
+      "default": "",
+      "title": "Title",
+      "type": "string"
+    },
+    "renderer": {
+      "default": "",
+      "title": "Renderer",
+      "type": "string"
+    },
+    "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+    },
+    "validation": {
+      "$ref": "#/$defs/VisualValidation"
+    }
+  },
+  "required": [
+    "visual_id",
+    "visual_type"
+  ],
+  "title": "VisualSpec",
+  "type": "object"
+}

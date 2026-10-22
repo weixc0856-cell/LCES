@@ -29,6 +29,7 @@ from content_studio.models import (
     ResearchBrief,
     SourceRegistry,
     SpeakerScript,
+    VisualSpec,
 )
 from content_studio.orchestrator import load_project_config, run_pipeline
 from content_studio.paths import (
@@ -49,6 +50,7 @@ from content_studio.release import (
     load_qa_report,
     verify_release,
 )
+from content_studio.renderers import RenderContext, default_registry
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.utils import write_json
@@ -535,6 +537,7 @@ def export_schemas(
         "reading_edition": ReadingEdition,
         "qa_report": QAReport,
         "release_manifest": ReleaseManifest,
+        "visual_spec": VisualSpec,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, model in mapping.items():
@@ -546,6 +549,29 @@ def export_schemas(
         write_json(path, schema)
         typer.echo(f"写入 {path}")
     typer.echo("注意: scene_render_contract.schema.json 属于 Phase 3，不由本命令覆盖。")
+
+
+@app.command("render-spec")
+@guarded
+def render_spec(
+    spec_file: Path = typer.Argument(..., exists=True, dir_okay=False),
+    output: Path = typer.Option(Path("build/visuals"), "--out", help="输出目录"),
+    project_dir: Path | None = typer.Option(
+        None, "--project", help="用于校验图表资源是否存在的项目目录"
+    ),
+) -> None:
+    """Render one VisualSpec through the renderer registry."""
+
+    try:
+        spec = VisualSpec.model_validate_json(spec_file.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise ConfigurationError(f"invalid visual spec: {exc}") from exc
+    registry = default_registry()
+    result = registry.render(spec, RenderContext(project_dir=project_dir, output_dir=output))
+    output.mkdir(parents=True, exist_ok=True)
+    path = output / f"{spec.visual_id}.html"
+    path.write_text(result.html, encoding="utf-8")
+    typer.echo(f"{spec.visual_id} -> {path} | {result.renderer} {result.renderer_version}")
 
 
 def _run_single(project_dir: Path, stage: str, provider: str | None):

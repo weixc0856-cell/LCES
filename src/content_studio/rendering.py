@@ -12,6 +12,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from content_studio.models import PublicContent, ReadingEdition
+from content_studio.visuals import render_content_visuals, write_render_manifest
 
 
 def _environment(template_dir: Path) -> Environment:
@@ -39,14 +40,27 @@ def build_public_html(
     output_path: Path,
     *,
     project_dir: Path | None = None,
+    use_registry: bool = True,
 ) -> Path:
-    rendered = (
-        _environment(template_dir)
-        .get_template("course.html.j2")
-        .render(content=content.model_dump(mode="json"))
-    )
+    data = content.model_dump(mode="json")
+    if use_registry:
+        rendered = render_content_visuals(
+            content, project_dir=project_dir, output_dir=output_path.parent
+        )
+        # The template receives a view model with rendered fragments attached;
+        # the content model itself is never mutated.
+        by_position = {(item.slide_id, item.block_index): item.html for item in rendered}
+        for slide_data, slide in zip(data["slides"], content.slides, strict=True):
+            for index, block_data in enumerate(slide_data["body"]):
+                html = by_position.get((slide.slide_id, index))
+                if html is not None:
+                    block_data["visual_html"] = html
+        if project_dir is not None:
+            write_render_manifest(project_dir, rendered)
+
+    rendered_html = _environment(template_dir).get_template("course.html.j2").render(content=data)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(rendered, encoding="utf-8")
+    output_path.write_text(rendered_html, encoding="utf-8")
     if project_dir is not None:
         _copy_charts(project_dir, output_path.parent)
     return output_path

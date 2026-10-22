@@ -37,3 +37,11 @@ class ProviderError(LCESError):
 
 class ProviderResponseError(ProviderError):
     """The provider responded, but not with usable content."""
+
+
+class RenderError(LCESError):
+    """A renderer failed, or its output failed the renderer's own checks."""
+
+
+class UnsupportedVisualType(LCESError):
+    """No renderer is registered for the requested visual type."""

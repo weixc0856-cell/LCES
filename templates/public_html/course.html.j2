@@ -65,16 +65,20 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);marg
 <pre class="code"><code>{{ block.code }}</code></pre>
 {% if block.caption %}<p class="code-caption">{{ block.caption }}</p>{% endif %}
 {% elif block.type == "figure" %}
+{% if block.visual_html %}{{ block.visual_html | safe }}{% else %}
 <figure>
 <img src="{{ block.path }}" alt="{{ block.alt }}" loading="lazy">
 {% if block.caption %}<figcaption class="figure-caption">{{ block.caption }}</figcaption>{% endif %}
 </figure>
+{% endif %}
 {% elif block.type == "table" %}
+{% if block.visual_html %}{{ block.visual_html | safe }}{% else %}
 <table>
 {% if block.caption %}<caption class="table-caption">{{ block.caption }}</caption>{% endif %}
 <thead><tr>{% for column in block.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
 <tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
 </table>
+{% endif %}
 {% elif block.type == "callout" %}
 <div class="callout {{ block.kind }}">{{ block.text }}</div>
 {% elif block.type == "quote" %}
