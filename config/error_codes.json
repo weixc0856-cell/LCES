@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "description": "Single source of truth for LCES failure codes shared by the Python adapter and the Motion Canvas Node driver. Terminal states are 'failed' or 'cancelled'; a build may reach exactly one of them.",
+  "codes": {
+    "unsupported_platform": {
+      "stage": "environment",
+      "terminal": "failed",
+      "exit_code": 2,
+      "retryable": false,
+      "description": "The host platform is outside the admitted P1 range (Linux only)."
+    },
+    "environment_unavailable": {
+      "stage": "environment",
+      "terminal": "failed",
+      "exit_code": 11,
+      "retryable": false,
+      "description": "A required tool or dependency is missing or the wrong version."
+    },
+    "dependency_mismatch": {
+      "stage": "environment",
+      "terminal": "failed",
+      "exit_code": 12,
+      "retryable": false,
+      "description": "The installed dependency tree does not match the pinned lockfile."
+    },
+    "invalid_input": {
+      "stage": "input",
+      "terminal": "failed",
+      "exit_code": 13,
+      "retryable": false,
+      "description": "The scene set, video contract, or template data is invalid."
+    },
+    "driver_protocol_mismatch": {
+      "stage": "driver",
+      "terminal": "failed",
+      "exit_code": 3,
+      "retryable": false,
+      "description": "The editor UI or driver protocol does not match the pinned version."
+    },
+    "render_timeout": {
+      "stage": "render",
+      "terminal": "failed",
+      "exit_code": 4,
+      "retryable": false,
+      "description": "Rendering exceeded the per-build deadline."
+    },
+    "render_failed": {
+      "stage": "render",
+      "terminal": "failed",
+      "exit_code": 5,
+      "retryable": false,
+      "description": "The driver exited non-zero or crashed for an unmapped reason."
+    },
+    "cancelled": {
+      "stage": "render",
+      "terminal": "cancelled",
+      "exit_code": 130,
+      "retryable": false,
+      "description": "The build was cancelled by the caller."
+    },
+    "output_missing": {
+      "stage": "output",
+      "terminal": "failed",
+      "exit_code": 6,
+      "retryable": false,
+      "description": "The driver produced no report, frames, or video."
+    },
+    "frame_mismatch": {
+      "stage": "output",
+      "terminal": "failed",
+      "exit_code": 7,
+      "retryable": false,
+      "description": "The frame count or timeline deviates from the contract by more than one frame."
+    },
+    "output_corrupt": {
+      "stage": "output",
+      "terminal": "failed",
+      "exit_code": 8,
+      "retryable": false,
+      "description": "A frame or media file failed structural or decode validation."
+    },
+    "encode_failed": {
+      "stage": "encode",
+      "terminal": "failed",
+      "exit_code": 9,
+      "retryable": false,
+      "description": "FFmpeg encoding failed or produced an unusable file."
+    },
+    "qa_failed": {
+      "stage": "qa",
+      "terminal": "failed",
+      "exit_code": 10,
+      "retryable": false,
+      "description": "Post-render QA (frame manifest, ffprobe, subtitles) failed."
+    }
+  }
+}

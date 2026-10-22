@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "SceneContract": {
+      "additionalProperties": false,
+      "description": "One shot in a video timeline. Durations are integer milliseconds.",
+      "properties": {
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scene_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "scene_type": {
+          "minLength": 1,
+          "title": "Scene Type",
+          "type": "string"
+        },
+        "duration_ms": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "renderer": {
+          "default": "",
+          "title": "Renderer",
+          "type": "string"
+        },
+        "source_asset_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Asset Refs",
+          "type": "array"
+        },
+        "narration_ref": {
+          "default": "",
+          "title": "Narration Ref",
+          "type": "string"
+        },
+        "subtitle_ref": {
+          "default": "",
+          "title": "Subtitle Ref",
+          "type": "string"
+        },
+        "transition_in": {
+          "default": "cut",
+          "enum": [
+            "cut",
+            "fade",
+            "slide",
+            "zoom",
+            "none"
+          ],
+          "title": "Transition In",
+          "type": "string"
+        },
+        "transition_out": {
+          "default": "cut",
+          "enum": [
+            "cut",
+            "fade",
+            "slide",
+            "zoom",
+            "none"
+          ],
+          "title": "Transition Out",
+          "type": "string"
+        },
+        "camera_config": {
+          "additionalProperties": true,
+          "title": "Camera Config",
+          "type": "object"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "quality_profile": {
+          "default": "default",
+          "title": "Quality Profile",
+          "type": "string"
+        },
+        "fallback_policy": {
+          "default": "fail",
+          "enum": [
+            "fail",
+            "skip",
+            "placeholder"
+          ],
+          "title": "Fallback Policy",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scene_id",
+        "scene_type",
+        "duration_ms"
+      ],
+      "title": "SceneContract",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Ordered scenes for one video build.\n\nThe list order *is* the timeline order. Canvas, frame rate, and encoding\nstay in :class:`VideoContract`; this model must not restate them.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/SceneContract"
+      },
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "scenes"
+  ],
+  "title": "SceneSet",
+  "type": "object"
+}

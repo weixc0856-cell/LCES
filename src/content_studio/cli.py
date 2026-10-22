@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import sys
 import traceback
 from collections.abc import Callable
@@ -14,7 +15,7 @@ import yaml
 from pydantic import BaseModel
 
 from content_studio import __version__
-from content_studio.errors import ConfigurationError, LCESError
+from content_studio.errors import ConfigurationError, LCESError, RenderError
 from content_studio.eval import build_report, load_tasks, run_tasks, write_report
 from content_studio.evidence import review_claim
 from content_studio.ingestion import ingest_project
@@ -31,12 +32,14 @@ from content_studio.models import (
     ResearchAnalysis,
     ResearchBrief,
     SceneContract,
+    SceneSet,
     SourceRegistry,
     SpeakerScript,
     VideoContract,
     VisualAsset,
     VisualSpec,
 )
+from content_studio.motion_canvas import MotionCanvasRenderer, motion_canvas_registry, motion_status
 from content_studio.orchestrator import load_project_config, run_pipeline
 from content_studio.paths import (
     ensure_project_layout,
@@ -65,7 +68,7 @@ from content_studio.renderers import (
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
-from content_studio.utils import write_json
+from content_studio.utils import read_json, write_json
 
 app = typer.Typer(no_args_is_help=True, help="Local Content Engineering Studio (LCES)")
 
@@ -144,6 +147,8 @@ def doctor() -> None:
     typer.echo(f"Mermaid: {'可用' if mermaid_ok else '不可用'} — {mermaid_detail}")
     dot_ok, dot_detail = graphviz_status()
     typer.echo(f"Graphviz: {'可用' if dot_ok else '不可用'} — {dot_detail}")
+    motion_ok, motion_detail = motion_status()
+    typer.echo(f"Motion Canvas: {'可用' if motion_ok else '不可用'} — {motion_detail}")
     typer.echo("配置检查完成；未测试网络连通性。")
 
 
@@ -632,6 +637,7 @@ def export_schemas(
         "visual_spec": VisualSpec,
         "visual_asset": VisualAsset,
         "scene_contract": SceneContract,
+        "scene_set": SceneSet,
         "video_contract": VideoContract,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -667,6 +673,52 @@ def render_spec(
     path = output / f"{spec.visual_id}.html"
     path.write_text(result.html, encoding="utf-8")
     typer.echo(f"{spec.visual_id} -> {path} | {result.renderer} {result.renderer_version}")
+
+
+@app.command("render-scene")
+@guarded
+def render_scene(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    spec_file: Path = typer.Argument(..., exists=True, dir_okay=False),
+    out: Path | None = typer.Option(None, "--out", help="构建输出目录（默认 <project>/build）"),
+    build_id: str | None = typer.Option(None, "--build-id", help="固定构建 ID"),
+) -> None:
+    """Render one Motion Canvas scene (P1, Linux only; not in the release path)."""
+
+    root, _config = _project(project_dir)
+    payload = read_json(spec_file)
+    if not isinstance(payload, dict):
+        raise ConfigurationError("scene build spec must be a JSON object")
+    video = payload.get("video")
+    if not isinstance(video, dict) or not isinstance(video.get("video_id"), str):
+        raise ConfigurationError("scene build spec needs video.video_id")
+    previous_build_id = os.environ.get("LCES_BUILD_ID")
+    if build_id:
+        os.environ["LCES_BUILD_ID"] = build_id
+    spec = VisualSpec(
+        visual_id=str(video["video_id"]),
+        visual_type="animation",
+        renderer=MotionCanvasRenderer.name,
+        data={"scene_set": payload.get("scene_set"), "video": video},
+    )
+    registry = motion_canvas_registry()
+    try:
+        result = registry.render(
+            spec, RenderContext(project_dir=root, output_dir=out or root / "build")
+        )
+    except RenderError as exc:
+        typer.secho(f"错误[{exc.code}]: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=exc.exit_code) from exc
+    finally:
+        if build_id:
+            if previous_build_id is None:
+                os.environ.pop("LCES_BUILD_ID", None)
+            else:
+                os.environ["LCES_BUILD_ID"] = previous_build_id
+    typer.echo(f"{spec.visual_id} -> build {result.build_id}")
+    for artifact in result.artifacts:
+        typer.echo(f"  产物: {artifact}")
+    typer.echo("提示: P1.1 只产出帧序列；编码与发布在 P1.3。")
 
 
 @app.command("review-claims")

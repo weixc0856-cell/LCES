@@ -4,7 +4,12 @@ import re
 import pytest
 from pydantic import ValidationError
 
-from content_studio.errors import ConfigurationError, RenderError, UnsupportedVisualType
+from content_studio.errors import (
+    ConfigurationError,
+    RenderCancelled,
+    RenderError,
+    UnsupportedVisualType,
+)
 from content_studio.models import (
     ChartBlock,
     FigureBlock,
@@ -20,6 +25,7 @@ from content_studio.renderers import (
     RenderContext,
     Renderer,
     RendererRegistry,
+    RenderResult,
     ResourceEstimate,
     TableRenderer,
     default_registry,
@@ -392,7 +398,9 @@ class _FakeRenderer(Renderer):
         self.calls.append("render")
         return "<div>ok</div>"
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         return []
 
 
@@ -447,3 +455,63 @@ def test_registry_estimates_resources_through_the_renderer():
     estimate = registry.estimate(_fake_spec())
     assert estimate.cpu_seconds == pytest.approx(1.5)
     assert estimate.memory_mb == 128
+
+
+class _ResultRenderer(Renderer):
+    name = "fake.result"
+    version = "1.0.0"
+    visual_types = frozenset({"fake-result"})
+
+    def __init__(self, result) -> None:
+        self.result = result
+
+    def render(self, spec: VisualSpec, context: RenderContext):
+        return self.result
+
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
+        return []
+
+
+def _result_spec() -> VisualSpec:
+    return VisualSpec(visual_id="anim-001", visual_type="fake-result")
+
+
+def test_registry_carries_build_id_and_manifest():
+    registry = RendererRegistry()
+    registry.register(_ResultRenderer(RenderResult(build_id="build-1", html="<p>x</p>")))
+    output = registry.render(_result_spec())
+    assert output.build_id == "build-1"
+    assert output.status == "completed"
+
+
+def test_registry_refuses_a_cancelled_result():
+    registry = RendererRegistry()
+    registry.register(_ResultRenderer(RenderResult(status="cancelled", message="user aborted")))
+    with pytest.raises(RenderCancelled, match="user aborted"):
+        registry.render(_result_spec())
+
+
+def test_registry_refuses_a_failed_result():
+    registry = RendererRegistry()
+    registry.register(_ResultRenderer(RenderResult(status="failed", message="driver died")))
+    with pytest.raises(RenderError, match="driver died"):
+        registry.render(_result_spec())
+
+
+def test_environment_failure_uses_the_renderer_code():
+    registry = RendererRegistry()
+    renderer = _FakeRenderer(environment=["node missing"])
+    registry.register(renderer)
+    with pytest.raises(RenderError) as caught:
+        registry.render(VisualSpec(visual_id="fake-001", visual_type="fake"))
+    assert caught.value.code == "environment_unavailable"
+
+
+def test_invalid_input_uses_invalid_input():
+    registry = RendererRegistry()
+    registry.register(_FakeRenderer(input_problems=["bad spec"]))
+    with pytest.raises(RenderError) as caught:
+        registry.render(VisualSpec(visual_id="fake-001", visual_type="fake"))
+    assert caught.value.code == "invalid_input"

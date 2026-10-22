@@ -22,9 +22,15 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from html import escape
 from pathlib import Path
+from typing import Literal
 from xml.etree import ElementTree
 
-from content_studio.errors import ConfigurationError, RenderError, UnsupportedVisualType
+from content_studio.errors import (
+    ConfigurationError,
+    RenderCancelled,
+    RenderError,
+    UnsupportedVisualType,
+)
 from content_studio.models import VisualSpec
 from content_studio.paths import repository_root
 from content_studio.utils import sha256_file
@@ -60,10 +66,32 @@ class RenderOutput:
     renderer: str
     renderer_version: str
     artifacts: tuple[Path, ...] = field(default_factory=tuple)
+    build_id: str = ""
+    manifest: Path | None = None
+    status: Literal["completed"] = "completed"
 
     @property
     def sha256(self) -> str:
         return hashlib.sha256(self.html.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class RenderResult:
+    """A renderer's own report for a build.
+
+    Renderers that embed HTML fragments can keep returning a plain string.
+    A renderer that owns a multi-file build (frames, manifest, video) returns
+    this instead, so the registry can carry the build id and manifest path
+    without a second output channel. ``status`` is the *declared* terminal
+    state; the registry refuses anything other than ``completed``.
+    """
+
+    status: Literal["completed", "cancelled", "failed"] = "completed"
+    html: str = ""
+    build_id: str = ""
+    artifacts: tuple[Path, ...] = field(default_factory=tuple)
+    manifest: Path | None = None
+    message: str = ""
 
 
 @dataclass(frozen=True)
@@ -90,6 +118,15 @@ class Renderer(ABC):
 
         return []
 
+    def environment_error_code(self) -> str:
+        """Failure code used when ``check_environment`` is not empty.
+
+        A renderer that refuses the whole host (for example an unsupported
+        platform) overrides this so the caller sees the real reason.
+        """
+
+        return "environment_unavailable"
+
     def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
         return ResourceEstimate()
 
@@ -105,11 +142,13 @@ class Renderer(ABC):
         return []
 
     @abstractmethod
-    def render(self, spec: VisualSpec, context: RenderContext) -> str:
+    def render(self, spec: VisualSpec, context: RenderContext) -> str | RenderResult:
         """Return the rendered artifact; raise RenderError on failure."""
 
     @abstractmethod
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         """Return problems with the spec or output; an empty list means valid."""
 
 
@@ -160,7 +199,9 @@ class TableRenderer(Renderer):
         parts.append("</table>")
         return "".join(parts)
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         problems: list[str] = []
         columns = spec.data.get("columns")
         rows = spec.data.get("rows")
@@ -213,7 +254,9 @@ class FigureRenderer(Renderer):
         parts.append("</figure>")
         return "".join(parts)
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         problems: list[str] = []
         if not str(spec.data.get("path") or ""):
             problems.append(f"visual '{spec.visual_id}': path is required")
@@ -267,7 +310,9 @@ class CustomSvgRenderer(Renderer):
             raise RenderError("; ".join(problems))
         return _figure(svg, alt, str(spec.data.get("caption") or ""), css_class="svg-visual")
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         problems: list[str] = []
         if not str(spec.data.get("alt") or ""):
             problems.append(f"visual '{spec.visual_id}': alt text is required")
@@ -347,7 +392,9 @@ class VegaLiteRenderer(Renderer):
             css_class="data-chart",
         )
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         problems: list[str] = []
         if not isinstance(spec.data.get("vega_lite"), dict):
             problems.append(f"visual '{spec.visual_id}': vega_lite spec is missing")
@@ -535,7 +582,9 @@ class MermaidRenderer(Renderer):
             css_class="mermaid-diagram",
         )
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         problems: list[str] = []
         if "<svg" not in html:
             problems.append(f"visual '{spec.visual_id}': renderer produced no SVG element")
@@ -667,7 +716,9 @@ class GraphvizRenderer(Renderer):
             css_class="graphviz-diagram",
         )
 
-    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+    def validate(
+        self, spec: VisualSpec, html: str, context: RenderContext | None = None
+    ) -> list[str]:
         if "<svg" not in html:
             return [f"visual '{spec.visual_id}': renderer produced no SVG element"]
         return []
@@ -799,31 +850,58 @@ class RendererRegistry:
         environment = renderer.check_environment()
         if environment:
             self._fail(spec, renderer, "environment", environment)
-            raise RenderError(f"renderer '{renderer.name}' is not ready: " + "; ".join(environment))
+            raise RenderError(
+                f"renderer '{renderer.name}' is not ready: " + "; ".join(environment),
+                code=renderer.environment_error_code(),
+                stage="environment",
+            )
 
         input_problems = renderer.validate_input(spec)
         if input_problems:
             self._fail(spec, renderer, "input", input_problems)
-            raise RenderError("; ".join(input_problems))
+            raise RenderError("; ".join(input_problems), code="invalid_input", stage="input")
 
         render_context = context or RenderContext()
         try:
-            html = renderer.render(spec, render_context)
+            outcome = renderer.render(spec, render_context)
         except RenderError as exc:
             self._fail(spec, renderer, "render", [str(exc)])
             raise
 
-        problems = renderer.validate(spec, html)
+        if isinstance(outcome, RenderResult):
+            if outcome.status == "cancelled":
+                self._fail(spec, renderer, "render", [outcome.message or "cancelled"])
+                raise RenderCancelled(outcome.message or f"visual '{spec.visual_id}' was cancelled")
+            if outcome.status != "completed":
+                self._fail(spec, renderer, "render", [outcome.message or outcome.status])
+                raise RenderError(
+                    outcome.message or f"visual '{spec.visual_id}' did not complete",
+                    stage="render",
+                )
+            html = outcome.html
+            artifacts = list(outcome.artifacts)
+            build_id = outcome.build_id
+            manifest = outcome.manifest
+        else:
+            html = outcome
+            artifacts = []
+            build_id = ""
+            manifest = None
+
+        problems = renderer.validate(spec, html, render_context)
         if problems:
             self._fail(spec, renderer, "output", problems)
-            raise RenderError("; ".join(problems))
+            raise RenderError("; ".join(problems), code="output_corrupt", stage="output")
 
-        artifacts = renderer.collect_outputs(spec, render_context)
+        if not artifacts:
+            artifacts = renderer.collect_outputs(spec, render_context)
         return RenderOutput(
             html=html,
             renderer=renderer.name,
             renderer_version=renderer.version,
             artifacts=tuple(artifacts),
+            build_id=build_id,
+            manifest=manifest,
         )
 
     def _fail(self, spec: VisualSpec, renderer: Renderer, stage: str, problems: list[str]) -> None:

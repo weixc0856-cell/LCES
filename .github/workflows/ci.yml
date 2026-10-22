@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,6 +29,59 @@ jobs:
         run: uv run mypy src
       - name: Tests
         run: uv run pytest
+
+  motion-canvas-p1:
+    # P1 is Linux-only. This job runs the real editor; a missing dependency
+    # fails the job instead of skipping the integration test.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: npm
+          cache-dependency-path: motion/package-lock.json
+      - name: Install Motion Canvas dependencies
+        run: |
+          cd motion
+          npm ci --no-audit --no-fund
+          npm rebuild esbuild
+      - name: Install Chromium
+        run: cd motion && npx playwright install --with-deps chromium
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.13
+      - name: Sync dependencies (locked)
+        run: uv sync --locked
+      - name: Record environment
+        run: |
+          set -o pipefail
+          mkdir -p motion-evidence
+          node --version | tee motion-evidence/node-version.txt
+          npm --version | tee motion-evidence/npm-version.txt
+          (cd motion && npx playwright --version) | tee motion-evidence/playwright-version.txt
+          ffmpeg -version | sed -n '1p' | tee motion-evidence/ffmpeg-version.txt
+          uv run lces doctor | tee motion-evidence/doctor.txt
+      - name: Node contract tests
+        run: |
+          set -o pipefail
+          cd motion
+          node --test --test-reporter=tap contract.test.mjs | tee ../motion-evidence/contract-tests.tap
+      - name: Real title render
+        run: LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v --junitxml=motion-evidence/e2e-report.xml
+      - name: Upload P1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-canvas-p1-evidence
+          path: motion-evidence/
+          if-no-files-found: error
 
   graphviz:
     runs-on: ubuntu-latest

@@ -1,0 +1,152 @@
+import fs from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {crc32} from 'node:zlib';
+
+// Failure codes come from config/error_codes.json, the same file the Python
+// adapter loads. LCES_ERROR_CODES_PATH points at the copy used by a build
+// project; the default resolves to the repository copy.
+const DEFAULT_TABLE = fileURLToPath(new URL('../config/error_codes.json', import.meta.url));
+const tablePath = process.env.LCES_ERROR_CODES_PATH || DEFAULT_TABLE;
+export const ERROR_TABLE = JSON.parse(fs.readFileSync(tablePath, 'utf8')).codes;
+
+const camel = name => name.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+
+// Convenience constants keep call sites readable: CODES.frameMismatch.
+export const CODES = Object.fromEntries(
+  Object.keys(ERROR_TABLE).map(name => [camel(name), name]),
+);
+
+// P1 is admitted for Linux only (decision 2026-10-22). The entry point must
+// reject other platforms explicitly; Windows support requires a new P0 run.
+export const SUPPORTED_PLATFORMS = ['linux'];
+
+export function exitCodeFor(code) {
+  if (!(code in ERROR_TABLE)) {
+    throw new Error(`unknown LCES error code '${code}'`);
+  }
+  return ERROR_TABLE[code].exit_code;
+}
+
+export function terminalFor(code) {
+  if (!(code in ERROR_TABLE)) {
+    throw new Error(`unknown LCES error code '${code}'`);
+  }
+  return ERROR_TABLE[code].terminal;
+}
+
+export function assertSupportedPlatform(platform) {
+  if (!SUPPORTED_PLATFORMS.includes(platform)) {
+    throw new ContractError(
+      CODES.unsupportedPlatform,
+      `Motion Canvas P1 is Linux-only; ${platform} is not supported`,
+    );
+  }
+}
+
+export class ContractError extends Error {
+  constructor(code, message) {
+    if (!(code in ERROR_TABLE)) {
+      throw new Error(`ContractError constructed with unknown code '${code}'`);
+    }
+    super(message);
+    this.code = code;
+    this.name = 'ContractError';
+  }
+}
+
+// The editor's DOM text is "Render"/"Abort"; CSS only uppercases it visually.
+// ETA or loading classes never decide the state on their own.
+export function classifyState(labels) {
+  const lowered = labels.map(label => String(label).trim().toLowerCase());
+  const render = lowered.includes('render');
+  const abort = lowered.includes('abort');
+  if (render && abort) {
+    throw new ContractError(
+      CODES.driverProtocolMismatch,
+      'ambiguous render controls: render=true abort=true',
+    );
+  }
+  // A momentary absence happens while the editor swaps the controls; it is a
+  // non-terminal state, never idle/rendering and never a success signal.
+  if (!render && !abort) return 'transition';
+  return abort ? 'rendering' : 'idle';
+}
+
+export function assertEditorVersion(actual, expected) {
+  if (actual !== expected) {
+    throw new ContractError(
+      CODES.driverProtocolMismatch,
+      `editor version ${actual} does not match pinned ${expected}`,
+    );
+  }
+}
+
+export function validateFrameCount(actual, expected) {
+  if (actual !== expected) {
+    throw new ContractError(
+      CODES.frameMismatch,
+      `expected ${expected} frames, found ${actual}`,
+    );
+  }
+}
+
+export function isRenderComplete({state, frames, expected, stableSamples}) {
+  return state === 'idle' && frames === expected && stableSamples >= 2;
+}
+
+// Frame files are six-digit PNGs; screenshots and reports are not frames.
+export function countFrames(dir) {
+  let count = 0;
+  const walk = current => {
+    for (const entry of fs.readdirSync(current, {withFileTypes: true})) {
+      const full = current + '/' + entry.name;
+      if (entry.isDirectory()) walk(full);
+      else if (/^\d{6}\.png$/.test(entry.name)) count++;
+    }
+  };
+  if (fs.existsSync(dir)) walk(dir);
+  return count;
+}
+
+export function readPngSize(file) {
+  const data = fs.readFileSync(file);
+  const name = file.split('/').pop();
+  if (data.length < 33 || data.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+    throw new ContractError(CODES.outputCorrupt, `${name} is not a PNG`);
+  }
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let sawHeader = false;
+  let sawEnd = false;
+  while (offset + 12 <= data.length) {
+    const length = data.readUInt32BE(offset);
+    const type = data.subarray(offset + 4, offset + 8).toString('latin1');
+    const end = offset + 12 + length;
+    if (end > data.length) {
+      throw new ContractError(CODES.outputCorrupt, `${name} is truncated at ${type}`);
+    }
+    const expected = data.readUInt32BE(end - 4);
+    const actual = crc32(data.subarray(offset + 4, end - 4)) >>> 0;
+    if (expected !== actual) {
+      throw new ContractError(CODES.outputCorrupt, `${name} chunk ${type} CRC mismatch`);
+    }
+    if (!sawHeader && type !== 'IHDR') {
+      throw new ContractError(CODES.outputCorrupt, `${name} does not start with IHDR`);
+    }
+    if (type === 'IHDR') {
+      sawHeader = true;
+      width = data.readUInt32BE(offset + 8);
+      height = data.readUInt32BE(offset + 12);
+    }
+    if (type === 'IEND') {
+      sawEnd = true;
+      break;
+    }
+    offset = end;
+  }
+  if (!sawHeader || !sawEnd || !width || !height) {
+    throw new ContractError(CODES.outputCorrupt, `${name} is missing IHDR/IEND or dimensions`);
+  }
+  return {width, height};
+}
