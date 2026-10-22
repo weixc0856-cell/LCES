@@ -51,13 +51,13 @@ jobs:
       - name: Validate frames and output report
         run: |
           set -o pipefail
-          count=$(find evidence/render -name '*.png' | wc -l | tr -d ' ')
+          frame_dir=$(dirname "$(find evidence/render -name '000000.png' | head -1)")
+          echo "frame_dir=$frame_dir" | tee evidence/frame-dir.txt
+          count=$(find "$frame_dir" -name '*.png' | wc -l | tr -d ' ')
           echo "frame_count=$count" | tee evidence/frame-count.txt
           test "$count" -eq "$EXPECTED_FRAMES"
-          first=$(find evidence/render -name '*.png' | sort | head -1)
           ffprobe -v error -show_entries stream=width,height,codec_name \
-            -of default=nw=1 "$first" | tee evidence/frame-info.txt
-          frame_dir=$(dirname "$first")
+            -of default=nw=1 "$frame_dir/000000.png" | tee evidence/frame-info.txt
           ffmpeg -v error -framerate 30 -i "$frame_dir/%06d.png" -f null - \
             2>&1 | tee evidence/decode.log
           python3 - <<'PY'
