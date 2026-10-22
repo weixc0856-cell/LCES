@@ -158,6 +158,12 @@ def _animation_spec(
             code="invalid_input",
             stage="input",
         )
+    if scene_path.stat().st_size > 1_000_000:
+        raise RenderError(
+            f"visual '{identifier}': scene file exceeds 1 MB: {block.scene_file}",
+            code="invalid_input",
+            stage="input",
+        )
     try:
         payload = json.loads(scene_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
