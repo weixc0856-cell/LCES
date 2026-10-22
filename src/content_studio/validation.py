@@ -18,6 +18,7 @@ from content_studio.content import (
 )
 from content_studio.evidence import is_contradicted, review_state
 from content_studio.ingestion import load_registry
+from content_studio.media import MediaError, probe_media, subtitle_problems, tool_status
 from content_studio.models import (
     CheckResult,
     Claim,
@@ -732,13 +733,64 @@ def run_release_checks(
             )
         )
 
-    checks.append(
-        _check(
-            "gate_4_release",
-            "media_decode_check",
-            "not_run",
-            "视频/音频解码检查尚未实现（Phase 3）",
-            blocking=False,
+    checks.extend(_media_checks(release_root))
+    return checks
+
+
+def _media_checks(release_root: Path) -> list[CheckResult]:
+    """Gate 4 media checks: decode, audio presence, subtitle timing."""
+
+    media_dir = release_root / "media"
+    video = media_dir / "course.mp4"
+    subtitles = [
+        media_dir / name for name in ("course.srt", "course.vtt") if (media_dir / name).is_file()
+    ]
+    if not video.is_file() and not subtitles:
+        return [
+            _check(
+                "gate_4_release",
+                "media_decode_check",
+                "not_run",
+                "发布物未包含媒体文件",
+                blocking=False,
+            )
+        ]
+
+    available, reason = tool_status()
+    if not available:
+        return [_check("gate_4_release", "media_decode_check", "not_run", reason, blocking=False)]
+
+    checks: list[CheckResult] = []
+    duration: float | None = None
+    if video.is_file():
+        try:
+            info = probe_media(video)
+        except MediaError as exc:
+            checks.append(
+                _check("gate_4_release", "media_decodable", "fail", f"视频无法解码: {exc}")
+            )
+        else:
+            duration = info.duration_seconds
+            checks.append(
+                _check("gate_4_release", "media_decodable", "pass", f"视频可解码: {info.summary()}")
+            )
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "media_audio_present",
+                    "pass" if info.has_audio else "warn",
+                    f"音频流: {info.audio_codec}" if info.has_audio else "视频不含音频流",
+                    blocking=False,
+                )
+            )
+    for subtitle in subtitles:
+        problems = subtitle_problems(subtitle, duration)
+        checks.append(
+            _check(
+                "gate_4_release",
+                "subtitle_timing",
+                "fail" if problems else "pass",
+                "; ".join(problems) if problems else f"{subtitle.name} 字幕时间轴有效",
+            )
         )
-    )
     return checks

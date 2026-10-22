@@ -45,3 +45,7 @@ class RenderError(LCESError):
 
 class UnsupportedVisualType(LCESError):
     """No renderer is registered for the requested visual type."""
+
+
+class MediaError(LCESError):
+    """A media file could not be probed, decoded, or extracted."""

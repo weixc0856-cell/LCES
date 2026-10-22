@@ -17,6 +17,7 @@ from content_studio import __version__
 from content_studio.errors import ConfigurationError, LCESError
 from content_studio.evidence import review_claim
 from content_studio.ingestion import ingest_project
+from content_studio.media import extract_frames, probe_media
 from content_studio.models import (
     ContentOutline,
     EvidenceLedger,
@@ -291,7 +292,7 @@ def release_check(
             typer.secho(f"FAIL: {error}", fg=typer.colors.RED)
         _exit("发布检查未通过")
     typer.echo(f"发布检查通过: {root / 'release' / version}")
-    typer.echo("注意: 浏览器视觉回归与媒体解码检查仍为 NOT_RUN。")
+    typer.echo("注意: 标记为 NOT_RUN 的检查不代表通过；科学审查仍需人工完成。")
 
 
 @app.command()
@@ -598,6 +599,23 @@ def review_claims(
         f" {updated.reviewer} @ {updated.reviewed_at}"
     )
     typer.echo("提示: 重新运行 `lces validate` 让 Gate 1 反映该核验结果。")
+
+
+@app.command("media-check")
+@guarded
+def media_check(
+    media_file: Path = typer.Argument(..., exists=True, dir_okay=False),
+    frames: int = typer.Option(4, min=1, max=20, help="抽取的关键帧数量"),
+    out: Path = typer.Option(Path("var/media-frames"), "--out", help="关键帧输出目录"),
+) -> None:
+    """Probe a media file and sample frames for human review."""
+
+    info = probe_media(media_file)
+    typer.echo(f"{media_file.name}: {info.summary()}")
+    extracted = extract_frames(media_file, out / media_file.stem, count=frames)
+    for path in extracted:
+        typer.echo(f"  关键帧: {path}")
+    typer.echo("提示: 关键帧仅用于人工抽检；数值结果仍需单独核验。")
 
 
 def _run_single(project_dir: Path, stage: str, provider: str | None):
