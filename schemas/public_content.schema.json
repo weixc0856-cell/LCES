@@ -120,6 +120,39 @@
       "title": "CodeBlock",
       "type": "object"
     },
+    "DiagramBlock": {
+      "additionalProperties": false,
+      "description": "A flowchart or sequence diagram written in Mermaid source.",
+      "properties": {
+        "type": {
+          "const": "diagram",
+          "default": "diagram",
+          "title": "Type",
+          "type": "string"
+        },
+        "mermaid": {
+          "minLength": 1,
+          "title": "Mermaid",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mermaid",
+        "alt"
+      ],
+      "title": "DiagramBlock",
+      "type": "object"
+    },
     "FigureBlock": {
       "additionalProperties": false,
       "properties": {
@@ -178,6 +211,39 @@
       "title": "FormulaBlock",
       "type": "object"
     },
+    "GraphBlock": {
+      "additionalProperties": false,
+      "description": "A relationship graph written in Graphviz DOT.",
+      "properties": {
+        "type": {
+          "const": "graph",
+          "default": "graph",
+          "title": "Type",
+          "type": "string"
+        },
+        "dot": {
+          "minLength": 1,
+          "title": "Dot",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dot",
+        "alt"
+      ],
+      "title": "GraphBlock",
+      "type": "object"
+    },
     "ParagraphBlock": {
       "additionalProperties": false,
       "properties": {
@@ -220,8 +286,10 @@
                 "callout": "#/$defs/CalloutBlock",
                 "chart": "#/$defs/ChartBlock",
                 "code": "#/$defs/CodeBlock",
+                "diagram": "#/$defs/DiagramBlock",
                 "figure": "#/$defs/FigureBlock",
                 "formula": "#/$defs/FormulaBlock",
+                "graph": "#/$defs/GraphBlock",
                 "paragraph": "#/$defs/ParagraphBlock",
                 "quote": "#/$defs/QuoteBlock",
                 "table": "#/$defs/TableBlock"
@@ -249,6 +317,12 @@
               },
               {
                 "$ref": "#/$defs/ChartBlock"
+              },
+              {
+                "$ref": "#/$defs/DiagramBlock"
+              },
+              {
+                "$ref": "#/$defs/GraphBlock"
               },
               {
                 "$ref": "#/$defs/CalloutBlock"

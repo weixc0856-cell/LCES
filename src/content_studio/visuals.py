@@ -15,7 +15,9 @@ from pathlib import Path
 from content_studio.models import (
     AssetCheck,
     ChartBlock,
+    DiagramBlock,
     FigureBlock,
+    GraphBlock,
     PublicBlock,
     PublicContent,
     PublicSlide,
@@ -82,6 +84,24 @@ def _spec_for_block(slide_id: str, index: int, block: PublicBlock) -> VisualSpec
                 "alt": block.alt,
                 "caption": block.caption,
             },
+        )
+    if isinstance(block, DiagramBlock):
+        return VisualSpec(
+            visual_id=identifier,
+            visual_type="diagram",
+            title=block.caption,
+            data={
+                "mermaid": block.mermaid,
+                "alt": block.alt,
+                "caption": block.caption,
+            },
+        )
+    if isinstance(block, GraphBlock):
+        return VisualSpec(
+            visual_id=identifier,
+            visual_type="graph",
+            title=block.caption,
+            data={"dot": block.dot, "alt": block.alt, "caption": block.caption},
         )
     return None
 
@@ -160,6 +180,8 @@ _ASSET_TYPES = {
     "figure_image": "image",
     "custom_svg": "svg",
     "data_chart": "chart",
+    "diagram": "diagram",
+    "graph": "diagram",
 }
 
 

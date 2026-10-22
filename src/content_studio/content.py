@@ -61,6 +61,8 @@ PUBLIC_SYSTEM = """你是 LCES 的公开内容生成模块（tech-content-studio
 7. 正文应完整支持目标受众理解，不使用空泛填充。
 8. 只有 content/ 下已存在对应文件时才能使用 figure 块；模型不能创建图片，
    没有现成图表就改用表格或文字说明。
+9. 流程图与时序图使用 diagram 块，mermaid 字段只写 Mermaid 源码；不要写 HTML、
+   脚本、click 指令或 %%{init}%% 配置块。关系图可用 graph 块，dot 字段只写 DOT 源码。
 只输出符合给定 JSON Schema 的 JSON。"""
 
 SCRIPT_SYSTEM = """你是 LCES 的内部口播稿模块（tech-content-studio 第三部分）。

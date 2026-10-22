@@ -1,0 +1,136 @@
+import shutil
+import subprocess
+
+import pytest
+
+from content_studio import renderers
+from content_studio.errors import RenderError
+from content_studio.models import VisualSpec
+from content_studio.renderers import (
+    GraphvizRenderer,
+    RenderContext,
+    default_registry,
+    graphviz_status,
+)
+
+DOT = "digraph G { A -> B; B -> C; }"
+SVG = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">'
+    "<g><text>A</text></g></svg>"
+)
+
+
+def _spec(dot: str = DOT, alt: str = "关系图") -> VisualSpec:
+    return VisualSpec(
+        visual_id="graph-001",
+        visual_type="graph",
+        data={"dot": dot, "alt": alt},
+    )
+
+
+def _completed(stdout: str = "", stderr: str = "", code: int = 0):
+    return subprocess.CompletedProcess(args=["dot"], returncode=code, stdout=stdout, stderr=stderr)
+
+
+def _patch_dot(monkeypatch, run) -> None:
+    """Pretend Graphviz is installed, and stub the `dot` process itself."""
+
+    monkeypatch.setattr(renderers, "graphviz_dot_path", lambda: "dot")
+    monkeypatch.setattr(renderers, "graphviz_status", lambda: (True, "16.1.0 (dot)"))
+    monkeypatch.setattr(renderers.subprocess, "run", run)
+
+
+def test_missing_dot_reports_a_pinned_install_hint(monkeypatch):
+    monkeypatch.setattr(renderers, "graphviz_dot_path", lambda: None)
+    problems = GraphvizRenderer().check_environment()
+    assert len(problems) == 1
+    assert "Graphviz" in problems[0]
+    assert "16.1.0" in problems[0]
+
+
+def test_status_accepts_a_supported_version(monkeypatch):
+    monkeypatch.setattr(renderers, "graphviz_dot_path", lambda: "dot")
+    monkeypatch.setattr(
+        renderers.subprocess,
+        "run",
+        lambda *args, **kwargs: _completed(stderr="dot - graphviz version 16.1.0 (0)"),
+    )
+    available, detail = graphviz_status()
+    assert available is True
+    assert detail.startswith("16.1.0")
+
+
+def test_status_rejects_an_old_version(monkeypatch):
+    monkeypatch.setattr(renderers, "graphviz_dot_path", lambda: "dot")
+    monkeypatch.setattr(
+        renderers.subprocess,
+        "run",
+        lambda *args, **kwargs: _completed(stderr="dot - graphviz version 2.20.0 (0)"),
+    )
+    available, detail = graphviz_status()
+    assert available is False
+    assert "过低" in detail
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"dot": "", "alt": "x"},
+        {"dot": DOT, "alt": ""},
+        {"dot": DOT + "\n<script>alert(1)</script>", "alt": "x"},
+        {"dot": 'digraph G { A [label="<img onerror=alert(1)>"]; }', "alt": "x"},
+        {"dot": "x" * 20_001, "alt": "x"},
+    ],
+)
+def test_unsafe_or_incomplete_input_is_rejected(data):
+    spec = VisualSpec(visual_id="graph-001", visual_type="graph", data=data)
+    assert GraphvizRenderer().validate_input(spec)
+
+
+def test_render_writes_a_checked_svg_artifact(tmp_path, monkeypatch):
+    _patch_dot(monkeypatch, lambda *args, **kwargs: _completed(stdout=SVG))
+
+    output = default_registry().render(_spec(), RenderContext(output_dir=tmp_path))
+
+    assert output.renderer == "graphviz.dot"
+    assert "<svg" in output.html
+    assert 'aria-label="关系图"' in output.html
+    artifact = tmp_path / "visuals" / "graph-001.svg"
+    assert artifact.is_file()
+    assert artifact.read_text(encoding="utf-8").startswith("<svg")
+    assert output.artifacts == (artifact,)
+
+
+def test_dot_failure_is_not_swallowed(tmp_path, monkeypatch):
+    _patch_dot(
+        monkeypatch,
+        lambda *args, **kwargs: _completed(stderr="Error: syntax error in line 1", code=1),
+    )
+    with pytest.raises(RenderError, match="Graphviz 渲染失败"):
+        default_registry().render(_spec(), RenderContext(output_dir=tmp_path))
+
+
+def test_timeout_is_reported(tmp_path, monkeypatch):
+    def timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="dot", timeout=1)
+
+    _patch_dot(monkeypatch, timeout)
+    with pytest.raises(RenderError, match="超时"):
+        default_registry().render(_spec(), RenderContext(output_dir=tmp_path))
+
+
+def test_active_content_in_output_is_rejected(tmp_path, monkeypatch):
+    unsafe = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    _patch_dot(monkeypatch, lambda *args, **kwargs: _completed(stdout=unsafe))
+    with pytest.raises(RenderError, match="forbidden"):
+        default_registry().render(_spec(), RenderContext(output_dir=tmp_path))
+
+
+@pytest.mark.skipif(shutil.which("dot") is None, reason="Graphviz dot is not installed")
+def test_real_dot_renders_a_graph(tmp_path):
+    output = default_registry().render(_spec(), RenderContext(output_dir=tmp_path))
+    assert output.renderer == "graphviz.dot"
+    assert "<svg" in output.html
+    assert "foreignObject" not in output.html
+    assert (tmp_path / "visuals" / "graph-001.svg").is_file()

@@ -273,6 +273,24 @@ class ChartBlock(StrictModel):
         return self
 
 
+class DiagramBlock(StrictModel):
+    """A flowchart or sequence diagram written in Mermaid source."""
+
+    type: Literal["diagram"] = "diagram"
+    mermaid: str = Field(min_length=1)
+    alt: str = Field(min_length=1)
+    caption: str = ""
+
+
+class GraphBlock(StrictModel):
+    """A relationship graph written in Graphviz DOT."""
+
+    type: Literal["graph"] = "graph"
+    dot: str = Field(min_length=1)
+    alt: str = Field(min_length=1)
+    caption: str = ""
+
+
 class CalloutBlock(StrictModel):
     type: Literal["callout"] = "callout"
     kind: Literal["note", "warning", "limitation", "assumption"] = "note"
@@ -294,6 +312,8 @@ PublicBlock = Annotated[
         FigureBlock,
         TableBlock,
         ChartBlock,
+        DiagramBlock,
+        GraphBlock,
         CalloutBlock,
         QuoteBlock,
     ],

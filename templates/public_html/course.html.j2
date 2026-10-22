@@ -81,6 +81,10 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);marg
 {% endif %}
 {% elif block.type == "chart" %}
 {{ block.visual_html | safe }}
+{% elif block.type == "diagram" %}
+{{ block.visual_html | safe }}
+{% elif block.type == "graph" %}
+{{ block.visual_html | safe }}
 {% elif block.type == "callout" %}
 <div class="callout {{ block.kind }}">{{ block.text }}</div>
 {% elif block.type == "quote" %}

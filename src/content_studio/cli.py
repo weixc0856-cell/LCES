@@ -56,7 +56,12 @@ from content_studio.release import (
     load_qa_report,
     verify_release,
 )
-from content_studio.renderers import RenderContext, default_registry
+from content_studio.renderers import (
+    RenderContext,
+    default_registry,
+    graphviz_status,
+    mermaid_status,
+)
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
@@ -134,6 +139,11 @@ def doctor() -> None:
             _exit(f"错误: provider={provider} 但未配置 API key")
     if settings.routing_file:
         typer.echo(f"路由文件: {settings.routing_file}")
+
+    mermaid_ok, mermaid_detail = mermaid_status()
+    typer.echo(f"Mermaid: {'可用' if mermaid_ok else '不可用'} — {mermaid_detail}")
+    dot_ok, dot_detail = graphviz_status()
+    typer.echo(f"Graphviz: {'可用' if dot_ok else '不可用'} — {dot_detail}")
     typer.echo("配置检查完成；未测试网络连通性。")
 
 
