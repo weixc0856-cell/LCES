@@ -1,4 +1,5 @@
 from content_studio.models import (
+    BulletsBlock,
     ParagraphBlock,
     PublicContent,
     PublicSlide,
@@ -52,6 +53,27 @@ def test_reading_edition_renders(tmp_path):
     html = output.read_text(encoding="utf-8")
     assert "深入阅读内容" in html
     assert "Example et al. 2026" in html
+
+
+def test_bullets_block_renders(tmp_path):
+    """`items` is also a dict method; the template must read the key, not the method."""
+
+    content = PublicContent(
+        project_id="test-course",
+        title="要点",
+        slides=[
+            PublicSlide(
+                slide_id="slide-001",
+                title="列表",
+                body=[BulletsBlock(items=["第一点", "第二点"])],
+            )
+        ],
+    )
+    html = build_public_html(content, template_dir(), tmp_path / "index.html").read_text(
+        encoding="utf-8"
+    )
+    assert "<li>第一点</li>" in html
+    assert "<li>第二点</li>" in html
 
 
 def test_public_builder_escapes_html(tmp_path):

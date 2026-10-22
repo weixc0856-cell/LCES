@@ -57,7 +57,7 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);marg
 {% if block.type == "paragraph" %}
 <p>{{ block.text }}</p>
 {% elif block.type == "bullets" %}
-<ul>{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ul>
+<ul>{% for item in block["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
 {% elif block.type == "formula" %}
 <div class="formula">{{ block.latex }}</div>
 {% if block.explanation %}<p class="figure-caption">{{ block.explanation }}</p>{% endif %}
