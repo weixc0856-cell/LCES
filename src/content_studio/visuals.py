@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from content_studio.models import (
+    ChartBlock,
     FigureBlock,
     PublicBlock,
     PublicContent,
@@ -65,6 +66,17 @@ def _spec_for_block(slide_id: str, index: int, block: PublicBlock) -> VisualSpec
             visual_type="figure_image",
             title=block.caption,
             data={"path": block.path, "alt": block.alt, "caption": block.caption},
+        )
+    if isinstance(block, ChartBlock):
+        return VisualSpec(
+            visual_id=identifier,
+            visual_type="data_chart",
+            title=block.caption,
+            data={
+                "vega_lite": block.spec,
+                "alt": block.alt,
+                "caption": block.caption,
+            },
         )
     return None
 

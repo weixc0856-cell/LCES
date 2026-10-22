@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from content_studio.errors import ConfigurationError, RenderError, UnsupportedVisualType
 from content_studio.models import (
+    ChartBlock,
     FigureBlock,
     ParagraphBlock,
     PublicContent,
@@ -207,3 +208,117 @@ def test_render_content_visuals_returns_positions():
     rendered = render_content_visuals(_content())
     assert len(rendered) == 1
     assert (rendered[0].slide_id, rendered[0].block_index) == ("slide-001", 1)
+
+
+VEGA_SPEC = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "data": {"values": [{"x": "A", "y": 1}, {"x": "B", "y": 3}]},
+    "mark": "bar",
+    "encoding": {
+        "x": {"field": "x", "type": "nominal"},
+        "y": {"field": "y", "type": "quantitative"},
+    },
+}
+
+
+def _chart_block(spec: dict | None = None) -> ChartBlock:
+    return ChartBlock(caption="示例图表", alt="柱状图", spec=spec or VEGA_SPEC)
+
+
+def test_chart_block_maps_to_data_chart_spec():
+    content = PublicContent(
+        project_id="render-test",
+        title="渲染测试",
+        slides=[
+            PublicSlide(
+                slide_id="slide-001",
+                title="第一节",
+                body=[ParagraphBlock(text="正文"), _chart_block()],
+            )
+        ],
+    )
+    specs = specs_for_slide(content.slides[0])
+    assert [spec.visual_type for spec in specs] == ["data_chart"]
+    assert specs[0].data["vega_lite"]["mark"] == "bar"
+
+
+def test_custom_svg_requires_alt_and_blocks_unsafe_markup(tmp_path):
+    charts = tmp_path / "content" / "charts"
+    charts.mkdir(parents=True)
+    (charts / "ok.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>',
+        encoding="utf-8",
+    )
+    (charts / "script.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+        encoding="utf-8",
+    )
+    (charts / "remote.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://evil/x.png"/></svg>',
+        encoding="utf-8",
+    )
+
+    def spec(path: str) -> VisualSpec:
+        return VisualSpec(
+            visual_id="slide-001-block-01",
+            visual_type="custom_svg",
+            data={"path": path, "alt": "示意"},
+        )
+
+    output = default_registry().render(spec("charts/ok.svg"), RenderContext(project_dir=tmp_path))
+    assert "<svg" in output.html
+    assert 'role="img"' in output.html
+    assert output.renderer == "svg.custom"
+
+    with pytest.raises(RenderError, match="script"):
+        default_registry().render(spec("charts/script.svg"), RenderContext(project_dir=tmp_path))
+    with pytest.raises(RenderError, match="external reference"):
+        default_registry().render(spec("charts/remote.svg"), RenderContext(project_dir=tmp_path))
+    with pytest.raises(RenderError, match="must live under content"):
+        default_registry().render(spec("../outside.svg"), RenderContext(project_dir=tmp_path))
+
+
+def test_vega_lite_chart_renders_static_svg(tmp_path):
+    pytest.importorskip("vl_convert")
+    spec = VisualSpec(
+        visual_id="slide-001-block-01",
+        visual_type="data_chart",
+        data={"vega_lite": VEGA_SPEC, "alt": "柱状图", "caption": "示例"},
+    )
+    output = default_registry().render(spec, RenderContext(output_dir=tmp_path))
+
+    assert output.renderer == "vega_lite.chart"
+    assert "<svg" in output.html
+    assert 'role="img"' in output.html
+    assert "max-width:100%" in output.html
+    assert "<script" not in output.html.lower()
+    artifact = tmp_path / "visuals" / "slide-001-block-01.svg"
+    assert artifact.is_file()
+    assert artifact.read_text(encoding="utf-8").startswith("<svg")
+
+
+def test_invalid_vega_spec_fails_with_a_clear_message(tmp_path):
+    pytest.importorskip("vl_convert")
+    spec = VisualSpec(
+        visual_id="slide-001-block-01",
+        visual_type="data_chart",
+        data={"vega_lite": {"mark": "nonsense"}, "alt": "坏图"},
+    )
+    with pytest.raises(RenderError, match="Vega-Lite rendering failed"):
+        default_registry().render(spec, RenderContext(output_dir=tmp_path))
+
+
+def test_legacy_path_rejects_chart_blocks(tmp_path):
+    content = PublicContent(
+        project_id="render-test",
+        title="渲染测试",
+        slides=[
+            PublicSlide(
+                slide_id="slide-001",
+                title="第一节",
+                body=[_chart_block()],
+            )
+        ],
+    )
+    with pytest.raises(RenderError, match="chart blocks require the renderer registry"):
+        build_public_html(content, template_dir(), tmp_path / "index.html", use_registry=False)

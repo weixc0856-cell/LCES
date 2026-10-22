@@ -232,6 +232,24 @@ class TableBlock(StrictModel):
         return self
 
 
+class ChartBlock(StrictModel):
+    """A statistical chart described by data plus a Vega-Lite spec.
+
+    The rendered SVG is derived at build time; the block carries no markup.
+    """
+
+    type: Literal["chart"] = "chart"
+    caption: str = ""
+    alt: str = Field(min_length=1)
+    spec: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _non_empty_spec(self) -> ChartBlock:
+        if not self.spec:
+            raise ValueError("chart spec must not be empty")
+        return self
+
+
 class CalloutBlock(StrictModel):
     type: Literal["callout"] = "callout"
     kind: Literal["note", "warning", "limitation", "assumption"] = "note"
@@ -252,6 +270,7 @@ PublicBlock = Annotated[
         CodeBlock,
         FigureBlock,
         TableBlock,
+        ChartBlock,
         CalloutBlock,
         QuoteBlock,
     ],

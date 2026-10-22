@@ -57,6 +57,38 @@
       "title": "CalloutBlock",
       "type": "object"
     },
+    "ChartBlock": {
+      "additionalProperties": false,
+      "description": "A statistical chart described by data plus a Vega-Lite spec.\n\nThe rendered SVG is derived at build time; the block carries no markup.",
+      "properties": {
+        "type": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Type",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "spec": {
+          "additionalProperties": true,
+          "title": "Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "alt"
+      ],
+      "title": "ChartBlock",
+      "type": "object"
+    },
     "CodeBlock": {
       "additionalProperties": false,
       "properties": {
@@ -186,6 +218,7 @@
               "mapping": {
                 "bullets": "#/$defs/BulletsBlock",
                 "callout": "#/$defs/CalloutBlock",
+                "chart": "#/$defs/ChartBlock",
                 "code": "#/$defs/CodeBlock",
                 "figure": "#/$defs/FigureBlock",
                 "formula": "#/$defs/FormulaBlock",
@@ -213,6 +246,9 @@
               },
               {
                 "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/ChartBlock"
               },
               {
                 "$ref": "#/$defs/CalloutBlock"

@@ -79,6 +79,8 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);marg
 <tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
 </table>
 {% endif %}
+{% elif block.type == "chart" %}
+{{ block.visual_html | safe }}
 {% elif block.type == "callout" %}
 <div class="callout {{ block.kind }}">{{ block.text }}</div>
 {% elif block.type == "quote" %}

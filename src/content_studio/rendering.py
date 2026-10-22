@@ -11,7 +11,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from content_studio.models import PublicContent, ReadingEdition
+from content_studio.errors import RenderError
+from content_studio.models import ChartBlock, PublicContent, ReadingEdition
 from content_studio.visuals import render_content_visuals, write_render_manifest
 
 
@@ -34,6 +35,17 @@ def _copy_charts(project_dir: Path, output_dir: Path) -> None:
         shutil.copytree(charts, output_dir / "charts", dirs_exist_ok=True)
 
 
+def _reject_registry_only_blocks(content: PublicContent) -> None:
+    """The legacy template path cannot produce rendered charts; say so."""
+
+    for slide in content.slides:
+        for block in slide.body:
+            if isinstance(block, ChartBlock):
+                raise RenderError(
+                    f"slide {slide.slide_id}: chart blocks require the renderer registry"
+                )
+
+
 def build_public_html(
     content: PublicContent,
     template_dir: Path,
@@ -43,6 +55,8 @@ def build_public_html(
     use_registry: bool = True,
 ) -> Path:
     data = content.model_dump(mode="json")
+    if not use_registry:
+        _reject_registry_only_blocks(content)
     if use_registry:
         rendered = render_content_visuals(
             content, project_dir=project_dir, output_dir=output_path.parent
