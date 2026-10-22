@@ -411,13 +411,16 @@ class MotionCanvasRenderer(Renderer):
                 reported = str(report["error_code"])
                 code = reported if reported in ERROR_CODES else "render_failed"
                 raise RenderError(
-                    f"driver reported {reported}: {report.get('terminal', 'failed')}",
+                    f"driver reported {reported}: {report.get('terminal', 'failed')}"
+                    f"{_log_tail(log_path)}",
                     code=code,
                     stage=ERROR_CODES[code].stage,
                 )
             if returncode != 0:
                 raise RenderError(
-                    f"driver exited with {returncode}", code="render_failed", stage="render"
+                    f"driver exited with {returncode}{_log_tail(log_path)}",
+                    code="render_failed",
+                    stage="render",
                 )
             if report.get("terminal") != "completed" or not report.get("finished"):
                 raise RenderError(
@@ -701,9 +704,22 @@ def _driver_env(
             "BUILD_ID": build_id,
             "MAX_RENDER_MS": str(max_render_ms),
             "LCES_ERROR_CODES_PATH": str(ERROR_CODES_PATH),
+            "MC_OUTPUT_DIR": str(output_dir),
+            "MC_NODE_MODULES": str(motion_project_dir() / "node_modules"),
         }
     )
     return env
+
+
+def _log_tail(path: Path, limit: int = 1200) -> str:
+    """Keep the end of the driver log in the failure, not only on disk."""
+
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    tail = text.strip()[-limit:]
+    return f"; driver log: {tail}" if tail else ""
 
 
 def _load_report(path: Path, build_id: str) -> dict[str, Any]:
