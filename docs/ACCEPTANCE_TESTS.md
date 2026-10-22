@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 92 passed |
+| `pytest -q` | 104 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -19,6 +19,7 @@ is considered passing because the code exists.
 | `lces render-spec` (Vega-Lite chart) | static SVG rendered offline; Chromium check 0 errors/0 overflow |
 | `lces validate` (Gate 1) | model-set `verified` without reviewer treated as unverified |
 | `lces review-claims` | writes reviewer/time; rejects unknown status and empty reviewer |
+| `lces media-check` | probes duration/resolution/codecs and samples keyframes (FFmpeg required) |
 
 ## Environment
 
@@ -59,6 +60,9 @@ is considered passing because the code exists.
   anonymous-status demotion, generation-time reset, contradicted-claim
   blocking, pending warnings, and broken claims files; `tests/test_cli.py`
   covers `review-claims`.
+- Media: `tests/test_media.py` generates a real clip with FFmpeg and covers
+  probing, corrupt files, frame extraction, SRT/VTT timing, and Gate 4
+  verdicts (skipped when FFmpeg is absent).
 
 ## Manual checks that automation cannot replace
 

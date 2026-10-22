@@ -1,8 +1,8 @@
 # Implementation Status
 
 Updated for the Phase 0 baseline, Phase 1 browser QA, Phase 2 renderer registry,
-Phase 3 chart/SVG backends, and Phase 4 evidence governance (package version
-0.6.0).
+Phase 3 chart/SVG backends, Phase 4 evidence governance, and Phase 5 media
+checks (package version 0.7.0).
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -13,7 +13,7 @@ by a working code path.
 |---|---|---|
 | Python 3.13 pin / project `.venv` | Implemented | `.python-version`, `requires-python`, `scripts/bootstrap.*`, VS Code interpreter path |
 | Dependency groups + lock workflow | Implemented | `dev` group installed by `uv sync`; regenerate `uv.lock` locally after changes |
-| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`) | Implemented | |
+| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`, `media-check`) | Implemented | |
 | Unified Pydantic contracts | Implemented | `models.py`; JSON Schema export command |
 | SQLite task/stage/asset/approval records | Implemented | `storage.py`; state machine values from PRD |
 | DeepSeek adapter (OpenAI-compatible) | Implemented | `httpx`, timeout, bounded retry, usage extraction |
@@ -45,7 +45,9 @@ by a working code path.
 | Broken claims handling | Implemented | `claims.json` parse failures fail Gate 1 instead of becoming "no claims" |
 | Gate 2 content checks | Partial | Schema, mapping, markers, citations, mock detection, duration estimate |
 | Gate 3 engineering checks | Implemented | Build/UTF-8/markers/figures plus Playwright page load, JS errors, resource loads, overflow at five viewports; screenshot baselines |
-| Gate 4 release checks | Partial | Allowlist/markers/secrets/hashes/approval; media decode `NOT_RUN` |
+| Gate 4 release checks | Partial | Allowlist/markers/secrets/hashes/approval; media decode, audio presence, and subtitle timing when media is present |
+| Media probing and frame sampling | Implemented | `media.py` + `lces media-check`; ffprobe metadata, FFmpeg frame extraction for review |
+| Subtitle timing checks | Implemented | SRT/VTT cues must be ordered, non-inverted, and inside the video duration |
 | Release staging + manifest + ZIP | Implemented | ZIP built only from `release/` tree |
 | Human approval recording | Implemented | File + SQLite; not a web UI |
 | Failure recovery | Partial | Stage-scoped rerun with task records; no automatic retry queue |
@@ -54,6 +56,7 @@ by a working code path.
 | Playwright browser QA | Implemented | Optional `browser` extra; checks page load, JS errors, resources, overflow at 1280/1920/2560/3840/mobile viewports |
 | Visual regression | Partial | Screenshot baselines compared byte-for-byte; differences are `warn` for human review, no pixel-diff tooling yet |
 | SVG/Canvas scene engine, frame export | Not implemented | `scene_render_contract` schema only |
+| Video/animation generation (Manim/Remotion) | Not implemented | FFmpeg is used for inspection only |
 | FFmpeg video, subtitles, media checks | Not implemented | Phase 3 |
 | Local web interface | Not implemented | Phase 6 |
 | CI workflow | Partial | `test` job runs pytest/ruff/mypy on Python 3.13; `browser-qa` job installs Chromium and runs the browser tests. Neither job has been observed running on GitHub from this environment |
@@ -66,16 +69,18 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 92 passed |
+| `pytest -q` | 104 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | no issues in 28 source files |
+| `mypy src` | no issues in 29 source files |
 | `lces run` (local `Qwen3.5-4B`, arXiv 1706.03762) | all 6 stages completed; browser QA established 10 baselines; Gate 3 passed |
 | `lces run --only build` through the registry | table rendered by `html.table` 1.0.0; manifest hash recorded; screenshots still match baseline |
 | `lces render-spec` (unknown `visual_type`) | exits 1 with `UnsupportedVisualType`; no placeholder output |
 | `lces render-spec` (Vega-Lite BLEU chart) | `vega_lite.chart` 1.0.0, 9.9 KB SVG, no script; Chromium: 0 JS errors, 0 broken assets, 0 overflow at desktop and 390 px |
 | `lces validate` (real project, Gate 1) | model-written `verified` evidence reported as unverified (no reviewer); key claims pending — warnings only, no blocking failure |
 | `lces review-claims` | rejects unknown status and empty reviewer; records reviewer + `reviewed_at` in `claims.json` |
+| `lces media-check` (2 s test clip) | 640x360, 2.00 s, mpeg4 + aac; three keyframes written |
+| Gate 4 media checks | corrupt video fails; valid video plus in-range subtitles passes; no media reports `NOT_RUN` |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
 
 These results validate the implemented checks only. They do not prove

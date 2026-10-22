@@ -141,7 +141,7 @@ git push -u origin main
 - Gate 1：来源台账、证据引用可解析、关键主张有支持证据、核验状态可解析；被证据否定的关键主张直接阻断，未核验项告警；科学审查为 `NOT_RUN`。详见 `docs/EVIDENCE_GOVERNANCE.md`。
 - Gate 2：公开模型校验、讲稿独立与章节映射、公开文本无内部标记、引用存在、mock 内容禁止发布、时长偏差告警。
 - Gate 3：HTML 构建、UTF-8、内部标记、图表文件存在、外部资源告警；安装浏览器依赖后还会用 Chromium 实际渲染，检查页面加载、JavaScript 错误、资源加载、桌面/16:9/2K/4K/移动视口横向溢出，并保存基准截图（见下节）。
-- Gate 4：白名单、内部标记、密钥模式、清单哈希、人工审批；媒体解码为 `NOT_RUN`。
+- Gate 4：白名单、内部标记、密钥模式、清单哈希、人工审批；发布物含媒体时用 FFmpeg 检查解码、音频流与字幕时间轴，否则该项为 `NOT_RUN`。
 
 ### 证据核验（Phase 4）
 
@@ -154,6 +154,16 @@ uv run lces validate .\projects\<project>
 ```
 
 `contradicted` 会直接阻断发布；`pending` / `partially_supported` / `insufficient_evidence` 只告警。状态词表与门禁清单见 `docs/EVIDENCE_GOVERNANCE.md`。
+
+### 媒体检查（Phase 5）
+
+发布目录含 `media/course.mp4`、`course.srt` 或 `course.vtt` 时，Gate 4 用 FFmpeg 实际解码并检查时长、分辨率、音频流与字幕时间轴；没有媒体则记 `NOT_RUN`，FFmpeg 未安装同样记 `NOT_RUN` 并说明缺哪个工具。手工抽检：
+
+```powershell
+uv run lces media-check .\build\media\course.mp4 --frames 4
+```
+
+关键帧写入 `var/media-frames/`，仅供人工查看——能解码不代表内容正确。LCES 目前不做视频**生成**（Manim/Remotion/ParaView 未接入），边界与追溯要求见 `docs/MEDIA.md`。
 
 ### 浏览器 QA（Phase 1）
 
@@ -188,6 +198,7 @@ src/content_studio/
 ├── ingestion.py        本地/URL/PDF/DOCX/HTML 采集
 ├── research.py         主张、证据、研究简报
 ├── evidence.py         核验状态与人工主张复核
+├── media.py            FFmpeg 探测、关键帧抽取、字幕时间轴检查
 ├── content.py          大纲、公开内容、口播稿、阅读版
 ├── rendering.py        Jinja2 公开 HTML（经渲染器注册表输出视觉块）
 ├── renderers.py        渲染器接口与注册表（table / figure / custom SVG / Vega-Lite）
@@ -205,7 +216,7 @@ src/content_studio/
 
 ## 尚未实现
 
-真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、SVG/Canvas 场景引擎、FFmpeg 视频与字幕、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
+真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、SVG/Canvas 场景引擎、视频与动画生成（当前仅做解码与字幕检查）、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
 
 ## 安全与版权
 

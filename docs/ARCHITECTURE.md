@@ -15,6 +15,7 @@ end-to-end path; it does not attempt a general agent platform.
 | Ingestion | `ingestion.py` | Local/URL/PDF/DOCX/HTML/Markdown acquisition, hashing, snapshots |
 | Research | `research.py` | Claims, evidence ledger, research brief, unknown/conflict tracking; model-reported review states are reset |
 | Evidence review | `evidence.py` | Canonical review states, named-reviewer rule, `lces review-claims` |
+| Media checks | `media.py` | ffprobe metadata, FFmpeg frame sampling, SRT/VTT timing; used by Gate 4 |
 | Content | `content.py` | Outline, public content, speaker script, reading edition |
 | Rendering | `rendering.py` + `templates/` | Public HTML from public-only models |
 | Providers | `providers/` | Provider-neutral interface; DeepSeek, Anthropic, local llama.cpp, Mock |
@@ -116,7 +117,8 @@ downstream assets without re-fetching sources.
 
 ## Explicit non-goals in Phase 1
 
-Browser frame export, FFmpeg encoding, subtitles, web UI, multi-model routing,
-cache/incremental builds. These are reported as `NOT_RUN` rather than silently
-treated as passing. Browser rendering and screenshot baselines are implemented
-in Gate 3 (`browser_qa.py`) as an optional extra.
+Browser frame export, FFmpeg encoding/video generation, web UI,
+multi-model routing, cache/incremental builds. These are reported as `NOT_RUN`
+rather than silently treated as passing. Browser rendering, screenshot
+baselines, and media decode/subtitle checks are implemented (Gate 3 and
+Gate 4).
