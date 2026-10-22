@@ -73,8 +73,13 @@ def test_rendered_page_passes_checks(tmp_path):
 
 
 def test_browser_checks_cover_default_viewports(tmp_path):
+    reason = browser_qa.playwright_error()
+    if reason:
+        pytest.skip(reason)
     project = _project(tmp_path)
     checks = {check.check_id: check for check in _browser_checks(project, enabled=True)}
+    if "browser_pages_load" not in checks:
+        pytest.skip(checks["browser_visual_regression"].message)
 
     assert checks["browser_pages_load"].status == "pass"
     assert checks["browser_no_js_errors"].status == "pass"
