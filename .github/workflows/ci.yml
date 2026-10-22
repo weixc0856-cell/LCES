@@ -48,6 +48,10 @@ jobs:
     timeout-minutes: 40
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    defaults:
+      run:
+        # Container jobs default to sh, which has no pipefail.
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
