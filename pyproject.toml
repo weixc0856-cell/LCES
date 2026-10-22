@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "local-content-engineering-studio"
-version = "0.2.0"
+version = "0.3.0"
 description = "Evidence-driven local AI content and course production pipeline"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
@@ -24,6 +24,9 @@ dependencies = [
 [project.optional-dependencies]
 # Intentional opt-in for the media phase; not installed by `uv sync`.
 media = ["playwright>=1.48,<2.0"]
+# Phase 1 browser QA. Install with `uv sync --extra browser`, then
+# `uv run playwright install chromium`.
+browser = ["playwright>=1.48,<2.0"]
 
 [dependency-groups]
 # Installed by default by `uv sync` (uv's "dev" group).

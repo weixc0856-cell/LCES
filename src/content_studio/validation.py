@@ -10,6 +10,7 @@ import json
 import re
 from pathlib import Path
 
+from content_studio.browser_qa import OVERFLOW_TOLERANCE_PX, BrowserQAResult, run_browser_qa
 from content_studio.content import (
     load_outline,
     load_public_content,
@@ -94,7 +95,137 @@ def _generation_providers(project_dir: Path) -> set[str]:
     }
 
 
-def run_validation(project_dir: Path, config: ProjectConfig, template_dir: Path) -> QAReport:
+def _browser_checks(project_dir: Path, *, enabled: bool) -> list[CheckResult]:
+    """Gate 3 browser checks; never claim PASS when no browser ran."""
+
+    if not enabled:
+        return [
+            _check(
+                "gate_3_engineering",
+                "browser_visual_regression",
+                "not_run",
+                "已通过 LCES_BROWSER_QA=0 关闭浏览器检查",
+                blocking=False,
+            )
+        ]
+
+    result = run_browser_qa(project_dir)
+    if not result.ran:
+        return [
+            _check(
+                "gate_3_engineering",
+                "browser_visual_regression",
+                "not_run",
+                result.reason or "浏览器检查未运行",
+                blocking=False,
+            )
+        ]
+    return _browser_result_checks(result)
+
+
+def _browser_result_checks(result: BrowserQAResult) -> list[CheckResult]:
+    visits = result.visits
+    total = len(visits)
+
+    failed_loads = [f"{visit.page}@{visit.viewport}" for visit in visits if not visit.loaded]
+    checks: list[CheckResult] = []
+    checks.append(
+        _check(
+            "gate_3_engineering",
+            "browser_pages_load",
+            "fail" if failed_loads else "pass",
+            "加载失败: " + ", ".join(failed_loads)
+            if failed_loads
+            else f"{total} 个页面/视口组合均加载成功",
+        )
+    )
+
+    js_errors = [
+        f"{visit.page}@{visit.viewport}: {error}"
+        for visit in visits
+        for error in visit.javascript_errors
+    ]
+    checks.append(
+        _check(
+            "gate_3_engineering",
+            "browser_no_js_errors",
+            "fail" if js_errors else "pass",
+            "未处理的 JavaScript 错误: " + "; ".join(js_errors[:3])
+            if js_errors
+            else "页面运行期无未处理 JavaScript 错误",
+        )
+    )
+
+    broken = [
+        f"{visit.page}@{visit.viewport}: {item}"
+        for visit in visits
+        for item in [*visit.broken_images, *visit.failed_requests]
+        if "favicon.ico" not in item
+    ]
+    checks.append(
+        _check(
+            "gate_3_engineering",
+            "browser_resources_loaded",
+            "fail" if broken else "pass",
+            "资源加载失败: " + "; ".join(broken[:3]) if broken else "本地图片与资源均加载成功",
+        )
+    )
+
+    worst = max(visits, key=lambda visit: visit.overflow_px, default=None)
+    overflow = worst is not None and worst.overflow_px > OVERFLOW_TOLERANCE_PX
+    checks.append(
+        _check(
+            "gate_3_engineering",
+            "browser_layout_no_overflow",
+            "fail" if overflow else "pass",
+            f"视口 {worst.viewport} 出现 {worst.overflow_px}px 横向溢出"
+            if overflow and worst is not None
+            else f"{total} 个视口均无横向溢出",
+        )
+    )
+
+    screenshots = f"截图: internal/qa/screenshots（{total} 张）"
+    if result.visual_changes:
+        changed = ", ".join(result.visual_changes)
+        checks.append(
+            _check(
+                "gate_3_engineering",
+                "browser_visual_regression",
+                "warn",
+                f"与基准截图不同: {changed}；需人工确认。{screenshots}",
+                blocking=False,
+            )
+        )
+    elif result.baselines_created:
+        checks.append(
+            _check(
+                "gate_3_engineering",
+                "browser_visual_regression",
+                "pass",
+                f"已建立基准截图 {len(result.baselines_created)} 张。{screenshots}",
+                blocking=False,
+            )
+        )
+    else:
+        checks.append(
+            _check(
+                "gate_3_engineering",
+                "browser_visual_regression",
+                "pass",
+                f"与基准截图一致。{screenshots}",
+                blocking=False,
+            )
+        )
+    return checks
+
+
+def run_validation(
+    project_dir: Path,
+    config: ProjectConfig,
+    template_dir: Path,
+    *,
+    browser_qa: bool = True,
+) -> QAReport:
     project_dir = project_dir.resolve()
     checks: list[CheckResult] = []
 
@@ -388,15 +519,7 @@ def run_validation(project_dir: Path, config: ProjectConfig, template_dir: Path)
             )
         )
 
-    checks.append(
-        _check(
-            "gate_3_engineering",
-            "browser_visual_regression",
-            "not_run",
-            "Playwright 浏览器渲染与视觉回归尚未实现（Phase 3）",
-            blocking=False,
-        )
-    )
+    checks.extend(_browser_checks(project_dir, enabled=browser_qa))
 
     report = QAReport(
         project_id=config.project_id,

@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # Keep research prompts inside a small local context window (~8K–16K tokens).
     local_prompt_char_budget: int = Field(default=24_000, ge=2000)
 
+    # Gate 3 browser checks run only when Playwright (the `browser` extra) is
+    # installed; set LCES_BROWSER_QA=false to skip them deliberately.
+    browser_qa: bool = True
+
     projects_dir: Path = Path("projects")
     database_path: Path = Path("var/lces.sqlite3")
     routing_file: Path | None = None

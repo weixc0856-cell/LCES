@@ -134,7 +134,7 @@ def _stage_build(
 def _stage_validate(
     project_dir: Path, config: ProjectConfig, settings: Settings, provider: ModelProvider
 ) -> QAReport:
-    return run_validation(project_dir, config, template_dir())
+    return run_validation(project_dir, config, template_dir(), browser_qa=settings.browser_qa)
 
 
 _STAGE_FUNCS = {
