@@ -10,8 +10,9 @@
 未执行的检查不得记为 `PASS`；CI job 的总体成功不得代替逐条断言。
 
 **当前状态（2026-10-22）**：P1.1 已在 Linux CI 通过真实渲染
-（run `39762458701`，commit `c9d31af`，job `motion-canvas-p1` 全绿）；
-P1.2–P1.4 尚未开始。
+（run `39762458701`，commit `c9d31af`）；P1.2 已实现并通过 CI，FrameManifest
+的 300 帧哈希、PNG 结构与整段解码已用独立脚本全量核验（run `39767972300`，
+commit `cdce036`）；P1.3–P1.4 尚未开始。
 
 **两种渲染配置**（不得混用）：
 
@@ -107,6 +108,18 @@ class Renderer:
 
 `LCES_NODE_BIN` 可指定受控的可执行文件路径，与 `LCES_DOT_BIN` 同型。
 
+### 2.6 FrameManifest（P1.2）
+
+- 构建完成后写 `<build>/frame_manifest.json`，其中帧路径相对**构建目录**
+  （例如 `frames/project/000000.png`）。
+- 清单由渲染器生成，但**必须独立校验**：重新计算 SHA-256、检查 PNG 结构
+  （签名/IHDR/CRC/IEND）、尺寸、场景边界、路径包含关系，并用 FFmpeg 解码
+  整段帧序列。哈希正确但不可解码的 PNG 仍然失败。
+- 清单哈希通过现有产物流程写入 `VisualAsset.output_hashes`；清单本身
+  不进入发布目录。
+- 失败码：帧数/序号不一致 → `frame_mismatch`；PNG 结构损坏 →
+  `output_corrupt`；清单与文件不一致或解码失败 → `qa_failed`。
+
 ## 3. 阶段与完成条件
 
 | 阶段 | 内容 | 完成条件 |
@@ -137,13 +150,18 @@ Motion Canvas 可用。
 | P1-GATE-08 | 真实 title 渲染（P1.1 完成条件） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v --basetemp=motion-evidence/tmp --junitxml=motion-evidence/e2e-report.xml` | JUnit 1 test / 0 failures / 7.0 s；driver 报告 `frames=30`、`terminal=completed`、`error_code=""`、0.87 s；帧目录 30 个 PNG，首末帧 640×360 且 PNG 结构有效 | CI run `39762458701` artifact `motion-canvas-p1-evidence` | PASS |
 | P1-GATE-09 | Node 契约套件 | `cd motion && node --test --test-reporter=tap contract.test.mjs` | TAP **13 tests / 13 pass / 0 fail**（34.4 s） | 同上 artifact `contract-tests.tap` | PASS |
 | P1-GATE-10 | CI 必过真实渲染 | `.github/workflows/ci.yml` `motion-canvas-p1` | run `39762458701` 四个 job 全部 success；缺依赖不会 skip | GitHub Actions run | PASS |
-| P1-GATE-11 | FrameManifest（P1.2） | — | 未实现 | — | NOT_RUN |
+| P1-GATE-11 | FrameManifest（P1.2） | `uv run python scripts/verify-frame-manifest.py <frames-artifact>` | 清单 `total_frames=300`、`build_id=build-20261022-111018-a735cb` 与构建目录及 driver report 一致；场景覆盖 `0–300`；**300/300 帧 SHA-256 与实际文件一致**；**300/300 帧 PNG 结构/尺寸通过**；`ffmpeg` 整段解码 exit 0；清单 sha256 `b5af5ac4…60d` | CI run `39767972300` artifact `motion-canvas-p1-frames`（8.6 MB 压缩 / 17 MB 解压） | PASS |
 | P1-GATE-12 | 编码与原子发布（P1.3） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-13 | 故障注入（P1.4） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-14 | 生产配置渲染（1920×1080 / 300 帧） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py::test_production_config_renders_300_frames_at_1080p -v` | JUnit 2 tests / 0 failures / 19.1 s（生产用例 11.9 s）；driver 报告 `frames=300`、`terminal=completed`、5.87 s；帧目录 300 个 PNG（`000000`–`000299`） | CI run `39765444261` artifact `motion-canvas-p1-evidence` | PASS |
 
 `BLOCKED` 的含义是：验收本身已定义、可执行，但当前环境不满足；
 它不是通过，也不是失败。
+
+全量哈希核验需要帧字节，因此常规 PR artifact 只保留清单、报告、驱动日志与
+首末帧（约 250 KB）；`workflow_dispatch` 的 `keep_frames=true` 会额外上传
+生产配置的全部帧（约 17 MB），供独立脚本核验。首末帧哈希只作摘要，不作为
+全量校验的替代。
 
 ### 4.1 失败与修复记录
 
@@ -168,16 +186,23 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
   `driver.mjs`、`contract.mjs`、`contract.test.mjs`、`src/`）。
 - `tests/test_timeline.py`、`tests/test_motion_canvas.py`、
   `tests/test_motion_canvas_e2e.py`、`tests/test_error_codes.py`。
-- `schemas/scene_set.schema.json`。
+- `schemas/scene_set.schema.json`、`schemas/frame_manifest.schema.json`。
+- `src/content_studio/frame_manifest.py`：清单构建、独立校验、PNG 结构检查、
+  FFmpeg 序列解码。
+- `tests/test_frame_manifest.py`。
+- `scripts/verify-frame-manifest.py`：独立于项目校验器的清单复核脚本，
+  用于对 CI artifact 做全量哈希、PNG 结构、场景覆盖与解码检查。
 
 修改：
 
-- `models.py`：`SceneContract.data`、`SceneSet`。
+- `models.py`：`SceneContract.data`、`SceneSet`、`FrameEntry` /
+  `SceneFrameSpan` / `FrameManifest`。
 - `renderers.py`：`RenderResult`、`validate(..., context=...)`、
   `environment_error_code()`、注册表终态与错误码映射。
 - `errors.py`：码表加载、`RenderError.code`、`RenderCancelled`。
 - `visuals.py`：`animation` 资产映射；动画产物越界改为显式失败。
-- `cli.py`：`lces render-scene`；`doctor` 增加 Motion Canvas 段；导出 `scene_set`。
+- `cli.py`：`lces render-scene`；`doctor` 增加 Motion Canvas 段；导出
+  `scene_set` 与 `frame_manifest`。
 - `pyproject.toml`：`motion` marker。
 - `schemas/scene_contract.schema.json`、`schemas/README.md`、
   `docs/IMPLEMENTATION_STATUS.md`。
@@ -188,7 +213,7 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 
 1. **本地 WSL 仍未执行**：本机是 Windows，P1 在入口拒绝；WSL 的 Node 22.22.2
    不满足 24.22.1。P1 的真实执行环境是 CI 的 Linux runner，本地不降低门禁。
-2. **P1.2–P1.4 未实现**：FrameManifest、编码、原子发布、故障注入。
+2. **P1.3–P1.4 未实现**：编码与原子发布、故障注入。
 3. **离线隔离尚未由操作系统证明**：本次渲染记录了 6 个外部请求
    （fonts.googleapis/gstatic、unpkg highlight.js、npm registry），
    本次网络可用、请求成功。P0 的 `--network none` 证据不能自动继承到 P1；
@@ -216,7 +241,10 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 7. **构建工程依赖软链，不是整份复制。** `node_modules` 以软链指回
    `motion/`；因此 Vite 必须显式放行该路径，导出目录必须是绝对路径。
    P1.2 增加 FrameManifest 时沿用同一构建目录约定。
-8. **外部字体与编辑器自检请求仍会发生。** 它们不阻断渲染（P0 断网时也成功
+8. **清单路径以构建目录为根。** 导出器会把帧放在 `frames/<project>/`
+   子目录，清单记录 `frames/project/000000.png`；`verify` 用同一根解析，
+   避免路径两套解释。
+9. **外部字体与编辑器自检请求仍会发生。** 它们不阻断渲染（P0 断网时也成功
    产出 300 帧），但属于 P1.4 的离线证据范围，不能因为本次 CI 通过而记为
    离线已验收。
 
