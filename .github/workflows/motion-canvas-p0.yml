@@ -70,6 +70,17 @@ jobs:
                 "failures:", report["request_failures"])
           PY
 
+      - name: UI contract tests (network none)
+        run: |
+          set -o pipefail
+          mkdir -p evidence/contract
+          docker run --rm --network none --memory=768m \
+            -e EXPECTED_FRAMES="${EXPECTED_FRAMES}" \
+            -v "$PWD/evidence/contract:/app/output" \
+            --entrypoint node lces-mc-p0 \
+            --test --test-reporter=tap contract.test.mjs \
+            | tee evidence/contract/tests.tap
+
       - name: Network negative control
         run: |
           set +e
