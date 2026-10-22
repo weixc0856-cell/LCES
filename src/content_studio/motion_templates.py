@@ -673,7 +673,7 @@ export default makeScene2D(function* (view) {
       ))}
     </Layout>,
   );
-  const per = Math.min(0.3, (DURATION * 0.6) / Math.max(1, TOTAL_ITEMS + 4));
+  const per = Math.min(0.3, (DURATION * 0.6) / Math.max(1, TOTAL_ITEMS + 3));
   yield* all(title().opacity(1, per, easeOutCubic),
     subtitle().opacity(1, per, easeOutCubic));
   for (let i = 0; i < panels.length; i++) {
@@ -685,7 +685,7 @@ export default makeScene2D(function* (view) {
       yield* items[i][j]().opacity(1, per, easeOutCubic);
     }
   }
-  yield* waitFor(Math.max(0, DURATION - per * (TOTAL_ITEMS + 4)));
+  yield* waitFor(Math.max(0, DURATION - per * (TOTAL_ITEMS + 3)));
 });
 """
     )
