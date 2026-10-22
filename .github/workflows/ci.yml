@@ -16,8 +16,8 @@ jobs:
           enable-cache: true
       - name: Set up Python
         run: uv python install 3.13
-      - name: Sync dependencies (locked)
-        run: uv sync --locked
+      - name: Sync dependencies (locked, charts extra)
+        run: uv sync --locked --extra charts
       - name: Lint
         run: uv run ruff check .
       - name: Format check

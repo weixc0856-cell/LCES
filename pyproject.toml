@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "local-content-engineering-studio"
-version = "0.4.0"
+version = "0.5.0"
 description = "Evidence-driven local AI content and course production pipeline"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
@@ -27,6 +27,8 @@ media = ["playwright>=1.48,<2.0"]
 # Phase 1 browser QA. Install with `uv sync --extra browser`, then
 # `uv run playwright install chromium`.
 browser = ["playwright>=1.48,<2.0"]
+# Phase 3 static chart rendering (Vega-Lite -> SVG). No Node.js required.
+charts = ["vl-convert-python>=1.9,<2.0"]
 
 [dependency-groups]
 # Installed by default by `uv sync` (uv's "dev" group).
