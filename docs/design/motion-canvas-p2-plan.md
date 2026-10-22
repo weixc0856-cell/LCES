@@ -154,12 +154,12 @@ HTML。视频 `max-width:100%`，不自动播放。`use_registry=False` 时遇�
 | ID | 验收项 | 通过条件 | 状态 |
 |---|---|---|---|
 | P2-GATE-01 | Registry 发现 | `default_registry().known_types()` 含 `animation`；解析到 `motion_canvas.renderer`；显式 renderer 不匹配失败 | PASS（本机单元） |
-| P2-GATE-02 | 生产入口 | `lces build`（或 `_stage_build`）对含动画块的 content 调用真实 renderer，产出 `build/media/course.mp4`；不是只测试 `render-scene` | PASS（run `39793174903`：`test_lces_build_renders_animation_end_to_end` 7.9 s；artifact 含视频、清单、编码记录、`visual_assets.json`） |
-| P2-GATE-03 | 资产关联 | `visual_assets.json` 的视频、FrameManifest、编码记录路径与哈希一致；`build_id` 与清单一致；视频可解码 | PASS（run `39793174903`：独立复核 artifact，30 帧 640×360 30/1 1.0 s；三个文件哈希、`build_id` 与编码记录全部一致） |
-| P2-GATE-04 | 失败传播 | 缺 Node/FFmpeg、非法场景、渲染失败、编码失败、清单不一致均使构建失败；无回退、无资产记录 | NOT_RUN（非法场景/渲染失败/编码失败的本机用例通过；真实环境待 CI） |
-| P2-GATE-05 | 原子性与旧资产 | 失败后旧 `build/media/course.mp4` 哈希不变；标记存在时 `release` 拒绝；成功构建清除标记 | PASS（本机：P1 staging + 标记/发布拒绝用例） |
+| P2-GATE-02 | 生产入口 | `lces build`（或 `_stage_build`）对含动画块的 content 调用真实 renderer，产出 `build/media/course.mp4`；不是只测试 `render-scene` | PASS（run `39796759273`：`test_lces_build_renders_animation_end_to_end` 通过；JUnit 12/0/0；artifact 含视频、清单、编码记录、`visual_assets.json`） |
+| P2-GATE-03 | 资产关联 | `visual_assets.json` 的视频、FrameManifest、编码记录路径与哈希一致；`build_id` 与清单一致；视频可解码 | PASS（run `39796759273`：独立复核 artifact，30 帧 640×360 30/1 1.0 s；三个文件哈希、`build_id` 与编码记录全部一致） |
+| P2-GATE-04 | 失败传播 | 缺 Node/FFmpeg、非法场景、渲染失败、编码失败、清单不一致均使构建失败；无回退、无资产记录 | PASS（run `39796759273`：`test` job 315 个用例通过，含真实 CLI 非法场景、渲染/编码失败、清单不一致；`motion-canvas-p1` 的真实生产入口同时通过） |
+| P2-GATE-05 | 原子性与旧资产 | 失败后旧 `build/media/course.mp4` 哈希不变；标记存在时 `release` 拒绝；成功构建清除标记 | PASS（run `39796759273`：失败重试、发布后崩溃、校验失败保留标记、视频篡改检测、非动画构建清理残留视频、`release` 拒绝均有测试；P1 staging 保护旧视频） |
 | P2-GATE-06 | 向后兼容 | 非动画构建/模板输出不变；`use_registry=False` 仍拒绝 registry-only 块；现有测试全绿 | PASS（315 passed, 6 skipped） |
-| P2-GATE-07 | CI 证据 | `test` job 与 Linux `motion-canvas-p1` job 跑新增测试并上传 JUnit/资产证据 | NOT_RUN |
+| P2-GATE-07 | CI 证据 | `test` job 与 Linux `motion-canvas-p1` job 跑新增测试并上传 JUnit/资产证据 | PASS（run `39796759273` 五个 job 全绿；p1 JUnit 12/0/0，TAP 13/13；artifact `motion-canvas-p1-evidence` 含 video/清单/编码记录/`visual_assets.json`） |
 
 `BLOCKED` 只用于“已定义、可执行、但当前环境不满足”；本地 Windows 的真实
 生产渲染属于此类，必须由 CI 的 Linux runner 完成。
@@ -208,8 +208,8 @@ HTML。视频 `max-width:100%`，不自动播放。`use_registry=False` 时遇�
   资产合同、标记、发布拒绝与失败路径；`tests/test_motion_canvas_production.py`
   是唯一的真实 `lces build` 用例，只能在 Linux + 固定工具链的 CI 中执行。
 
-首次 CI（run `39793174903`，commit `875629c`）五个 job 全绿；production
-用例 7.9 s，artifact 已独立复核（见 P2-GATE-02/03）。随后补充了残留标记重试、
-发布后崩溃、校验失败保留标记、视频篡改检测和真实 CLI 非法场景用例，并在
-非动画成功构建时清理残留视频；这些改动需要再做一次 CI 才能把 P2-GATE-04/05/07
-记为 PASS。
+最终 CI（run `39796759273`，commit `01f7e88`）五个 job 全绿：`test` 315 个用例、
+`motion-canvas-p1` JUnit 12/0/0、TAP 13/13、`motion-canvas-offline` 断网 job
+通过。production artifact 已独立复核：30 帧、640×360、30/1、1.0 s，
+`visual_assets.json` 中的视频/清单/编码记录哈希与 `build_id` 全部一致。
+P2-GATE-01～07 全部为 PASS。

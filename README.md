@@ -274,8 +274,8 @@ P2.1 正在把动画接入生产入口：`PublicContent` 支持
 `lces build` 通过 `default_registry()` 调用 Motion Canvas，产出
 `build/media/course.mp4`，并在 `internal/qa/visual_assets.json` 记录视频、
 FrameManifest、编码记录与 `build_id`。`build/.build-in-progress` 标记存在时
-`lces release` 拒绝发布。真实 `lces build` 集成证据待 CI；接口细节见
-`docs/CONTENT_CONTRACTS.md` 与 `docs/design/motion-canvas-p2-plan.md`。
+`lces release` 拒绝发布。真实 `lces build` 已由 CI run `39796759273` 验收；
+接口细节见 `docs/CONTENT_CONTRACTS.md` 与 `docs/design/motion-canvas-p2-plan.md`。
 
 Motion Canvas 仍只支持 Linux；P2.2（`flow`/`compare` 模板）、P2.3（路径/子进程
 隔离与供应链）和 P2.4（P2 全量验收）尚未开始。Windows 原生仍由入口显式拒绝，
