@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AssetCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "warn",
+            "not_run"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "status"
+      ],
+      "title": "AssetCheck",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One rendered (or to-be-rendered) visual artifact and its provenance.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "asset_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "asset_type": {
+      "enum": [
+        "diagram",
+        "svg",
+        "chart",
+        "table",
+        "animation",
+        "scene",
+        "video",
+        "audio",
+        "image"
+      ],
+      "title": "Asset Type",
+      "type": "string"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "renderer": {
+      "default": "",
+      "title": "Renderer",
+      "type": "string"
+    },
+    "renderer_version": {
+      "default": "",
+      "title": "Renderer Version",
+      "type": "string"
+    },
+    "parameters": {
+      "additionalProperties": true,
+      "title": "Parameters",
+      "type": "object"
+    },
+    "dependencies": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "output_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Output Paths",
+      "type": "array"
+    },
+    "status": {
+      "default": "pending",
+      "enum": [
+        "pending",
+        "rendered",
+        "failed",
+        "skipped"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "qa_results": {
+      "items": {
+        "$ref": "#/$defs/AssetCheck"
+      },
+      "title": "Qa Results",
+      "type": "array"
+    },
+    "source_hash": {
+      "default": "",
+      "pattern": "^$|^[0-9a-f]{64}$",
+      "title": "Source Hash",
+      "type": "string"
+    },
+    "output_hashes": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Output Hashes",
+      "type": "object"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "build_id": {
+      "default": "",
+      "title": "Build Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "asset_id",
+    "asset_type",
+    "source"
+  ],
+  "title": "VisualAsset",
+  "type": "object"
+}

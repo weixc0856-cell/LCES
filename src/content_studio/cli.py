@@ -30,8 +30,11 @@ from content_studio.models import (
     ReleaseManifest,
     ResearchAnalysis,
     ResearchBrief,
+    SceneContract,
     SourceRegistry,
     SpeakerScript,
+    VideoContract,
+    VisualAsset,
     VisualSpec,
 )
 from content_studio.orchestrator import load_project_config, run_pipeline
@@ -617,6 +620,9 @@ def export_schemas(
         "qa_report": QAReport,
         "release_manifest": ReleaseManifest,
         "visual_spec": VisualSpec,
+        "visual_asset": VisualAsset,
+        "scene_contract": SceneContract,
+        "video_contract": VideoContract,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, model in mapping.items():

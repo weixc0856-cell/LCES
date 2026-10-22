@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A video build: canvas, timing, tracks, encoding, and provenance.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "video_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "title": "Video Id",
+      "type": "string"
+    },
+    "content_version": {
+      "minLength": 1,
+      "title": "Content Version",
+      "type": "string"
+    },
+    "width": {
+      "exclusiveMinimum": 0,
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "exclusiveMinimum": 0,
+      "title": "Height",
+      "type": "integer"
+    },
+    "fps_num": {
+      "exclusiveMinimum": 0,
+      "title": "Fps Num",
+      "type": "integer"
+    },
+    "fps_den": {
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "title": "Fps Den",
+      "type": "integer"
+    },
+    "color_space": {
+      "default": "bt709",
+      "title": "Color Space",
+      "type": "string"
+    },
+    "pixel_format": {
+      "default": "yuv420p",
+      "title": "Pixel Format",
+      "type": "string"
+    },
+    "scene_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Scene Ids",
+      "type": "array"
+    },
+    "narration_ref": {
+      "default": "",
+      "title": "Narration Ref",
+      "type": "string"
+    },
+    "audio_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Audio Refs",
+      "type": "array"
+    },
+    "subtitle_language": {
+      "default": "zh-CN",
+      "title": "Subtitle Language",
+      "type": "string"
+    },
+    "subtitle_format": {
+      "default": "srt",
+      "enum": [
+        "srt",
+        "vtt"
+      ],
+      "title": "Subtitle Format",
+      "type": "string"
+    },
+    "audio_sample_rate": {
+      "default": 48000,
+      "exclusiveMinimum": 0,
+      "title": "Audio Sample Rate",
+      "type": "integer"
+    },
+    "audio_channels": {
+      "default": 2,
+      "enum": [
+        1,
+        2
+      ],
+      "title": "Audio Channels",
+      "type": "integer"
+    },
+    "video_codec": {
+      "default": "h264",
+      "title": "Video Codec",
+      "type": "string"
+    },
+    "quality_preset": {
+      "default": "medium",
+      "title": "Quality Preset",
+      "type": "string"
+    },
+    "renderer": {
+      "default": "",
+      "title": "Renderer",
+      "type": "string"
+    },
+    "renderer_version": {
+      "default": "",
+      "title": "Renderer Version",
+      "type": "string"
+    },
+    "output_path": {
+      "title": "Output Path",
+      "type": "string"
+    },
+    "qa_report_ref": {
+      "default": "",
+      "title": "Qa Report Ref",
+      "type": "string"
+    },
+    "provenance": {
+      "default": "",
+      "title": "Provenance",
+      "type": "string"
+    },
+    "licence": {
+      "default": "",
+      "title": "Licence",
+      "type": "string"
+    },
+    "build_parameters": {
+      "additionalProperties": true,
+      "title": "Build Parameters",
+      "type": "object"
+    },
+    "build_hash": {
+      "default": "",
+      "pattern": "^$|^[0-9a-f]{64}$",
+      "title": "Build Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "video_id",
+    "content_version",
+    "width",
+    "height",
+    "fps_num",
+    "scene_ids",
+    "output_path"
+  ],
+  "title": "VideoContract",
+  "type": "object"
+}

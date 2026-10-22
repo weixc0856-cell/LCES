@@ -18,7 +18,9 @@ from content_studio.paths import template_dir
 from content_studio.renderers import (
     FigureRenderer,
     RenderContext,
+    Renderer,
     RendererRegistry,
+    ResourceEstimate,
     TableRenderer,
     default_registry,
 )
@@ -203,6 +205,48 @@ def test_build_writes_render_manifest(tmp_path):
     assert specs[0]["visual_type"] == "table"
     assert specs[0]["data"]["columns"] == ["指标", "数值"]
 
+    assets = json.loads(
+        (project / "internal" / "qa" / "visual_assets.json").read_text(encoding="utf-8")
+    )
+    assert len(assets) == 1
+    asset = assets[0]
+    assert asset["asset_id"] == "slide-001-block-01"
+    assert asset["asset_type"] == "table"
+    assert asset["renderer"] == "html.table"
+    assert asset["status"] == "rendered"
+    assert asset["output_paths"] == ["build/slides/index.html"]
+    assert len(asset["output_hashes"]["build/slides/index.html"]) == 64
+    assert asset["parameters"]["spec_sha256"]
+    assert asset["qa_results"][0]["status"] == "pass"
+
+
+def test_chart_asset_records_its_svg_artifact(tmp_path):
+    pytest.importorskip("vl_convert")
+    project = tmp_path / "project"
+    (project / "internal" / "qa").mkdir(parents=True)
+    content = PublicContent(
+        project_id="render-test",
+        title="渲染测试",
+        slides=[
+            PublicSlide(slide_id="slide-001", title="第一节", body=[_chart_block()]),
+        ],
+    )
+
+    build_public_html(
+        content,
+        template_dir(),
+        project / "build" / "slides" / "index.html",
+        project_dir=project,
+    )
+
+    assets = json.loads(
+        (project / "internal" / "qa" / "visual_assets.json").read_text(encoding="utf-8")
+    )
+    assert assets[0]["asset_type"] == "chart"
+    assert assets[0]["renderer"] == "vega_lite.chart"
+    assert assets[0]["output_paths"] == ["build/slides/visuals/slide-001-block-00.svg"]
+    assert len(assets[0]["output_hashes"]["build/slides/visuals/slide-001-block-00.svg"]) == 64
+
 
 def test_render_content_visuals_returns_positions():
     rendered = render_content_visuals(_content())
@@ -295,6 +339,7 @@ def test_vega_lite_chart_renders_static_svg(tmp_path):
     artifact = tmp_path / "visuals" / "slide-001-block-01.svg"
     assert artifact.is_file()
     assert artifact.read_text(encoding="utf-8").startswith("<svg")
+    assert output.artifacts == (artifact,)
 
 
 def test_invalid_vega_spec_fails_with_a_clear_message(tmp_path):
@@ -322,3 +367,83 @@ def test_legacy_path_rejects_chart_blocks(tmp_path):
     )
     with pytest.raises(RenderError, match="chart blocks require the renderer registry"):
         build_public_html(content, template_dir(), tmp_path / "index.html", use_registry=False)
+
+
+class _FakeRenderer(Renderer):
+    name = "fake.renderer"
+    version = "9.9.9"
+    visual_types = frozenset({"fake"})
+
+    def __init__(self, environment=None, input_problems=None) -> None:
+        self.calls: list[str] = []
+        self._environment = environment or []
+        self._input_problems = input_problems or []
+
+    def check_environment(self) -> list[str]:
+        return self._environment
+
+    def validate_input(self, spec: VisualSpec) -> list[str]:
+        return self._input_problems
+
+    def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
+        return ResourceEstimate(cpu_seconds=1.5, memory_mb=128, notes="fake")
+
+    def render(self, spec: VisualSpec, context: RenderContext) -> str:
+        self.calls.append("render")
+        return "<div>ok</div>"
+
+    def validate(self, spec: VisualSpec, html: str) -> list[str]:
+        return []
+
+
+def _fake_spec() -> VisualSpec:
+    return VisualSpec(visual_id="fake-001", visual_type="fake")
+
+
+def test_registry_refuses_when_environment_is_not_ready():
+    registry = RendererRegistry()
+    renderer = _FakeRenderer(environment=["missing dot binary"])
+    registry.register(renderer)
+
+    with pytest.raises(RenderError, match="not ready"):
+        registry.render(_fake_spec())
+
+    assert renderer.calls == [], "environment check must run before rendering"
+    assert any("environment" in item for item in registry.diagnostics())
+
+
+def test_registry_rejects_invalid_input_before_rendering():
+    registry = RendererRegistry()
+    renderer = _FakeRenderer(input_problems=["bad parameters"])
+    registry.register(renderer)
+
+    with pytest.raises(RenderError, match="bad parameters"):
+        registry.render(_fake_spec())
+
+    assert renderer.calls == []
+    assert any("input" in item for item in registry.diagnostics())
+
+
+def test_registry_reports_success_and_resets_diagnostics():
+    registry = RendererRegistry()
+    renderer = _FakeRenderer(environment=["broken"])
+    registry.register(renderer)
+    with pytest.raises(RenderError):
+        registry.render(_fake_spec())
+    assert registry.diagnostics()
+
+    renderer._environment = []
+    output = registry.render(_fake_spec())
+
+    assert output.renderer == "fake.renderer"
+    assert output.renderer_version == "9.9.9"
+    assert renderer.calls == ["render"]
+    assert registry.diagnostics() == []
+
+
+def test_registry_estimates_resources_through_the_renderer():
+    registry = RendererRegistry()
+    registry.register(_FakeRenderer())
+    estimate = registry.estimate(_fake_spec())
+    assert estimate.cpu_seconds == pytest.approx(1.5)
+    assert estimate.memory_mb == 128

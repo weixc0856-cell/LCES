@@ -13,7 +13,11 @@ from jinja2 import Environment, FileSystemLoader
 
 from content_studio.errors import RenderError
 from content_studio.models import ChartBlock, PublicContent, ReadingEdition
-from content_studio.visuals import render_content_visuals, write_render_manifest
+from content_studio.visuals import (
+    RenderedVisual,
+    render_content_visuals,
+    write_render_manifest,
+)
 
 
 def _environment(template_dir: Path) -> Environment:
@@ -55,6 +59,7 @@ def build_public_html(
     use_registry: bool = True,
 ) -> Path:
     data = content.model_dump(mode="json")
+    rendered: list[RenderedVisual] = []
     if not use_registry:
         _reject_registry_only_blocks(content)
     if use_registry:
@@ -69,14 +74,15 @@ def build_public_html(
                 html = by_position.get((slide.slide_id, index))
                 if html is not None:
                     block_data["visual_html"] = html
-        if project_dir is not None:
-            write_render_manifest(project_dir, rendered)
 
     rendered_html = _environment(template_dir).get_template("course.html.j2").render(content=data)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(rendered_html, encoding="utf-8")
     if project_dir is not None:
         _copy_charts(project_dir, output_path.parent)
+        if use_registry:
+            # Written after the page exists so inline assets can hash it.
+            write_render_manifest(project_dir, rendered, page_path=output_path)
     return output_path
 
 

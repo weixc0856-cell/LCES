@@ -8,7 +8,9 @@ from the internal speaker script: no template may read narration fields, and
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -334,6 +336,154 @@ class VisualSpec(StrictModel):
                 f"this build supports {VISUAL_SCHEMA_MAJOR}.x"
             )
         return value
+
+
+# --- Visual asset, scene, and video contracts (PRD 2 module 1) -------------
+
+AssetType = Literal[
+    "diagram", "svg", "chart", "table", "animation", "scene", "video", "audio", "image"
+]
+AssetStatus = Literal["pending", "rendered", "failed", "skipped"]
+TransitionKind = Literal["cut", "fade", "slide", "zoom", "none"]
+FallbackPolicy = Literal["fail", "skip", "placeholder"]
+_HASH = r"^[0-9a-f]{64}$"
+
+
+def _relative_path(value: str) -> str:
+    """Reject absolute paths, drive letters, and parent traversal."""
+
+    if not value.strip():
+        raise ValueError("path must not be empty")
+    if re.match(r"^[A-Za-z]:", value) or value.startswith("\\\\"):
+        raise ValueError(f"path must be relative to the project workspace: {value}")
+    path = PurePosixPath(value.replace("\\", "/"))
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"path must stay inside the project workspace: {value}")
+    return value
+
+
+class AssetCheck(StrictModel):
+    check_id: str = Field(min_length=1)
+    status: Literal["pass", "fail", "warn", "not_run"]
+    message: str = ""
+
+
+class VisualAsset(StrictModel):
+    """One rendered (or to-be-rendered) visual artifact and its provenance."""
+
+    schema_version: str = VISUAL_SCHEMA_VERSION
+    asset_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    asset_type: AssetType
+    source: str
+    renderer: str = ""
+    renderer_version: str = ""
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    dependencies: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    output_paths: list[str] = Field(default_factory=list)
+    status: AssetStatus = "pending"
+    qa_results: list[AssetCheck] = Field(default_factory=list)
+    source_hash: str = Field(default="", pattern=r"^$|" + _HASH)
+    output_hashes: dict[str, str] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utc_now)
+    build_id: str = ""
+
+    @field_validator("schema_version")
+    @classmethod
+    def _asset_schema_major(cls, value: str) -> str:
+        if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
+            raise ValueError(f"unsupported asset schema_version '{value}'")
+        return value
+
+    @field_validator("source", "dependencies", "output_paths")
+    @classmethod
+    def _asset_paths(cls, value: str | list[str]) -> str | list[str]:
+        if isinstance(value, str):
+            return _relative_path(value)
+        return [_relative_path(item) for item in value]
+
+    @field_validator("output_hashes")
+    @classmethod
+    def _output_hashes(cls, value: dict[str, str]) -> dict[str, str]:
+        for path, digest in value.items():
+            if not re.fullmatch(_HASH, digest):
+                raise ValueError(f"output hash for {path} is not a sha256 digest")
+        return value
+
+
+class SceneContract(StrictModel):
+    """One shot in a video timeline. Durations are integer milliseconds."""
+
+    schema_version: str = VISUAL_SCHEMA_VERSION
+    scene_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    scene_type: str = Field(min_length=1)
+    duration_ms: int = Field(gt=0)
+    renderer: str = ""
+    source_asset_refs: list[str] = Field(default_factory=list)
+    narration_ref: str = ""
+    subtitle_ref: str = ""
+    transition_in: TransitionKind = "cut"
+    transition_out: TransitionKind = "cut"
+    camera_config: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    quality_profile: str = "default"
+    fallback_policy: FallbackPolicy = "fail"
+
+    @field_validator("schema_version")
+    @classmethod
+    def _scene_schema_major(cls, value: str) -> str:
+        if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
+            raise ValueError(f"unsupported scene schema_version '{value}'")
+        return value
+
+
+class VideoContract(StrictModel):
+    """A video build: canvas, timing, tracks, encoding, and provenance."""
+
+    schema_version: str = VISUAL_SCHEMA_VERSION
+    project_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")
+    video_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    content_version: str = Field(min_length=1)
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    # Rational frame rate: 30000/1001 is 29.97 fps, with no float drift.
+    fps_num: int = Field(gt=0)
+    fps_den: int = Field(default=1, gt=0)
+    color_space: str = "bt709"
+    pixel_format: str = "yuv420p"
+    scene_ids: list[str] = Field(min_length=1)
+    narration_ref: str = ""
+    audio_refs: list[str] = Field(default_factory=list)
+    subtitle_language: str = "zh-CN"
+    subtitle_format: Literal["srt", "vtt"] = "srt"
+    audio_sample_rate: int = Field(default=48_000, gt=0)
+    audio_channels: Literal[1, 2] = 2
+    video_codec: str = "h264"
+    quality_preset: str = "medium"
+    renderer: str = ""
+    renderer_version: str = ""
+    output_path: str
+    qa_report_ref: str = ""
+    provenance: str = ""
+    licence: str = ""
+    build_parameters: dict[str, Any] = Field(default_factory=dict)
+    build_hash: str = Field(default="", pattern=r"^$|" + _HASH)
+
+    @field_validator("schema_version")
+    @classmethod
+    def _video_schema_major(cls, value: str) -> str:
+        if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
+            raise ValueError(f"unsupported video schema_version '{value}'")
+        return value
+
+    @field_validator("output_path")
+    @classmethod
+    def _video_output(cls, value: str) -> str:
+        return _relative_path(value)
+
+    @property
+    def fps(self) -> float:
+        return self.fps_num / self.fps_den
 
 
 class PublicSlide(StrictModel):

@@ -60,10 +60,43 @@ class RenderOutput:
         return hashlib.sha256(self.html.encode("utf-8")).hexdigest()
 
 
+@dataclass(frozen=True)
+class ResourceEstimate:
+    """Rough cost of one render; 0 means "not measured", not "free"."""
+
+    cpu_seconds: float = 0.0
+    memory_mb: int = 0
+    notes: str = ""
+
+
 class Renderer(ABC):
     name: str = ""
     version: str = "1.0.0"
     visual_types: frozenset[str] = frozenset()
+
+    def validate_input(self, spec: VisualSpec) -> list[str]:
+        """Reject a spec before any rendering work starts."""
+
+        return []
+
+    def check_environment(self) -> list[str]:
+        """Return missing tools or versions; empty means the renderer can run."""
+
+        return []
+
+    def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
+        return ResourceEstimate()
+
+    def cancel(self) -> None:
+        """Best-effort cancellation hook; sync renderers are atomic."""
+
+        return None
+
+    def collect_outputs(self, spec: VisualSpec, context: RenderContext) -> list[Path]:
+        return []
+
+    def get_diagnostics(self) -> list[str]:
+        return []
 
     @abstractmethod
     def render(self, spec: VisualSpec, context: RenderContext) -> str:
@@ -78,6 +111,24 @@ class TableRenderer(Renderer):
     name = "html.table"
     version = "1.0.0"
     visual_types = frozenset({"table"})
+
+    def validate_input(self, spec: VisualSpec) -> list[str]:
+        columns = spec.data.get("columns")
+        rows = spec.data.get("rows")
+        if not isinstance(columns, list) or not columns:
+            return [f"visual '{spec.visual_id}': columns must be a non-empty list"]
+        if not isinstance(rows, list) or not rows:
+            return [f"visual '{spec.visual_id}': rows must be a non-empty list"]
+        problems: list[str] = []
+        for index, row in enumerate(rows, start=1):
+            if not isinstance(row, list) or len(row) != len(columns):
+                problems.append(
+                    f"visual '{spec.visual_id}': row {index} has the wrong number of cells"
+                )
+        return problems
+
+    def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
+        return ResourceEstimate(cpu_seconds=0.1, memory_mb=32, notes="pure Python")
 
     def render(self, spec: VisualSpec, context: RenderContext) -> str:
         columns = _string_list(spec.data.get("columns"), "columns")
@@ -126,6 +177,17 @@ class FigureRenderer(Renderer):
     version = "1.0.0"
     visual_types = frozenset({"figure_image"})
 
+    def validate_input(self, spec: VisualSpec) -> list[str]:
+        problems: list[str] = []
+        if not str(spec.data.get("path") or ""):
+            problems.append(f"visual '{spec.visual_id}': path is required")
+        if not str(spec.data.get("alt") or ""):
+            problems.append(f"visual '{spec.visual_id}': alt text is required")
+        return problems
+
+    def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
+        return ResourceEstimate(cpu_seconds=0.1, memory_mb=32, notes="static image reference")
+
     def render(self, spec: VisualSpec, context: RenderContext) -> str:
         path = str(spec.data.get("path") or "")
         alt = str(spec.data.get("alt") or "")
@@ -162,6 +224,17 @@ class CustomSvgRenderer(Renderer):
     name = "svg.custom"
     version = "1.0.0"
     visual_types = frozenset({"custom_svg"})
+
+    def validate_input(self, spec: VisualSpec) -> list[str]:
+        problems: list[str] = []
+        if not str(spec.data.get("path") or ""):
+            problems.append(f"visual '{spec.visual_id}': path is required")
+        if not str(spec.data.get("alt") or ""):
+            problems.append(f"visual '{spec.visual_id}': alt text is required")
+        return problems
+
+    def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
+        return ResourceEstimate(cpu_seconds=0.2, memory_mb=64, notes="XML parse and inline")
 
     def render(self, spec: VisualSpec, context: RenderContext) -> str:
         relative = str(spec.data.get("path") or "")
@@ -203,6 +276,31 @@ class VegaLiteRenderer(Renderer):
     name = "vega_lite.chart"
     version = "1.0.0"
     visual_types = frozenset({"data_chart"})
+
+    def validate_input(self, spec: VisualSpec) -> list[str]:
+        problems: list[str] = []
+        chart = spec.data.get("vega_lite")
+        if not isinstance(chart, dict) or not chart:
+            problems.append(f"visual '{spec.visual_id}': vega_lite spec must be an object")
+        if not str(spec.data.get("alt") or ""):
+            problems.append(f"visual '{spec.visual_id}': alt text is required")
+        return problems
+
+    def check_environment(self) -> list[str]:
+        try:
+            import vl_convert  # noqa: F401  # type: ignore[import-not-found]
+        except ImportError:
+            return ["vl-convert-python 未安装；运行 `uv sync --extra charts`"]
+        return []
+
+    def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
+        return ResourceEstimate(cpu_seconds=2.0, memory_mb=256, notes="vl-convert (V8)")
+
+    def collect_outputs(self, spec: VisualSpec, context: RenderContext) -> list[Path]:
+        if context.output_dir is None:
+            return []
+        artifact = context.output_dir / "visuals" / f"{spec.visual_id}.svg"
+        return [artifact] if artifact.is_file() else []
 
     def render(self, spec: VisualSpec, context: RenderContext) -> str:
         try:
@@ -304,10 +402,16 @@ def _figure(svg: str, alt: str, caption: str, *, css_class: str) -> str:
 
 
 class RendererRegistry:
-    """Dispatch a spec to the renderer registered for its ``visual_type``."""
+    """Dispatch a spec to the renderer registered for its ``visual_type``.
+
+    Routing is deny-by-default: an unregistered type, an explicit renderer
+    mismatch, a failed environment check, or invalid input stops the call
+    before any rendering work starts. Failures are kept in ``diagnostics()``.
+    """
 
     def __init__(self) -> None:
         self._by_type: dict[str, Renderer] = {}
+        self._diagnostics: list[str] = []
 
     def register(self, renderer: Renderer) -> None:
         if not renderer.visual_types:
@@ -323,6 +427,15 @@ class RendererRegistry:
     def known_types(self) -> list[str]:
         return sorted(self._by_type)
 
+    def diagnostics(self) -> list[str]:
+        return list(self._diagnostics)
+
+    def estimate(self, spec: VisualSpec) -> ResourceEstimate:
+        return self.resolve(spec.visual_type).estimate_resources(spec)
+
+    def check_environment(self, visual_type: str) -> list[str]:
+        return self.resolve(visual_type).check_environment()
+
     def resolve(self, visual_type: str) -> Renderer:
         try:
             return self._by_type[visual_type]
@@ -333,17 +446,49 @@ class RendererRegistry:
             ) from exc
 
     def render(self, spec: VisualSpec, context: RenderContext | None = None) -> RenderOutput:
+        self._diagnostics = []
         renderer = self.resolve(spec.visual_type)
         if spec.renderer and spec.renderer != renderer.name:
             raise UnsupportedVisualType(
                 f"visual '{spec.visual_id}' requests renderer '{spec.renderer}', "
                 f"but visual_type '{spec.visual_type}' resolves to '{renderer.name}'"
             )
-        html = renderer.render(spec, context or RenderContext())
+
+        environment = renderer.check_environment()
+        if environment:
+            self._fail(spec, renderer, "environment", environment)
+            raise RenderError(f"renderer '{renderer.name}' is not ready: " + "; ".join(environment))
+
+        input_problems = renderer.validate_input(spec)
+        if input_problems:
+            self._fail(spec, renderer, "input", input_problems)
+            raise RenderError("; ".join(input_problems))
+
+        render_context = context or RenderContext()
+        try:
+            html = renderer.render(spec, render_context)
+        except RenderError as exc:
+            self._fail(spec, renderer, "render", [str(exc)])
+            raise
+
         problems = renderer.validate(spec, html)
         if problems:
+            self._fail(spec, renderer, "output", problems)
             raise RenderError("; ".join(problems))
-        return RenderOutput(html=html, renderer=renderer.name, renderer_version=renderer.version)
+
+        artifacts = renderer.collect_outputs(spec, render_context)
+        return RenderOutput(
+            html=html,
+            renderer=renderer.name,
+            renderer_version=renderer.version,
+            artifacts=tuple(artifacts),
+        )
+
+    def _fail(self, spec: VisualSpec, renderer: Renderer, stage: str, problems: list[str]) -> None:
+        detail = "; ".join(problems)
+        self._diagnostics.append(
+            f"visual '{spec.visual_id}' failed at {stage} with '{renderer.name}': {detail}"
+        )
 
 
 def _string_list(value: object, field_name: str) -> list[str]:
