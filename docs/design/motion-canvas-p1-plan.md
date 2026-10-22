@@ -197,6 +197,7 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 |---|---|---|---|
 | `39760664001` | 契约 13/13 通过；真实渲染 `render_failed`，约 35 s 后结束 | 构建工程把 `node_modules` 软链回 `motion/`，Vite 默认 `server.fs.allow` 不包含该真实路径，编辑器 bundle 返回 403，页面没有 Render 控件 | `vite.config.ts` 显式放行 `MC_NODE_MODULES`；导出目录改用绝对路径 `MC_OUTPUT_DIR`；失败信息附驱动日志尾部 |
 | `39761467582` | 驱动报告 30 帧、`completed`，Python 随后报 `expected 30 frames, found 0` | image-sequence 导出器把帧写在 `<output>/<project>/` 子目录，Python 只列了顶层 | `_frame_problems` 改为递归扫描，与驱动 `countFrames` 一致，并加测试 |
+| `39784382250` | 取消用例收到 `render_failed` 而不是 `cancelled` | 进程组被取消信号终止时，驱动先写出失败报告并退出；适配器轮询到进程结束，尚未观察到取消标志 | 取消标志优先于驱动报告（`_execute_driver` 与 `render` 两处）；新增 `test_cancel_wins_over_the_drivers_failure_report` |
 
 两次失败都不是“放宽断言”解决的；修复后的断言与 P1.1 完成条件一致。
 
@@ -260,6 +261,10 @@ CI job `motion-canvas-offline`）：
 本机 Docker 的失败不是门禁放宽的理由，也不构成 PASS。断网验收必须在
 可联网构建、不可联网运行的 Linux 环境（CI runner）中完成并把 artifact
 留档；在此之前 P1-GATE-13 保持 `NOT_RUN`。
+
+同一次 run `39784382250` 的 `motion-canvas-p1` 还暴露了取消竞态：驱动在
+进程组被终止时先写出 `render_failed`，适配器把它当成普通失败。原因与修复
+见 §4.1 失败记录第三行；修复后需要重跑两个 job 才能更新本表。
 
 ## 5. 本轮变更
 
