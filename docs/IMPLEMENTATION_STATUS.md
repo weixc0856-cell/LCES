@@ -54,7 +54,7 @@ Windows `.venv` was not modified):
 | Command | Result |
 |---|---|
 | `uv sync` | 47 packages resolved/installed |
-| `pytest -q` | 50 passed |
+| `pytest -q` | 51 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | no issues in 24 source files |
