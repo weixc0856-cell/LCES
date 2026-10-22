@@ -415,6 +415,24 @@ def test_cancellation_has_its_own_terminal_state(build_root):
     assert caught.value.terminal == "cancelled"
 
 
+class _CancelOnExitStub(_StubRenderer):
+    """The driver dies from the cancel signal before writing a clean report."""
+
+    def _execute_driver(self, command, *, cwd, env, log_path, timeout_s):
+        self._cancel.set()
+        self.report = {"error_code": "render_failed", "terminal": "failed", "finished": False}
+        return super()._execute_driver(
+            command, cwd=cwd, env=env, log_path=log_path, timeout_s=timeout_s
+        )
+
+
+def test_cancel_wins_over_the_drivers_failure_report(build_root):
+    """A killed driver must not turn the caller's cancel into ``render_failed``."""
+
+    with pytest.raises(RenderCancelled):
+        _render(_CancelOnExitStub(), build_root)
+
+
 def test_timeout_maps_to_render_timeout(build_root):
     renderer = _StubRenderer(forced="render_timeout")
     with pytest.raises(RenderError) as caught:

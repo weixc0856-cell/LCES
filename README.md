@@ -263,14 +263,16 @@ uv run lces export-schemas    # 生成 16 个 JSON Schema
 
 真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、通用 SVG/Canvas 场景引擎、多场景与字幕生成、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
 
-Motion Canvas 已完成 **P1.1-P1.3（Linux）**：`title` 模板的逐帧渲染、FrameManifest、
-真实编码与原子发布、Gate 4 独立核对，以及取消/超时回归。P1.4 的故障矩阵与
-断网门禁（`motion-canvas-offline`，`docker --network none` + 网络负控制）已实现，
-CI 断网证据仍待运行；本机 Docker 构建被网络策略阻断（见
-`docs/design/motion-canvas-p1-plan.md` §4.3）。P1 仍**不在**
-`default_registry()` 生产路径中，只能通过 `lces render-scene` 和显式注册表调用；
-Windows 原生仍由入口显式拒绝，需要新的 P0 才能纳入。P1 的运行范围与验收记录见
-`docs/design/motion-canvas-p1-plan.md`，设计与边界见 `docs/design/MOTION_CANVAS.md`。
+Motion Canvas 已完成 **P1.1-P1.4（Linux）**：`title` 模板的逐帧渲染、FrameManifest、
+真实编码与原子发布、Gate 4 独立核对、取消/超时回归，以及故障矩阵和断网门禁。
+断网门禁由 CI 的 `motion-canvas-offline` job 完成：镜像联网构建，容器以
+`docker --network none` 运行真实渲染/编码/Gate 4，`fetch` 与 `npm install`
+负控制必须失败。CI run `39785216053` 已通过，证据见
+`docs/design/motion-canvas-p1-plan.md` §4.3（本机 Docker 构建仍被网络策略阻断）。
+P1 仍**不在** `default_registry()` 生产路径中，只能通过 `lces render-scene` 和
+显式注册表调用；Windows 原生仍由入口显式拒绝，需要新的 P0 才能纳入。P1 的
+运行范围与验收记录见 `docs/design/motion-canvas-p1-plan.md`，设计与边界见
+`docs/design/MOTION_CANVAS.md`。
 
 ```powershell
 ./scripts/ci-local.sh offline   # Docker，构建后以 --network none 跑真实渲染与负控制

@@ -15,7 +15,8 @@
 commit `cdce036`）；P1.3 已通过 CI 验收（run `39777983672`，commit `71f1bcc`）：
 冒烟与生产配置都完成真实编码，独立复核的 `course.mp4` 与 FrameManifest
 一致（30 帧 640×360 / 1.0 s；300 帧 1920×1080 / 10.0 s），Gate 4 真实视频
-用例通过；P1.4 的故障矩阵、取消/超时回归与断网作业已实现，断网证据见下文。
+用例通过；P1.4 的故障矩阵、取消/超时回归与断网作业已通过 CI 验收
+（run `39785216053`：两个 motion job 全绿，断网 artifact 已核对）。
 
 **两种渲染配置**（不得混用）：
 
@@ -178,7 +179,7 @@ Motion Canvas 可用。
 | P1-GATE-11 | FrameManifest（P1.2） | `uv run python scripts/verify-frame-manifest.py <frames-artifact>` | 清单 `total_frames=300`、`build_id=build-20261022-111018-a735cb` 与构建目录及 driver report 一致；场景覆盖 `0–300`；**300/300 帧 SHA-256 与实际文件一致**；**300/300 帧 PNG 结构/尺寸通过**；`ffmpeg` 整段解码 exit 0；清单 sha256 `b5af5ac4…60d` | CI run `39767972300` artifact `motion-canvas-p1-frames`（8.6 MB 压缩 / 17 MB 解压） | PASS |
 | P1-GATE-12 | 编码与原子发布（P1.3） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py tests/test_encode.py tests/test_release_video.py -v` | CI run `39777983672` job `motion-canvas-p1`：JUnit **9 tests / 0 failures / 0 skipped / 20.7 s**；两个真实构建都产出 `course.mp4`；独立复核 artifact 中的视频：冒烟 30 帧 640×360 30/1 1.000 s、生产 300 帧 1920×1080 30/1 10.000 s，`verify_video_against_manifest` 均为 0 problem | artifact `motion-canvas-p1-evidence`（run `39777983672`） | PASS |
 | P1-GATE-15 | Gate 4 独立核对（P1.3） | 同一 job 内的 `tests/test_release_video.py` | `test_gate4_accepts_a_real_video`、`test_gate4_rejects_a_short_video` 均通过；Gate 4 重读发布视频与 `internal/qa/{frame_manifest,encode_report}.json`，短编码被判 `fail` | 同上 | PASS |
-| P1-GATE-13 | 故障注入、取消/超时与断网（P1.4） | `uv run pytest tests/test_motion_canvas.py`；`LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v`；`./scripts/ci-local.sh offline` / CI job `motion-canvas-offline` | 已实现：单元故障矩阵覆盖 13 个失败码（含 lockfile 不一致）、真实取消/超时用例、`--network none` 镜像与负控制。本机 `pytest` 294 passed / 5 skipped；真实渲染与断网运行见 §4.3 | 本机终端；`docs/design/motion-canvas-p1-plan.md` §4.3 | NOT_RUN |
+| P1-GATE-13 | 故障注入、取消/超时与断网（P1.4） | `uv run pytest tests/test_motion_canvas.py`；`LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v`；CI job `motion-canvas-offline` | 单元故障矩阵覆盖 13 个失败码（含 lockfile 不一致）。CI run `39785216053`：`motion-canvas-p1` JUnit **11 tests / 0 failures / 34.7 s**（含真实取消 6.0 s、超时 2.1 s）；`motion-canvas-offline` 在 `--network none` 下 JUnit **11 tests / 0 failures / 30.8 s**，负控制 `fetch_exit=1 npm_exit=1`，两个构建各 4 次外部请求全部失败，视频哈希与编码记录一致 | 本机终端；run `39785216053` artifacts `motion-canvas-p1-evidence`、`motion-canvas-offline-evidence`；§4.3 | PASS |
 | P1-GATE-14 | 生产配置渲染（1920×1080 / 300 帧） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py::test_production_config_renders_300_frames_at_1080p -v` | JUnit 2 tests / 0 failures / 19.1 s（生产用例 11.9 s）；driver 报告 `frames=300`、`terminal=completed`、5.87 s；帧目录 300 个 PNG（`000000`–`000299`） | CI run `39765444261` artifact `motion-canvas-p1-evidence` | PASS |
 
 `BLOCKED` 的含义是：验收本身已定义、可执行，但当前环境不满足；
@@ -197,6 +198,8 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 |---|---|---|---|
 | `39760664001` | 契约 13/13 通过；真实渲染 `render_failed`，约 35 s 后结束 | 构建工程把 `node_modules` 软链回 `motion/`，Vite 默认 `server.fs.allow` 不包含该真实路径，编辑器 bundle 返回 403，页面没有 Render 控件 | `vite.config.ts` 显式放行 `MC_NODE_MODULES`；导出目录改用绝对路径 `MC_OUTPUT_DIR`；失败信息附驱动日志尾部 |
 | `39761467582` | 驱动报告 30 帧、`completed`，Python 随后报 `expected 30 frames, found 0` | image-sequence 导出器把帧写在 `<output>/<project>/` 子目录，Python 只列了顶层 | `_frame_problems` 改为递归扫描，与驱动 `countFrames` 一致，并加测试 |
+| `39784382250` | 取消用例收到 `render_failed` 而不是 `cancelled` | 进程组被取消信号终止时，驱动先写出失败报告并退出；适配器轮询到进程结束，尚未观察到取消标志 | 取消标志优先于驱动报告（`_execute_driver` 与 `render` 两处）；新增 `test_cancel_wins_over_the_drivers_failure_report` |
+| `39784382250` | 断网 job 的全部渲染在环境门禁失败：`ffmpeg 5.1.9 < 6.0` | 镜像基于 Debian bookworm，其 FFmpeg 为 5.1.9 | 镜像改用 trixie（FFmpeg 7.1.5），并在构建阶段断言 `ffmpeg >= 6`；不为通过而放宽门禁 |
 
 两次失败都不是“放宽断言”解决的；修复后的断言与 P1.1 完成条件一致。
 
@@ -251,14 +254,19 @@ CI job `motion-canvas-offline`）：
 
 | 检查 | 环境 | 结果 | 状态 |
 |---|---|---|---|
-| 单元/契约测试（含 lockfile 与故障矩阵） | Windows 11，项目 `.venv` | `uv run pytest` → **294 passed, 5 skipped**；`ruff check .`、`ruff format --check .`、`mypy src` 全部通过 | PASS |
-| 真实取消/超时 | Windows 11 | 入口拒绝非 Linux，测试按 marker 跳过；需 Linux CI 执行 | NOT_RUN |
-| 本机 Docker 断网门禁 | Docker Desktop 29.9.1（Linux 容器） | 构建在 apt 阶段被网络策略阻断（`deb.debian.org` → `198.18.1.108`），与 P0 本机构建失败同因；未进入渲染阶段 | BLOCKED |
-| CI `motion-canvas-offline` | GitHub Actions | job 与镜像已实现，尚未推送运行 | NOT_RUN |
+| 单元/契约测试（含 lockfile 与故障矩阵） | Windows 11，项目 `.venv` | `uv run pytest` → **295 passed, 5 skipped**；`ruff check .`、`ruff format --check .`、`mypy src` 全部通过 | PASS |
+| 真实取消/超时 | CI run `39785216053` `motion-canvas-p1` | JUnit 11 / 0 failures；取消用例 6.0 s（首帧后取消），超时用例 2.1 s（1.5 s 期限） | PASS |
+| 本机 Docker 断网门禁 | Docker Desktop 29.9.1（Linux 容器） | 构建长时间停在依赖安装阶段，未产出镜像；本机 P0 记录显示同一策略会把 `deb.debian.org` 解析到 `198.18.1.108` 并失败。本次未进入渲染阶段，手动终止 | BLOCKED |
+| CI `motion-canvas-offline`（run `39784382250`） | GitHub Actions，main / commit `c8663de` | 镜像构建成功；负控制 `fetch_exit=1 npm_exit=1` 符合预期；但渲染在工具链门禁失败：Debian bookworm 的 FFmpeg 为 **5.1.9**，低于要求的 6.0 | FAIL |
+| CI `motion-canvas-offline`（重跑，run `39785216053`） | GitHub Actions，commit `617c650`，trixie 镜像 `sha256:602d820a…141` | JUnit **11 tests / 0 failures / 30.8 s**；负控制 `fetch_exit=1 npm_exit=1`；Node `24.22.1`、npm `11.19.1`、Playwright `1.64.0`、FFmpeg `7.1.5`；两个完成的构建各记录 **4 次外部请求 / 4 次失败**；独立复核视频：30 帧 640×360 1.0 s、300 帧 1920×1080 10.0 s，`video_sha256` 与编码记录一致 | PASS |
 
-本机 Docker 的失败不是门禁放宽的理由，也不构成 PASS。断网验收必须在
-可联网构建、不可联网运行的 Linux 环境（CI runner）中完成并把 artifact
-留档；在此之前 P1-GATE-13 保持 `NOT_RUN`。
+本机 Docker 的失败不是门禁放宽的理由，也不构成 PASS。断网验收在 CI runner
+上完成：镜像联网构建、容器断网运行，artifact `motion-canvas-offline-evidence`
+留档。P1-GATE-13 以 run `39785216053` 记为 PASS。
+
+同一次 run `39784382250` 的 `motion-canvas-p1` 还暴露了取消竞态：驱动在
+进程组被终止时先写出 `render_failed`，适配器把它当成普通失败。修复见 §4.1
+失败记录第三行；重跑 `39785216053` 的两个 motion job 均已通过。
 
 ## 5. 本轮变更
 

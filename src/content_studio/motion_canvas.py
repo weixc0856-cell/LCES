@@ -470,7 +470,11 @@ class MotionCanvasRenderer(Renderer):
                 log_path=log_path,
                 timeout_s=self.max_render_ms / 1000,
             )
-            if forced == "cancelled":
+            if forced == "cancelled" or self._cancel.is_set():
+                # The driver can win the race and write a ``render_failed``
+                # report when its process group is killed before this loop
+                # observes the cancel flag. The caller's cancel is still the
+                # cause, so the terminal state is ``cancelled`` either way.
                 raise RenderCancelled(f"build {build_id} was cancelled")
             if forced == "render_timeout":
                 raise RenderError(
@@ -625,6 +629,8 @@ class MotionCanvasRenderer(Renderer):
             while True:
                 code = process.poll()
                 if code is not None:
+                    if self._cancel.is_set():
+                        forced = "cancelled"
                     return forced, code
                 if self._cancel.is_set():
                     forced = "cancelled"
