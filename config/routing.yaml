@@ -1,17 +1,16 @@
-# Phase 4 placeholder. Phase 1 uses `default_provider` for every stage.
-# Do not treat this file as an implemented routing engine yet.
-default:
-  provider: mock
-  model: mock-deterministic
+# Opt-in routing: `lces run <project> --routing config/routing.yaml`
+# or set LCES_ROUTING_FILE=config/routing.yaml.
+#
+# Only model-calling stages can be routed: research, outline, generate.
+# Ingest/build/validate never call a model.
+#
+# `research` leans on the stronger cloud model for multi-source synthesis and
+# evidence checks; drafting runs locally. Change this only after benchmarking
+# the local model on real material.
+
+default: local
 
 stages:
-  research:
-    provider: mock
-  outline:
-    provider: mock
-  public_content:
-    provider: mock
-  speaker_script:
-    provider: mock
-  reading_edition:
-    provider: mock
+  research: deepseek
+  outline: local
+  generate: local

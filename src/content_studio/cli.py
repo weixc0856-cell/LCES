@@ -38,6 +38,8 @@ from content_studio.paths import (
     safe_project_id,
     template_dir,
 )
+from content_studio.providers.factory import LOCAL_NAMES
+from content_studio.providers.local_llama_cpp import LocalLlamaProvider
 from content_studio.release import (
     approve as approve_release,
 )
@@ -112,11 +114,16 @@ def doctor() -> None:
     provider = settings.provider.lower()
     if provider == "mock":
         typer.echo("模型: mock（离线占位，不能发布）")
+    elif provider in LOCAL_NAMES:
+        typer.echo(f"模型: local / {settings.local_base_url}（模型自动发现，无需 API key）")
+        typer.echo("提示: 运行 `lces models` 检查本地服务是否可达。")
     else:
         key = settings.api_key_for(provider)
         typer.echo(f"模型: {provider} / {settings.model_for(provider)}")
         if not key:
             _exit(f"错误: provider={provider} 但未配置 API key")
+    if settings.routing_file:
+        typer.echo(f"路由文件: {settings.routing_file}")
     typer.echo("配置检查完成；未测试网络连通性。")
 
 
@@ -171,8 +178,8 @@ def ingest(
     settings = get_settings()
     root, config = _project(project_dir)
     store = TaskStore(settings.database_path)
-    task_id = store.create_task(config.project_id, config.content_mode, settings.provider, "")
-    run_id = store.start_stage(task_id, "ingest", settings.provider, "")
+    task_id = store.create_task(config.project_id, config.content_mode, "none", "")
+    run_id = store.start_stage(task_id, "ingest", "none", "")
     try:
         registry = ingest_project(
             root,
@@ -338,6 +345,70 @@ def release(
 
 @app.command()
 @guarded
+def models(
+    provider: str | None = typer.Option(None, help="只检查指定 provider"),
+    probe: bool = typer.Option(True, "--probe/--no-probe", help="探测本地服务与可用模型"),
+) -> None:
+    """Show configured providers and probe the local llama-server."""
+
+    settings = get_settings()
+    target = provider.lower() if provider else None
+    typer.echo(f"默认 provider: {settings.provider}")
+    typer.echo(f"路由文件: {settings.routing_file or '未配置（所有阶段使用默认 provider）'}")
+
+    if target in (None, "mock"):
+        typer.echo("mock: 可用（离线占位，禁止发布）")
+
+    if target in (None, *LOCAL_NAMES):
+        info: dict[str, Any] = {
+            "base_url": settings.local_base_url,
+            "reachable": None,
+            "health": None,
+            "models": [],
+            "latency_ms": 0,
+            "error": "not probed",
+        }
+        if probe:
+            local = LocalLlamaProvider(
+                base_url=settings.local_base_url,
+                model=settings.local_model,
+                api_key=settings.local_api_key,
+                timeout=settings.local_timeout_seconds,
+                max_retries=settings.local_max_retries,
+                json_mode=settings.local_json_mode,
+                discover_model=False,
+            )
+            info = local.probe()
+        typer.echo(f"local: {settings.local_base_url}")
+        if probe:
+            typer.echo(
+                f"  reachable={info['reachable']} health={info['health']}"
+                f" latency={info['latency_ms']}ms"
+            )
+            typer.echo(f"  models={info['models'] or '（未发现）'}")
+            if info["error"] and info["error"] != "not probed":
+                typer.secho(f"  错误: {info['error']}", fg=typer.colors.YELLOW)
+            if not info["reachable"]:
+                typer.secho(
+                    "  提示: 先运行 D:\\AI\\start_server.bat 启动 llama-server，"
+                    "再用 LCES_LOCAL_BASE_URL 指定实际端口。",
+                    fg=typer.colors.YELLOW,
+                )
+
+    for name in ("deepseek", "anthropic"):
+        if target not in (None, name):
+            continue
+        key = settings.api_key_for(name)
+        typer.echo(
+            f"{name}: model={settings.model_for(name)} base={settings.base_url_for(name)}"
+            f" key={'已配置' if key else '未配置'}"
+        )
+        if probe and key:
+            typer.echo("  云端连通性未自动探测，避免产生计费调用。")
+
+
+@app.command()
+@guarded
 def status(
     project: str | None = typer.Option(None, help="只显示某个项目"),
     limit: int = typer.Option(10, help="任务数量"),
@@ -377,10 +448,17 @@ def status(
 @guarded
 def run(
     project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
-    provider: str | None = typer.Option(None, help="mock | deepseek | anthropic"),
+    provider: str | None = typer.Option(None, help="mock | local | deepseek | anthropic"),
     from_stage: str | None = typer.Option(None, "--from-stage", help="从指定阶段重跑"),
     only_stage: str | None = typer.Option(None, "--only", help="只跑一个阶段"),
     task_id: int | None = typer.Option(None, "--task", help="复用已有任务记录"),
+    routing: Path | None = typer.Option(
+        None,
+        "--routing",
+        exists=True,
+        dir_okay=False,
+        help="按阶段路由的 YAML，例如 config/routing.yaml",
+    ),
 ) -> None:
     """Run the full pipeline (or a subset) with stage tracking and retry support."""
 
@@ -394,6 +472,7 @@ def run(
         from_stage=from_stage,
         only_stage=only_stage,
         task_id=task_id,
+        routing_path=routing,
     )
     typer.echo(
         f"任务 {result.task_id} | 状态 {result.status} | 完成阶段:"

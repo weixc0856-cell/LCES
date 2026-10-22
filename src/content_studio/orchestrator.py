@@ -23,11 +23,13 @@ from content_studio.providers.factory import build_provider
 from content_studio.release import load_qa_report
 from content_studio.rendering import build_public_html, build_reading_html
 from content_studio.research import load_evidence_ledger, load_research_brief, run_research
+from content_studio.routing import load_routing
 from content_studio.settings import Settings
 from content_studio.storage import TaskStore
 from content_studio.validation import run_validation
 
 STAGES = ("ingest", "research", "outline", "generate", "build", "validate")
+MODEL_STAGES = frozenset({"research", "outline", "generate"})
 
 STAGE_STATUS: dict[str, TaskStatus] = {
     "ingest": "INGESTING",
@@ -69,11 +71,16 @@ def _stage_ingest(
 def _stage_research(
     project_dir: Path, config: ProjectConfig, settings: Settings, provider: ModelProvider
 ) -> None:
+    budget = (
+        settings.local_prompt_char_budget
+        if provider.name == "local"
+        else settings.prompt_char_budget
+    )
     run_research(
         project_dir,
         config,
         provider,
-        prompt_char_budget=settings.prompt_char_budget,
+        prompt_char_budget=budget,
     )
 
 
@@ -166,18 +173,32 @@ def run_pipeline(
     only_stage: str | None = None,
     task_id: int | None = None,
     store: TaskStore | None = None,
+    routing_path: Path | None = None,
 ) -> PipelineResult:
     project_dir = project_dir.resolve()
     stages = _select_stages(from_stage, only_stage)
-    needs_model = bool({"research", "outline", "generate"} & set(stages))
-    provider: ModelProvider = (
-        build_provider(settings, provider_name) if needs_model else NullProvider()
-    )
-    store = store or TaskStore(settings.database_path)
+    configured_routing = routing_path or settings.routing_file
+    policy = load_routing(configured_routing) if configured_routing else None
 
+    def provider_for(stage: str) -> ModelProvider:
+        if stage not in MODEL_STAGES:
+            return NullProvider()
+        if provider_name:
+            return build_provider(settings, provider_name)
+        if policy is not None:
+            return build_provider(settings, policy.provider_for(stage, settings.provider))
+        return build_provider(settings)
+
+    store = store or TaskStore(settings.database_path)
+    task_provider = provider_name or (
+        policy.default if policy is not None and policy.default else settings.provider
+    )
     if task_id is None:
         task_id = store.create_task(
-            config.project_id, config.content_mode, provider.name, provider.model
+            config.project_id,
+            config.content_mode,
+            task_provider,
+            settings.model_for(task_provider),
         )
     store.log_event(task_id, "info", f"pipeline stages: {', '.join(stages)}")
 
@@ -185,6 +206,7 @@ def run_pipeline(
     qa: QAReport | None = None
 
     for stage in stages:
+        provider = provider_for(stage)
         store.update_task(task_id, status=STAGE_STATUS[stage], stage=stage)
         run_id = store.start_stage(task_id, stage, provider.name, provider.model)
         try:
@@ -207,6 +229,10 @@ def run_pipeline(
                 failed_stage=stage,
                 error=message,
             )
+        finally:
+            close = getattr(provider, "close", None)
+            if callable(close):
+                close()
 
     if qa is None:
         qa = load_qa_report(project_dir)

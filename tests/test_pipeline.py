@@ -97,3 +97,29 @@ def test_release_is_blocked_when_qa_fails(tmp_path):
     run_pipeline(root, config, settings, provider_name="mock")
     with pytest.raises(ValidationFailure):
         build_release(root, config, "v1")
+
+
+def test_pipeline_applies_stage_routing(tmp_path):
+    root, config = _project(tmp_path)
+    settings = Settings(
+        _env_file=None,
+        provider="deepseek",
+        deepseek_api_key="",
+        database_path=tmp_path / "var" / "lces.sqlite3",
+        projects_dir=tmp_path / "projects",
+    )
+    routing = tmp_path / "routing.yaml"
+    routing.write_text(
+        "default: mock\nstages:\n  research: mock\n  outline: mock\n  generate: mock\n",
+        encoding="utf-8",
+    )
+
+    result = run_pipeline(root, config, settings, routing_path=routing)
+
+    assert result.failed_stage is None
+    store = TaskStore(settings.database_path)
+    runs = {run["stage"]: run for run in store.stage_runs(result.task_id)}
+    assert runs["research"]["provider"] == "mock"
+    assert runs["outline"]["provider"] == "mock"
+    assert runs["generate"]["provider"] == "mock"
+    assert runs["ingest"]["provider"] == "none"

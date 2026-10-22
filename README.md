@@ -11,6 +11,7 @@
 - **Python 3.13**（由 `.python-version` 与 `pyproject.toml` 锁定）
 - [uv](https://docs.astral.sh/uv/)
 - Git
+- 可选：llama.cpp `llama-server`（本地模型，默认 `http://127.0.0.1:8080/v1`）
 - 可选：FFmpeg、Playwright（Phase 3 媒体阶段再安装）
 
 虚拟环境必须位于项目目录内：`.venv/`。不要用系统 Python 安装业务依赖。
@@ -41,18 +42,36 @@ macOS/Linux 使用 `bash scripts/bootstrap.sh`，解释器路径为 `.venv/bin/p
 复制 `.env.example` 为 `.env`（`.env` 永不提交）：
 
 ```dotenv
-LCES_PROVIDER=mock              # mock | deepseek | anthropic
+LCES_PROVIDER=local             # mock | local | deepseek | anthropic
+LCES_LOCAL_BASE_URL=http://127.0.0.1:8080/v1
+LCES_LOCAL_MODEL=
 LCES_DEEPSEEK_API_KEY=
-LCES_DEEPSEEK_MODEL=deepseek-chat
 LCES_ANTHROPIC_API_KEY=
-LCES_ANTHROPIC_MODEL=claude-sonnet-4-5
 ```
 
 - `mock`：确定性占位输出，可离线跑通结构，但**发布门禁会拒绝**。
-- `deepseek`：OpenAI 兼容接口，`httpx` 实现，带超时/重试/结构化输出校验。
-- `anthropic`：Messages API，`httpx` 实现。
+- `local`：llama.cpp `llama-server` 的 OpenAI 兼容接口，无需 API key；模型 ID 从 `/v1/models` 自动发现。
+- `deepseek`：OpenAI 兼容接口，`httpx` 实现，带超时/重试/结构化输出校验。密钥可用 `LCES_DEEPSEEK_API_KEY` 或 `DEEPSEEK_API_KEY`。
+- `anthropic`：Messages API，`httpx` 实现。密钥可用 `LCES_ANTHROPIC_API_KEY` 或 `ANTHROPIC_API_KEY`。
 
 模型名称、端点和限额以各家官方文档为准；切换供应商不需要改内容 Schema、模板或发布流程。
+
+## 本地模型（llama.cpp / Intel Arc）
+
+1. 运行 `D:\AI\start_server.bat` 启动 `llama-server`（加载 `D:\AI\models\Qwen3.5-4B_Q4_k_m.gguf`）。
+2. 检查服务与模型：`uv run lces models`（会请求 `/health` 与 `/v1/models`，不产生生成调用）。
+3. 在 `.env` 设置 `LCES_PROVIDER=local`，或直接 `uv run lces run <project> --provider local`。
+4. 如果服务端口不是 8080，修改 `LCES_LOCAL_BASE_URL`。
+5. 若该 llama-server 版本不支持 `response_format`，设置 `LCES_LOCAL_JSON_MODE=false`；结构化输出仍会由提示词 + Pydantic 校验兜底。
+6. 本地上下文较小：`LCES_LOCAL_PROMPT_CHAR_BUDGET`（默认 24000 字符）限制研究阶段的资料长度。上下文不足时应减少资料或改用云端模型，而不是强行塞满。
+
+### 按阶段路由（本地 + 云端混合）
+
+```powershell
+uv run lces run .\projects\paper-01 --routing config/routing.yaml
+```
+
+`config/routing.yaml` 只允许配置 `research`、`outline`、`generate` 三个调用模型的阶段；`ingest/build/validate` 永远不调用模型。示例配置让研究走 DeepSeek，起草与讲稿走本地模型。CLI 的 `--provider` 优先级高于路由文件。每次运行的阶段、provider、model 与 token 用量都写入 SQLite，可用 `lces status --task <id>` 查看。
 
 ## 一条完整流水线
 

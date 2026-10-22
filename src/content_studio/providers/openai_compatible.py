@@ -30,8 +30,10 @@ class OpenAICompatibleProvider(ModelProvider):
         base_url: str,
         timeout: float = 120.0,
         max_retries: int = 3,
+        require_api_key: bool = True,
+        native_json_mode: bool | None = None,
     ) -> None:
-        if not api_key:
+        if require_api_key and not api_key:
             raise ConfigurationError(f"missing API key for provider '{self.name}'; set it in .env")
         if not base_url:
             raise ConfigurationError(f"missing base_url for provider '{self.name}'")
@@ -39,6 +41,8 @@ class OpenAICompatibleProvider(ModelProvider):
         self.base_url = base_url.rstrip("/")
         self.max_retries = max_retries
         self._api_key = api_key
+        if native_json_mode is not None:
+            self.native_json_mode = native_json_mode
         self._client = httpx.Client(
             timeout=timeout,
             follow_redirects=True,
@@ -50,10 +54,10 @@ class OpenAICompatibleProvider(ModelProvider):
         return f"{self.base_url}/chat/completions"
 
     def _headers(self) -> dict[str, str]:
-        return {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
 
     def generate(self, request: GenerationRequest) -> GenerationResult:
         payload: dict[str, Any] = {

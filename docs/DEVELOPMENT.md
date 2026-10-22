@@ -11,6 +11,8 @@
 
 ```powershell
 uv run lces doctor
+uv run lces models                 # probe local llama-server without generating
+uv run lces run .\projects\p1 --routing config/routing.yaml
 uv run lces export-schemas
 uv run pytest
 uv run pytest --cov=src/content_studio --cov-report=term-missing
@@ -44,8 +46,10 @@ uv run mypy src
 
 ```powershell
 git init -b main            # first time only
+git remote add origin git@github.com:weixc0856-cell/LCES.git
 git add .
 git commit -m "feat: phase 0 + phase 1 baseline"
+git push -u origin main
 ```
 
 Commit `uv.lock`, `schemas/`, templates, and tests. Never commit `.env`, `var/`, `projects/*/internal/`, `projects/*/build/`, or `projects/*/release/`.

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     provider: str = "mock"
@@ -26,17 +27,39 @@ class Settings(BaseSettings):
     temperature: float = Field(default=0.2, ge=0, le=2)
     max_output_tokens: int = Field(default=8192, ge=256, le=65536)
 
-    deepseek_api_key: str = ""
+    # Accept both LCES_-prefixed and conventional vendor variable names.
+    deepseek_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LCES_DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY"),
+    )
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_model: str = "deepseek-chat"
 
-    anthropic_api_key: str = ""
+    anthropic_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LCES_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"),
+    )
     anthropic_base_url: str = "https://api.anthropic.com"
     anthropic_model: str = "claude-sonnet-4-5"
     anthropic_version: str = "2023-06-01"
 
+    # llama.cpp llama-server / Ollama / LM Studio expose an OpenAI-compatible API.
+    # `local_model` empty means "discover from /v1/models on first use".
+    local_base_url: str = "http://127.0.0.1:8080/v1"
+    local_model: str = ""
+    local_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LCES_LOCAL_API_KEY", "LLAMA_API_KEY"),
+    )
+    local_json_mode: bool = True
+    local_timeout_seconds: float = Field(default=300.0, gt=0)
+    local_max_retries: int = Field(default=2, ge=1, le=5)
+    # Keep research prompts inside a small local context window (~8K–16K tokens).
+    local_prompt_char_budget: int = Field(default=24_000, ge=2000)
+
     projects_dir: Path = Path("projects")
     database_path: Path = Path("var/lces.sqlite3")
+    routing_file: Path | None = None
     log_level: str = "INFO"
 
     max_source_bytes: int = Field(default=50_000_000, ge=1024)
@@ -48,6 +71,8 @@ class Settings(BaseSettings):
             return self.deepseek_api_key
         if provider == "anthropic":
             return self.anthropic_api_key
+        if provider in {"local", "llama", "llama_cpp", "llamacpp"}:
+            return self.local_api_key
         return ""
 
     def model_for(self, provider: str) -> str:
@@ -56,6 +81,8 @@ class Settings(BaseSettings):
             return self.deepseek_model
         if provider == "anthropic":
             return self.anthropic_model
+        if provider in {"local", "llama", "llama_cpp", "llamacpp"}:
+            return self.local_model or "auto (llama-server)"
         return "mock-deterministic"
 
     def base_url_for(self, provider: str) -> str:
@@ -64,6 +91,8 @@ class Settings(BaseSettings):
             return self.deepseek_base_url
         if provider == "anthropic":
             return self.anthropic_base_url
+        if provider in {"local", "llama", "llama_cpp", "llamacpp"}:
+            return self.local_base_url
         return ""
 
     def describe(self) -> str:

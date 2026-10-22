@@ -7,11 +7,13 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 38 passed |
+| `pytest -q` | 50 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed |
 | `lces run` (mock, temp project) | 6/6 stages; `NEEDS_REVISION`; release refused |
+| `lces run --routing` (mock routing) | stage providers recorded as mock/none |
+| `lces models` (no server) | reports unreachable without crashing |
 
 The Windows `.venv` in this checkout is still Python 3.14.3; rebuild it before
 repeating these checks locally.

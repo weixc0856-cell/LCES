@@ -16,7 +16,12 @@ by a working code path.
 | SQLite task/stage/asset/approval records | Implemented | `storage.py`; state machine values from PRD |
 | DeepSeek adapter (OpenAI-compatible) | Implemented | `httpx`, timeout, bounded retry, usage extraction |
 | Anthropic adapter | Implemented | Messages API via `httpx`; no SDK dependency |
+| Local llama.cpp adapter | Implemented | OpenAI-compatible `/v1`, no key required, model auto-discovery, `/health` probe |
 | Mock provider | Implemented | Deterministic; release gates reject it |
+| Stage routing (local/cloud mix) | Partial | `research`/`outline`/`generate` only; no automatic escalation or quality-based routing |
+| Model diagnostics | Implemented | `lces models` probes local `/health` and `/v1/models` |
+| Usage telemetry | Partial | Tokens and provider/model per stage in SQLite; no cost pricing table |
+| Local prompt budgeting | Implemented | `LCES_LOCAL_PROMPT_CHAR_BUDGET`, default 24000 characters |
 | Local ingestion (MD/TXT/HTML/PDF/DOCX) | Implemented | PDF without text layer marked `partial` (no OCR) |
 | URL ingestion | Partial | No JS rendering, login, or anti-bot handling; failures recorded as `unavailable` |
 | Source registry with hashes | Implemented | `internal/source_registry.json`, raw copies in `input/` |
@@ -32,7 +37,8 @@ by a working code path.
 | Release staging + manifest + ZIP | Implemented | ZIP built only from `release/` tree |
 | Human approval recording | Implemented | File + SQLite; not a web UI |
 | Failure recovery | Partial | Stage-scoped rerun with task records; no automatic retry queue |
-| Model routing / cost statistics | Not implemented | `config/routing.yaml` is Config only |
+| Model routing / cost statistics | Partial | Explicit stage routing works; automatic escalation, eval-based routing and pricing are not implemented |
+| Local model evaluation suite | Not implemented | No `evals/` benchmark runner yet; see `local model.md` for the proposed test set |
 | Playwright visual regression | Not implemented | Phase 3 |
 | SVG/Canvas scene engine, frame export | Not implemented | `scene_render_contract` schema only |
 | FFmpeg video, subtitles, media checks | Not implemented | Phase 3 |
@@ -48,10 +54,10 @@ Windows `.venv` was not modified):
 | Command | Result |
 |---|---|
 | `uv sync` | 47 packages resolved/installed |
-| `pytest -q` | 38 passed |
+| `pytest -q` | 50 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | no issues in 22 source files |
+| `mypy src` | no issues in 24 source files |
 | `lces export-schemas` | 12 schemas written |
 | `lces run` (mock, temp project) | all 6 stages completed; QA correctly returned `NEEDS_REVISION` and blocked release |
 
