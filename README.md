@@ -59,7 +59,7 @@ LCES_ANTHROPIC_API_KEY=
 ## 本地模型（llama.cpp / Intel Arc）
 
 1. 运行 `D:\AI\start_server.bat` 启动 `llama-server`（加载 `D:\AI\models\Qwen3.5-4B_Q4_k_m.gguf`）。
-2. 检查服务与模型：`uv run lces models`（会请求 `/health` 与 `/v1/models`，不产生生成调用）。
+2. 检查服务与模型：`uv run lces models`（会请求 `/health` 与 `/v1/models`，不产生生成调用）；加 `--test` 会发送一次最小生成请求，验证结构化输出链路。
 3. 在 `.env` 设置 `LCES_PROVIDER=local`，或直接 `uv run lces run <project> --provider local`。
 4. 如果服务端口不是 8080，修改 `LCES_LOCAL_BASE_URL`。
 5. 若该 llama-server 版本不支持 `response_format`，设置 `LCES_LOCAL_JSON_MODE=false`；结构化输出仍会由提示词 + Pydantic 校验兜底。
@@ -114,6 +114,15 @@ projects/<id>/
 2. `lces release` 不复制工作目录，只从 `build/release-staging-*` 重新组装。
 3. Gate 4 扫描白名单、内部标记、密钥模式、清单哈希与人工审批；任一项失败即拒绝发布。
 4. ZIP 只从 `release/` 目录生成，位于 `build/artifacts/`。
+
+## 远程仓库
+
+```powershell
+git remote -v        # origin -> git@github.com:weixc0856-cell/LCES.git
+git push -u origin main
+```
+
+推送需要本机已配置 GitHub SSH key。当前两个提交（`0e367ba`、`56c2cfb`）已在本地 `main` 分支；若远端仓库尚未创建，请先在 GitHub 建空仓库再推送。
 
 ## 质量门禁
 

@@ -38,6 +38,7 @@ from content_studio.paths import (
     safe_project_id,
     template_dir,
 )
+from content_studio.providers.base import GenerationRequest, Message
 from content_studio.providers.factory import LOCAL_NAMES
 from content_studio.providers.local_llama_cpp import LocalLlamaProvider
 from content_studio.release import (
@@ -348,6 +349,7 @@ def release(
 def models(
     provider: str | None = typer.Option(None, help="只检查指定 provider"),
     probe: bool = typer.Option(True, "--probe/--no-probe", help="探测本地服务与可用模型"),
+    test: bool = typer.Option(False, "--test/--no-test", help="向本地模型发送一次最小生成请求"),
 ) -> None:
     """Show configured providers and probe the local llama-server."""
 
@@ -393,6 +395,32 @@ def models(
                     "  提示: 先运行 D:\\AI\\start_server.bat 启动 llama-server，"
                     "再用 LCES_LOCAL_BASE_URL 指定实际端口。",
                     fg=typer.colors.YELLOW,
+                )
+            elif test:
+                local = LocalLlamaProvider(
+                    base_url=settings.local_base_url,
+                    model=settings.local_model,
+                    api_key=settings.local_api_key,
+                    timeout=settings.local_timeout_seconds,
+                    max_retries=1,
+                    json_mode=settings.local_json_mode,
+                )
+                try:
+                    result = local.generate(
+                        GenerationRequest(
+                            messages=[Message("user", "只回复 OK")],
+                            max_tokens=16,
+                            temperature=0,
+                        )
+                    )
+                except LCESError as exc:
+                    typer.secho(f"  生成测试失败: {exc}", fg=typer.colors.RED)
+                    raise typer.Exit(code=1) from exc
+                finally:
+                    local.close()
+                typer.echo(
+                    f"  生成测试: {result.text[:80]!r} | {result.latency_ms}ms"
+                    f" | usage={result.usage.as_dict()}"
                 )
 
     for name in ("deepseek", "anthropic"):
