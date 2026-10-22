@@ -12,3 +12,6 @@
 *.ps1 text eol=crlf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Vendored runtime: byte-exact; the renderer verifies its sha256.
+vendor/mermaid/*.min.js -text

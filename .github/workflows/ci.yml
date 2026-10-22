@@ -27,6 +27,23 @@ jobs:
       - name: Tests
         run: uv run pytest
 
+  graphviz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.13
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+      - name: Sync dependencies (locked)
+        run: uv sync --locked
+      - name: Graphviz adapter tests
+        run: uv run pytest tests/test_graphviz.py
+
   browser-qa:
     runs-on: ubuntu-latest
     steps:
