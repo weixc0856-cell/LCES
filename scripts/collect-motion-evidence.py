@@ -74,8 +74,13 @@ def collect(root: Path, out: Path, *, keep_frames: bool, frames_out: Path | None
         )
         qa_dir = project_root / "internal" / "qa" if project_root is not None else None
         if qa_dir is not None and qa_dir.is_dir():
-            copy_if_file(qa_dir / "encode_report.json", target / "qa-encode_report.json")
-            copy_if_file(qa_dir / "frame_manifest.json", target / "qa-frame_manifest.json")
+            for name in (
+                "encode_report.json",
+                "frame_manifest.json",
+                "visual_assets.json",
+                "render_manifest.json",
+            ):
+                copy_if_file(qa_dir / name, target / f"qa-{name}")
         frames = frame_files(build)
         if frames:
             shutil.copy2(frames[0], target / "first.png")
