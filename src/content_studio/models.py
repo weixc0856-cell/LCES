@@ -39,10 +39,25 @@ TaskStatus = Literal[
 
 SourceKind = Literal["web", "pdf", "markdown", "text", "html", "docx"]
 AccessStatus = Literal["fetched", "partial", "unavailable"]
-ClaimType = Literal["fact", "inference", "assumption", "unknown", "disputed"]
+ClaimType = Literal[
+    "fact", "inference", "assumption", "prediction", "opinion", "unknown", "disputed"
+]
 Importance = Literal["key", "supporting"]
 SupportRelation = Literal["supports", "refutes", "partially_supports", "background"]
-VerificationStatus = Literal["unverified", "verified", "conflict", "unverifiable"]
+# Canonical review states plus the legacy values already present in older
+# projects. `evidence.canonical_status()` maps the legacy ones.
+VerificationStatus = Literal[
+    "pending",
+    "supported",
+    "partially_supported",
+    "contradicted",
+    "insufficient_evidence",
+    "not_applicable",
+    "unverified",
+    "verified",
+    "conflict",
+    "unverifiable",
+]
 EvidenceType = Literal[
     "quote", "data", "figure", "table", "experiment", "official_statement", "analysis"
 ]
@@ -101,6 +116,12 @@ class Claim(StrictModel):
     statement: str = Field(min_length=1)
     claim_type: ClaimType
     importance: Importance = "supporting"
+    # Review state is owned by a human reviewer (`lces review-claims`), never
+    # by the model that produced the claim.
+    verification_status: VerificationStatus = "pending"
+    reviewer: str = ""
+    reviewed_at: datetime | None = None
+    notes: str = ""
 
 
 class EvidenceRecord(StrictModel):

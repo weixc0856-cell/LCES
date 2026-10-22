@@ -19,6 +19,8 @@
             "fact",
             "inference",
             "assumption",
+            "prediction",
+            "opinion",
             "unknown",
             "disputed"
           ],
@@ -32,6 +34,46 @@
             "supporting"
           ],
           "title": "Importance",
+          "type": "string"
+        },
+        "verification_status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "supported",
+            "partially_supported",
+            "contradicted",
+            "insufficient_evidence",
+            "not_applicable",
+            "unverified",
+            "verified",
+            "conflict",
+            "unverifiable"
+          ],
+          "title": "Verification Status",
+          "type": "string"
+        },
+        "reviewer": {
+          "default": "",
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
           "type": "string"
         }
       },
@@ -96,6 +138,12 @@
         "verification_status": {
           "default": "unverified",
           "enum": [
+            "pending",
+            "supported",
+            "partially_supported",
+            "contradicted",
+            "insufficient_evidence",
+            "not_applicable",
             "unverified",
             "verified",
             "conflict",

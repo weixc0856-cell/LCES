@@ -1,3 +1,5 @@
+import json
+
 from typer.testing import CliRunner
 
 from content_studio.cli import app
@@ -16,3 +18,59 @@ def test_help_lists_local_capable_commands(tmp_path, monkeypatch):
     assert result.exit_code == 0
     assert "models" in result.output
     assert "run" in result.output
+
+
+def test_review_claims_records_a_decision(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project = tmp_path / "project"
+    (project / "internal").mkdir(parents=True)
+    (project / "project.yaml").write_text("project_id: demo\ntitle: 示例\n", encoding="utf-8")
+    (project / "internal" / "claims.json").write_text(
+        json.dumps(
+            [
+                {
+                    "claim_id": "claim-001",
+                    "statement": "示例主张",
+                    "claim_type": "fact",
+                    "importance": "key",
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "review-claims",
+            str(project),
+            "--claim",
+            "claim-001",
+            "--status",
+            "supported",
+            "--by",
+            "tester",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "supported" in result.output
+
+    stored = json.loads((project / "internal" / "claims.json").read_text(encoding="utf-8"))
+    assert stored[0]["verification_status"] == "supported"
+    assert stored[0]["reviewer"] == "tester"
+
+
+def test_review_claims_rejects_unknown_status(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project = tmp_path / "project"
+    (project / "internal").mkdir(parents=True)
+    (project / "project.yaml").write_text("project_id: demo\ntitle: 示例\n", encoding="utf-8")
+    (project / "internal" / "claims.json").write_text("[]", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        ["review-claims", str(project), "--claim", "claim-001", "--status", "ok", "--by", "x"],
+    )
+    assert result.exit_code == 1
+    assert "unknown review status" in result.output

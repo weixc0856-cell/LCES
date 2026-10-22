@@ -52,6 +52,12 @@
     "verification_status": {
       "default": "unverified",
       "enum": [
+        "pending",
+        "supported",
+        "partially_supported",
+        "contradicted",
+        "insufficient_evidence",
+        "not_applicable",
         "unverified",
         "verified",
         "conflict",

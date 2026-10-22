@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from content_studio import __version__
 from content_studio.errors import ConfigurationError, LCESError
+from content_studio.evidence import review_claim
 from content_studio.ingestion import ingest_project
 from content_studio.models import (
     ContentOutline,
@@ -572,6 +573,31 @@ def render_spec(
     path = output / f"{spec.visual_id}.html"
     path.write_text(result.html, encoding="utf-8")
     typer.echo(f"{spec.visual_id} -> {path} | {result.renderer} {result.renderer_version}")
+
+
+@app.command("review-claims")
+@guarded
+def review_claims(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    claim: str = typer.Option(..., "--claim", help="主张编号，例如 claim-001"),
+    status: str = typer.Option(
+        ...,
+        "--status",
+        help="pending | supported | partially_supported | contradicted | "
+        "insufficient_evidence | not_applicable",
+    ),
+    by: str = typer.Option(..., "--by", help="审核人"),
+    note: str = typer.Option("", "--note", help="审核备注"),
+) -> None:
+    """Record a human verification decision for one claim."""
+
+    root, _config = _project(project_dir)
+    updated = review_claim(root, claim, status, by, note=note)
+    typer.echo(
+        f"{updated.claim_id} -> {updated.verification_status} |"
+        f" {updated.reviewer} @ {updated.reviewed_at}"
+    )
+    typer.echo("提示: 重新运行 `lces validate` 让 Gate 1 反映该核验结果。")
 
 
 def _run_single(project_dir: Path, stage: str, provider: str | None):

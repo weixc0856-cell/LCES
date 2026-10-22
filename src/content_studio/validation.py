@@ -16,10 +16,12 @@ from content_studio.content import (
     load_public_content,
     load_speaker_script,
 )
+from content_studio.evidence import is_contradicted, review_state
 from content_studio.ingestion import load_registry
 from content_studio.models import (
     CheckResult,
     Claim,
+    EvidenceLedger,
     ProjectConfig,
     QAReport,
     ReleaseManifest,
@@ -219,6 +221,71 @@ def _browser_result_checks(result: BrowserQAResult) -> list[CheckResult]:
     return checks
 
 
+def _claim_review_checks(
+    claims: list[Claim], ledger: EvidenceLedger, claims_error: str
+) -> list[CheckResult]:
+    """Gate 1 review-state checks. Unparseable claims are reported elsewhere."""
+
+    key_claims = [claim for claim in claims if claim.importance == "key"]
+    if not key_claims or claims_error:
+        return []
+
+    checks: list[CheckResult] = []
+    contradicted_claims = [
+        claim.claim_id for claim in key_claims if is_contradicted(claim.verification_status)
+    ]
+    checks.append(
+        _check(
+            "gate_1_research",
+            "contradicted_claims_blocked",
+            "fail" if contradicted_claims else "pass",
+            "关键主张与证据冲突：" + ", ".join(contradicted_claims)
+            if contradicted_claims
+            else "关键主张未与证据冲突",
+        )
+    )
+
+    pending_claims = [
+        claim.claim_id
+        for claim in key_claims
+        if review_state(claim.verification_status, claim.reviewer)
+        not in {"supported", "not_applicable", "contradicted"}
+    ]
+    checks.append(
+        _check(
+            "gate_1_research",
+            "pending_claims_flagged",
+            "warn" if pending_claims else "pass",
+            "关键主张尚未完成人工核验：" + ", ".join(pending_claims)
+            if pending_claims
+            else "关键主张均已记录核验状态",
+            blocking=False,
+        )
+    )
+
+    if ledger.records:
+        key_claim_ids = {claim.claim_id for claim in key_claims}
+        missing_locator = [
+            record.evidence_id
+            for record in ledger.records
+            if record.claim_id in key_claim_ids
+            and not record.locator.strip()
+            and not record.source_excerpt.strip()
+        ]
+        checks.append(
+            _check(
+                "gate_1_research",
+                "evidence_locators_present",
+                "warn" if missing_locator else "pass",
+                "证据缺少定位与摘录：" + ", ".join(missing_locator)
+                if missing_locator
+                else "关键证据均带定位信息或原文摘录",
+                blocking=False,
+            )
+        )
+    return checks
+
+
 def run_validation(
     project_dir: Path,
     config: ProjectConfig,
@@ -237,12 +304,15 @@ def run_validation(
     script = load_speaker_script(project_dir)
 
     claims: list[Claim] = []
+    claims_error = ""
     claims_path = project_dir / "internal" / "claims.json"
     if claims_path.exists():
         try:
             raw = json.loads(claims_path.read_text(encoding="utf-8"))
             claims = [Claim.model_validate(item) for item in raw]
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            # A broken claims file must not silently become "no claims".
+            claims_error = f"{exc.__class__.__name__}: {exc}"
             claims = []
 
     # --- Gate 1 -------------------------------------------------------
@@ -275,6 +345,18 @@ def run_validation(
         checks.append(_check("gate_1_research", "research_brief_exists", "fail", "研究简报缺失"))
     else:
         checks.append(_check("gate_1_research", "research_brief_exists", "pass", "研究简报存在"))
+
+    if claims_path.exists():
+        checks.append(
+            _check(
+                "gate_1_research",
+                "claims_parse",
+                "fail" if claims_error else "pass",
+                f"claims.json 无法解析：{claims_error}"
+                if claims_error
+                else f"claims.json 可解析（{len(claims)} 条主张）",
+            )
+        )
 
     source_ids = {s.source_id for s in registry.sources} if registry else set()
     claim_ids = {claim.claim_id for claim in claims}
@@ -326,11 +408,13 @@ def run_validation(
             _check("gate_1_research", "key_claims_have_evidence", "pass", "关键主张均有支持证据")
         )
 
+    checks.extend(_claim_review_checks(claims, ledger, claims_error))
+
     unverified = [
         record.evidence_id
         for record in ledger.records
         if record.claim_id in {claim.claim_id for claim in key_claims}
-        and record.verification_status == "unverified"
+        and review_state(record.verification_status, record.reviewer) == "pending"
     ]
     checks.append(
         _check(

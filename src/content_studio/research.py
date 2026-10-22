@@ -101,6 +101,9 @@ def run_research(
         },
     )
     analysis = provider.generate_structured(request, ResearchAnalysis)
+    # A model cannot verify its own output: any status it reports is reset and
+    # only a human reviewer (`lces review-claims`) may change it.
+    analysis = _reset_verification(analysis)
 
     source_ids = {source.source_id for source in registry.sources}
     claim_ids = {claim.claim_id for claim in analysis.claims}
@@ -126,6 +129,24 @@ def run_research(
 
     _persist(project_dir, analysis, brief, ledger, provider, dropped)
     return brief, ledger
+
+
+def _reset_verification(analysis: ResearchAnalysis) -> ResearchAnalysis:
+    """Drop model-reported review state; humans own the verification column."""
+
+    claims = [
+        claim.model_copy(
+            update={"verification_status": "pending", "reviewer": "", "reviewed_at": None}
+        )
+        for claim in analysis.claims
+    ]
+    evidence = [
+        record.model_copy(
+            update={"verification_status": "unverified", "reviewer": "", "checked_at": None}
+        )
+        for record in analysis.evidence
+    ]
+    return analysis.model_copy(update={"claims": claims, "evidence": evidence})
 
 
 def _persist(
