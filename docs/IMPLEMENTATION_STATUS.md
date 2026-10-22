@@ -37,7 +37,7 @@ by a working code path.
 | Visual asset contract | Implemented | `VisualAsset` with workspace-relative paths, hashes, QA results; `internal/qa/visual_assets.json` per build |
 | Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
 | Mermaid diagrams | Implemented | Vendored runtime 12.2.0 (MIT, sha256-verified), offline Chromium, strict config, rejects init/click directives |
-| Motion Canvas P0 (experiment) | GO, Linux-only | `spike/motion-canvas`; offline render, negative control, cancel/timeout, UI contract tests 10/10 (CI + Windows host diagnostic); P1 admitted for Linux (WSL2 local), Windows native out of scope; not in production |
+| Motion Canvas P0 (experiment) | GO, Linux-only | `spike/motion-canvas`; offline render, negative control, cancel/timeout, UI contract tests 11/11 (CI + Windows host diagnostic); P1 admitted for Linux (WSL2 local), Windows native out of scope; not in production |
 | Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); CI acceptance on Graphviz 2.43.0 with real `dot` rendering (14/14 tests); Windows 16.1.0 install still pending |
 | Renderer environment diagnostics | Implemented | `lces doctor` reports Mermaid runtime and Graphviz availability |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |
@@ -69,7 +69,7 @@ by a working code path.
 | Video/animation generation (Manim/Remotion) | Not implemented | FFmpeg is used for inspection only |
 | FFmpeg video, subtitles, media checks | Not implemented | Phase 3 |
 | Local web interface | Not implemented | Phase 6 |
-| CI workflow | Implemented | `test`, `browser-qa`, and `graphviz` jobs all green (run `39740736404`); Graphviz evidence uploaded as an artifact. Manual `motion-canvas-p0` workflow green (run `39742834259`) |
+| CI workflow | Implemented | `test`, `browser-qa`, and `graphviz` jobs all green (run `39740736404`); Graphviz evidence uploaded as an artifact. Manual `motion-canvas-p0` workflow green (run `39752667833`) |
 
 ## Verification status
 
@@ -101,8 +101,8 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | `lces doctor` (local) | `Mermaid: 可用 — vendored 12.2.0`; `Graphviz: 不可用 — ... winget ... 16.1.0` |
 | CI `test` / `browser-qa` / `graphviz` | all green (run `39740736404`); mypy passes without optional extras |
 | CI Graphviz evidence | `dot - graphviz version 2.43.0`; 14 tests, 0 failures; artifact `graphviz-evidence` uploaded |
-| Motion Canvas P0 CI (manual) | run `39750119050`: `--network none` 300 frames, contract tests 10/10, negative controls exit 1, cancel/timeout pass; evidence artifact uploaded |
-| Motion Canvas contract tests (Windows host) | `contract.test.mjs` 10/10 in ~61 s; driver render 300 frames in 5.45 s (network available; not an offline proof) |
+| Motion Canvas P0 CI (manual) | run `39752667833`: `--network none` 300 frames, contract tests 11/11, negative controls exit 1, cancel/timeout pass; evidence artifact uploaded |
+| Motion Canvas contract tests (Windows host) | `contract.test.mjs` 11/11 in ~61 s; driver render 300 frames in 5.45 s (network available; not an offline proof) |
 | Graphviz renderer | stubbed path covers syntax error, timeout, unsafe output; real `dot` test passes in CI (2.43.0), skipped locally until 16.1.0 is installed |
 | Mermaid renderer | flowchart + sequence render offline; invalid syntax, malicious labels, init directives, and a 1 ms timeout all fail explicitly |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial; no media in v1) |

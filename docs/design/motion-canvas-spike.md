@@ -42,7 +42,7 @@
   `allowScripts: {"esbuild@0.18.20": true}` 后 `npm rebuild esbuild`。
   这是安装期必须显式处理的步骤。
 
-CI 环境（run `39742834259`，Ubuntu runner）：
+CI 环境（run `39752667833`，Ubuntu runner）：
 
 | 项 | 值 |
 |---|---|
@@ -136,7 +136,7 @@ CI 环境（run `39742834259`，Ubuntu runner）：
 - `unpkg.com/highlightjs@9.16.2/styles/atom-one-dark.css`
 - `registry.npmjs.org/@motion-canvas/core/latest`
 
-CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
+CI run `39752667833` 在 `docker run --network none` 中完成真实渲染：
 
 | 指标 | 结果 |
 |---|---|
@@ -151,11 +151,11 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 `request_failures`），与操作系统级禁网互为佐证；不单独以日志代替隔离。
 本机 Docker 构建失败记录（apt 连接 `198.18.1.108`）保留为历史证据
 `var/spike/evidence/docker-build-failure.txt`；CI 正常网络下构建成功。
-证据 artifact：`motion-canvas-p0-evidence`（run `39742834259`）。
+证据 artifact：`motion-canvas-p0-evidence`（run `39752667833`）。
 
 ## 8. 证据路径
 
-- CI artifact：`motion-canvas-p0-evidence`（run `39742834259`）
+- CI artifact：`motion-canvas-p0-evidence`（run `39752667833`）
   - `render/report.json`、`frame-count.txt`、`frame-info.txt`、`decode.log`
   - `cancel/report.json`、`timeout/report.json`
   - `negative-control.txt`、`image-id.txt`、`input-hashes.txt`、版本文件
@@ -188,7 +188,7 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 
 **GO（仅 Linux）** —— P1 准入范围由方案 B 确定（2026-10-22）。
 
-已通过的强制门槛（run `39750119050`）：
+已通过的强制门槛（run `39752667833`）：
 
 - 离线渲染：`--network none` 下 300 帧、4.71 s、全帧解码、1920×1080；
 - 网络负控制：`fetch` 与 `npm install` 均失败（exit 1）；
@@ -197,7 +197,7 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 - 超时：76 帧时检测到并停止，`timed_out=true`；
 - 输出完整性：帧数、尺寸、解码、截图与报告已归档；
 - 资源上限：容器 `--memory=768m` 下完成渲染；
-- UI 契约：run `39750119050` **10/10**（DOM、状态转换、产物、负向用例）。
+- UI 契约：run `39752667833` **11/11**（DOM、状态转换、产物、负向用例）。
 
 判为 GO 的前提是**范围限定为 Linux**：驱动依赖 DOM 文本，只在 Linux CI 验证过。
 Windows 不在 P1 范围；P1 入口必须显式拒绝非 Linux 平台
@@ -231,7 +231,7 @@ Windows 不在 P1 范围；P1 入口必须显式拒绝非 Linux 平台
 
 | 任务 | 内容 | 状态 |
 |---|---|---|
-| P1-GATE-01 | UI 驱动契约测试 | **已实现**；CI run `39750119050` **10/10**（`--network none`），Windows 主机 10/10 |
+| P1-GATE-01 | UI 驱动契约测试 | **已实现**；CI run `39752667833` **11/11**（`--network none`），Windows 主机 11/11 |
 | P1-GATE-02 | Windows 本地重跑 | **Out of scope**（方案 B：P1 仅 Linux）；本地 Linux 使用 WSL2 Ubuntu 24.04，环境由用户维护；Windows 清单保留供未来准入 |
 | P1-GATE-03 | 准入决策记录 | **已更新**：方案 B，仅 Linux |
 
@@ -256,11 +256,11 @@ docker run --rm --network none --memory=768m `
   --test --test-reporter=tap contract.test.mjs
 ```
 
-CI 契约结果（run `39750119050`）：**10 tests / 10 pass / 0 fail**，
+CI 契约结果（run `39752667833`）：**11 tests / 11 pass / 0 fail**，
 TAP 归档为 `contract-tests.tap`；同一轮离线渲染、负控制、取消、超时全部通过。
 
 Windows 主机部分结果（2026-10-22，**非断网**）：`node --test contract.test.mjs`
-**10/10 通过**（约 61–74 s）；`node driver.mjs` 渲染 **300 帧 / 5.45 s**。该运行
+**11/11 通过**（约 61–74 s）；`node driver.mjs` 渲染 **300 帧 / 5.45 s**。该运行
 证明契约与驱动在 Windows 主机可工作，但不构成 Windows 断网/负控制证据。
 
 ### P1-GATE-02：Windows 范围
