@@ -228,8 +228,15 @@ P2 主要缺口：
 - 新增 Linux 进程组测试：整组清理、忽略 SIGTERM 后升级 SIGKILL、不同进程组
   不被误杀；新增“子进程调用不使用 shell”的静态回归测试。
 - 本机：`uv run pytest` → **337 passed, 17 skipped**（5 个 POSIX 进程组测试在
-  Windows 跳过）；ruff/format/mypy 全绿。Linux 进程组与真实取消/超时证据
-  仍待 CI。
+  Windows 跳过）；ruff/format/mypy 全绿。
+
+**A 批 CI 证据（run `39816426680`，commit `2dc3ba1`）**：五个 job 全绿。
+`test` job 运行 5 个 POSIX 进程组测试（整组清理、SIGTERM 忽略→SIGKILL、无关
+进程组存活、zombie 不算活成员）；`motion-canvas-p1` 的真实 smoke/production、
+flow/compare、`lces build`、取消与超时均通过，且 E2E 断言
+`process group <pgid> cleaned` 诊断。合并后 `main` run `39817559381`
+（`68ba9ff`）五个 job 全绿。A1/A2/A3 与 A 批完成条件均满足；
+P2.3-GATE-01 仍保留 `NOT_RUN`，因为其中“输出目录边界”属于 B 批。
 
 **A 批失败记录（CI run `39814506769`）**：真实渲染全部报
 `render_failed: driver process group did not exit`；`test` job 的简单 sleeper
@@ -252,7 +259,7 @@ P2 主要缺口：
 
 | ID | 验收项 | 状态 |
 |---|---|---|
-| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（可执行文件/进程组部分已实现并本地测试；输出目录与 Linux CI 证据待 A 批 CI） |
+| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（A1/A2 可执行文件与进程组已通过 CI；输出目录边界属于 B 批） |
 | P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | NOT_RUN |
 | P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | NOT_RUN |
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN |
@@ -280,7 +287,7 @@ CI 执行，不得用“本机通过”替代。
 
 ## 9. 基线
 
-- `main` = `3730608`；CI run `39810527209` 五个 job success。
-- 本地：`337 passed, 16 skipped`（A 批后）；ruff/format/mypy 全绿。
+- `main` = `68ba9ff`（A 批合并后）；CI run `39817559381` 五个 job success。
+- 本地：`337 passed, 17 skipped`（A 批后）；ruff/format/mypy 全绿。
 - P2.2 计划、契约和证据已提交；P2.1 生产链路已合并。
 - 工作区仅 `.claude/` 未跟踪，无业务改动。
