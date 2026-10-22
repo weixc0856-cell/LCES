@@ -4,7 +4,10 @@
 # needs (Node, Motion Canvas dependencies, Chromium, FFmpeg, Python) is baked
 # in at build time, so a successful run proves the render itself is offline.
 # The image ID and input hashes are recorded as evidence by CI.
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+#
+# Debian trixie is required: bookworm ships FFmpeg 5.1, below the adapter's
+# >= 6.0 gate. The base is a moving tag; CI records the resolved image ID.
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
@@ -12,7 +15,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl xz-utils \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && ffmpeg -version | awk 'NR==1 {split($3, v, "."); exit !(v[1] >= 6)}'
 
 # Node is installed at the exact version the adapter enforces.
 RUN curl -fsSLo /tmp/node.tar.xz \

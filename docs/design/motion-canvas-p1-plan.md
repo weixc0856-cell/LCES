@@ -253,8 +253,9 @@ CI job `motion-canvas-offline`）：
 |---|---|---|---|
 | 单元/契约测试（含 lockfile 与故障矩阵） | Windows 11，项目 `.venv` | `uv run pytest` → **294 passed, 5 skipped**；`ruff check .`、`ruff format --check .`、`mypy src` 全部通过 | PASS |
 | 真实取消/超时 | Windows 11 | 入口拒绝非 Linux，测试按 marker 跳过；需 Linux CI 执行 | NOT_RUN |
-| 本机 Docker 断网门禁 | Docker Desktop 29.9.1（Linux 容器） | 构建在 apt 阶段被网络策略阻断（`deb.debian.org` → `198.18.1.108`），与 P0 本机构建失败同因；未进入渲染阶段 | BLOCKED |
-| CI `motion-canvas-offline` | GitHub Actions | job 与镜像已实现，尚未推送运行 | NOT_RUN |
+| 本机 Docker 断网门禁 | Docker Desktop 29.9.1（Linux 容器） | 构建长时间停在依赖安装阶段，未产出镜像；本机 P0 记录显示同一策略会把 `deb.debian.org` 解析到 `198.18.1.108` 并失败。本次未进入渲染阶段，手动终止 | BLOCKED |
+| CI `motion-canvas-offline`（run `39784382250`） | GitHub Actions，main / commit `c8663de` | 镜像构建成功；负控制 `fetch_exit=1 npm_exit=1` 符合预期；但渲染在工具链门禁失败：Debian bookworm 的 FFmpeg 为 **5.1.9**，低于要求的 6.0。已改用 trixie（FFmpeg 7.1.5）并保留版本门禁，等待重跑 | FAIL（已修复，待重跑） |
+| CI `motion-canvas-offline`（重跑） | GitHub Actions，trixie 镜像 | — | NOT_RUN |
 
 本机 Docker 的失败不是门禁放宽的理由，也不构成 PASS。断网验收必须在
 可联网构建、不可联网运行的 Linux 环境（CI runner）中完成并把 artifact
