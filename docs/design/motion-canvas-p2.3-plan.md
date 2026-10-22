@@ -156,26 +156,63 @@ P2 主要缺口：
 
 ## 5. 负向测试矩阵（先定义，后实现）
 
-| ID | 用例 | 预期 |
-|---|---|---|
-| N01 | `scene_file` 为 `content/scenes/../../x.json` / 绝对路径 | 模型/schema `invalid_input` |
-| N02 | `content/scenes/link.json` 符号链接到项目外 | `invalid_input`，不读取目标 |
-| N03 | `video.output_path` 绝对/`..`/非 `build/media/course.mp4`（publish） | `invalid_input` |
-| N04 | `render-scene --out` 指向项目外 | P2.3 后拒绝；不创建目录 |
-| N05 | `LCES_BUILD_ID` 含 `/`、`..`、大写 | `invalid_input`；不创建构建目录 |
-| N06 | `LCES_NODE_BIN` 指向目录/不可执行/符号链接到项目外 | `environment_unavailable`，不启动进程 |
-| N07 | 驱动 `OUTPUT_DIR` 为项目外/含符号链接/非专用目录 | P2.3 后拒绝；不在项目外创建或清理目录 |
-| N08 | 取消/超时后检查 Vite/Chromium 进程 | 无残留；无视频/资产 |
-| N09 | 构建期写 HOME/XDG | P2.3 后所有写入限制在构建目录 |
-| N10 | 帧路径为符号链接/越界 | 清单校验 `qa_failed`/`output_corrupt` |
-| N11 | `content/charts` 或 staging 中符号链接到外部 | 构建/发布拒绝 |
-| N12 | lockfile 与已安装直接依赖不一致 | `dependency_mismatch` |
-| N13 | Node tarball 校验和不匹配（构建期） | 镜像构建失败 |
-| N14 | 镜像 base/actions 版本与记录不符 | CI/审计失败或明确记录 |
-| N15 | 正常构建的外部请求未阻断 | P2.3 后请求被阻断/记为失败（字体回退） |
-| N16 | 非法 flow/compare 数据（已有） | `invalid_input`，无视频 |
-| N17 | 超大画布/帧数/场景文件 | `invalid_input`，不启动渲染 |
-| N18 | FFmpeg 路径不可用/版本不足 | `environment_unavailable`/`encode_failed` |
+| ID | 用例 | 前置条件 | 预期行为 | 退出与产物 | 独立证据 | 回归范围 |
+|---|---|---|---|---|---|---|
+| N01 | `scene_file` 为 `../../x.json` / 绝对路径 | 构造 animation 块并调用模型校验或 `lces build` | `invalid_input`，不读取目标 | 退出码 13；无构建目录/视频 | 断言错误码与未创建目录；canary 文件未被读取 | P2.1/P2.2 生产入口 |
+| N02 | `content/scenes/link.json` 符号链接到项目外 | 在 temp 项目创建链接与 canary | `invalid_input`，不读取目标 | 退出码 13；无视频 | canary 内容未进入日志/产物 | 场景文件校验 |
+| N03 | `video.output_path` 绝对/`..`/非 `build/media/course.mp4` | 构造场景文件 | `invalid_input` | 无视频、无资产记录 | 断言错误码；目录未创建 | `lces build` |
+| N04 | `render-scene --out` 指向项目外 | 运行 CLI | P2.3-B 后拒绝 | 退出码 13；项目外无新目录 | 断言目标路径不存在 | `render-scene` |
+| N05 | `LCES_BUILD_ID` 含 `/`、`..`、大写 | 设置环境变量并渲染 | `invalid_input` | 无构建目录 | 断言目录不存在 | P1 E2E |
+| N06 | `LCES_NODE_BIN` 为目录/不可执行/相对路径 | 设置环境变量并直接 render | `environment_unavailable`，不启动进程 | 无构建目录/视频 | 断言 `node_binary()` 为 None、无子进程 | P2.1 生产构建 |
+| N07 | 驱动 `OUTPUT_DIR` 为项目外/符号链接/非专用目录 | 直接驱动或伪造 context | P2.3-A/B 后拒绝 | 不在项目外创建/清理目录 | 断言目标不存在、diag 记录 | P1 真实渲染 |
+| N08 | 取消/超时后检查 Vite/Chromium | 真实渲染首帧后取消 / 短超时 | `cancelled` / `render_timeout`；进程组清空 | 无新视频/QA；旧视频哈希不变 | 检查本次 pgid 无成员；driver 日志 | P1 E2E、P2.1 失败路径 |
+| N09 | 构建期写 HOME/XDG | 真实 `lces build` | P2.3-B 后写入仅限构建目录 | 构建成功；HOME 无新文件 | HOME canary 前后对比 | P2.1/P2.2 |
+| N10 | 帧路径为符号链接/越界 | 构造 manifest/帧目录 | `qa_failed`/`output_corrupt` | 视频不发布 | 清单校验错误；目标未被读取 | P1.2/P1.3 |
+| N11 | `content/charts` 或 staging 符号链接到外部 | 在 temp 项目放链接 | P2.3-B 后构建/发布拒绝 | 无 release/无外部文件 | release 树中无 canary | release 装配 |
+| N12 | lockfile 与已安装直接依赖不一致 | 改写 node_modules 版本 | `dependency_mismatch` | 不启动渲染 | 错误码；无构建目录 | P1/P2 环境门禁 |
+| N13 | Node tarball 校验和不匹配 | 构建镜像时替换 tarball/校验和 | P2.3-C 后镜像构建失败 | 无镜像/无 artifact | 构建日志退出码 | CI offline image |
+| N14 | base image/actions 与记录不符 | 检查 Dockerfile/workflow 与记录 | P2.3-C 后审计失败或明确记录 | 无未记录依赖 | digest/SHA 文件 | CI |
+| N15 | 正常构建的外部请求未阻断 | 真实渲染并观察请求 | P2.3-D 后非本地请求失败；字体回退 | 构建成功；request_failures>0 | report.json 请求审计 | P1/P2 E2E、offline job |
+| N16 | 非法 flow/compare 数据（已有） | 真实 `lces build` | `invalid_input`，无视频 | 无视频；marker 保留 | CLI 输出/退出码 | P2.2 |
+| N17 | 超大画布/帧数/场景文件 | 构造边界数据 | `invalid_input`，不启动渲染 | 无构建目录 | 错误码 | P1/P2 |
+| N18 | FFmpeg 路径不可用/版本不足 | 移除/伪造 FFmpeg | `environment_unavailable`/`encode_failed` | 无视频；旧视频不变 | doctor/报告 | P1.3/P2.1 |
+
+## 5A. P2.3-A 执行边界（已批准，先实施）
+
+### A1 执行文件与参数
+
+- `LCES_NODE_BIN` 必须解析为**绝对路径的普通可执行文件**：拒绝目录、相对路径、
+  不存在/不可执行文件；符号链接按解析后的目标判断。
+- 未设置时从 PATH 解析 `node`；解析失败即 `environment_unavailable`。
+- 直接 `render()` 也必须在创建构建目录前校验 Node，不得回退到 PATH 上的
+  `node` 而静默忽略非法 override。
+- 所有子进程继续使用参数数组（无 shell）；新增静态回归测试防止
+  `shell=True`。
+- 失败不得创建构建目录、发布视频或写成功资产记录。
+
+### A2 取消/超时与进程生命周期
+
+- 记录本次驱动的进程组；SIGTERM → 宽限期 → SIGKILL → 等待回收。
+- 终止后检查该进程组是否仍有成员；若仍存在，构建以 `render_failed` 失败，
+  不能只因主进程退出就报告清理成功。
+- 取消与超时仍保留各自终态（`cancelled` / `render_timeout`），但清理失败优先
+  报为 `render_failed`。
+- 诊断记录进程组清理结果，供测试与 CI artifact 复核。
+
+### A3 负向验收
+
+- 真实渲染首帧后取消、短超时两种路径；断言终态、旧视频哈希、无新视频/QA。
+- 独立查询本次启动的进程组，确认 Vite/Chromium 无残留。
+- 另起一个无关进程（不同进程组），确认终止逻辑不会误杀。
+- A 批完成后运行 P1/P2.1/P2.2 回归；A 批独立提交与独立 CI 证据。
+
+### A 批完成条件
+
+- N06/N08 通过；`LCES_NODE_BIN` 非法配置在启动前拒绝。
+- 取消/超时均完成进程组清理；无 Vite/Chromium 残留。
+- 失败不发布产物，旧视频哈希不变。
+- `title`/`flow`/`compare` 与 P2.1 生产构建回归通过。
+- 五个 CI job 全绿，A 批证据可追溯。
 
 ## 6. 实施批次
 
@@ -205,20 +242,19 @@ P2 主要缺口：
 `BLOCKED` 只用于已定义但环境不满足的项；本地 Windows 的 Linux 专属测试仍由
 CI 执行，不得用“本机通过”替代。
 
-## 8. 待定决策（实施前确认）
+## 8. 已确认决策（2026-10-23）
 
-1. **base image**：是否固定 digest；更新流程与记录方式。
-2. **Node tarball**：使用 SHASUMS256 校验；是否再校验签名。
-3. **CI actions**：固定 SHA 还是继续主版本 tag；维护成本与供应链收益。
-4. **npm registry**：继续 npmmirror 还是官方 registry；lockfile resolved URL 的
-   来源记录与迁移策略。
-5. **网络阻断默认值**：默认阻断所有非本地请求（字体回退）还是保留字体域名；
-   若保留，必须列白名单并记录。
-6. **`render-scene --out`**：限制在项目内，还是提供显式“受控外部输出”开关。
-7. **HOME 隔离**：设置为构建目录下的临时 HOME；是否影响 Playwright/MC 行为。
-8. **资源配额**：是否在适配器/Docker 层增加磁盘/内存硬限制；当前只有尺寸/
-   帧数/时长/超时上限。
-9. **进程残留检测**：CI 用 `pgrep`/进程组查询的具体断言方式。
+| # | 决策 | 默认 | 实施约束 |
+|---|---|---|---|
+| 1 | Base image | 固定 digest | 记录最终解析 digest；更新流程写入文档 |
+| 2 | Node tarball | SHA-256 + 官方签名/可信发布证明（若可用） | 校验和来自独立可信渠道；同源未认证的校验和不单独作为来源证明 |
+| 3 | CI Actions | 固定 40 位 commit SHA | 保留可读版本注释与升级计划 |
+| 4 | npm registry | 优先官方 registry | 先验证锁文件完整性、CI 可达性；若保留镜像，明确信任/回退 |
+| 5 | 外部网络 | 渲染期默认阻断非本地请求；必要白名单精确到主机 | 字体等静态资源优先入库；白名单需负向测试 |
+| 6 | `render-scene --out` | 限制在项目内 | 规范化 + 符号链接边界；项目外输出需显式受控选项 |
+| 7 | HOME/XDG | 隔离到构建临时目录 | 同时检查 TMPDIR/TMP/TEMP/缓存/编辑器配置目录 |
+| 8 | 资源配额 | 分层硬限制 | 优先容器/cgroup 限制内存/CPU/磁盘/进程数；预检与超时不替代硬限制 |
+| 9 | 进程残留检测 | 进程组查询为主，`pgrep` 为辅 | 只针对本次启动的进程组；不按进程名误杀 |
 
 ## 9. 基线
 
