@@ -285,6 +285,14 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 
 ## 8. 运行方式
 
+推送前先跑本地门禁（命令与 CI 相同，脚本不安装任何东西）：
+
+```bash
+./scripts/ci-local.sh fast     # 任意平台
+./scripts/ci-local.sh render   # Linux/WSL2，Node 24.22.1 + Chromium + FFmpeg
+./scripts/ci-local.sh full     # fast + render + browser QA
+```
+
 ```bash
 # 本机（任意平台）：只跑契约与拒绝路径
 uv run pytest

@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Collect Motion Canvas evidence from a pytest basetemp tree.
+
+Layout produced by the E2E tests::
+
+    <root>/<test>/motion/<build_id>/frame_manifest.json
+    <root>/<test>/motion/<build_id>/frames/report.json
+    <root>/<test>/motion/<build_id>/frames/project/000000.png ...
+    <root>/<test>/media/course.mp4
+
+This script uses only the Python standard library so the CI evidence step does
+not depend on `find`, `head`, `sort`, or shell pipeline exit codes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+from pathlib import Path
+
+
+def frame_files(build: Path) -> list[Path]:
+    frames = sorted(path for path in (build / "frames").rglob("*.png") if path.stem.isdigit())
+    return frames
+
+
+def copy_if_file(source: Path, target: Path) -> None:
+    if source.is_file():
+        shutil.copy2(source, target)
+
+
+def collect(root: Path, out: Path, *, keep_frames: bool, frames_out: Path | None) -> int:
+    manifests = sorted(root.rglob("frame_manifest.json"))
+    if not manifests:
+        # A failed test may leave no build at all; the failure diagnostics
+        # step handles that, so this is not a second error.
+        print(f"no frame_manifest.json under {root}")
+        return 0
+    collected = 0
+    for manifest in manifests:
+        build = manifest.parent
+        build_id = build.name
+        target = out / "manifests" / build_id
+        target.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(manifest, target / "frame_manifest.json")
+        copy_if_file(build / "frames" / "report.json", target / "report.json")
+        copy_if_file(build / "driver.log", target / "driver.log")
+        frames = frame_files(build)
+        if frames:
+            shutil.copy2(frames[0], target / "first.png")
+            shutil.copy2(frames[-1], target / "last.png")
+        # <test>/motion/<build_id> -> <test>/media/course.mp4
+        if len(build.parents) >= 2:
+            copy_if_file(build.parents[1] / "media" / "course.mp4", target / "course.mp4")
+        if keep_frames and frames_out is not None:
+            staging = frames_out / build_id
+            if staging.exists():
+                shutil.rmtree(staging)
+            staging.mkdir(parents=True)
+            shutil.copy2(manifest, staging / "frame_manifest.json")
+            copy_if_file(build / "frames" / "report.json", staging / "report.json")
+            copy_if_file(build / "driver.log", staging / "driver.log")
+            shutil.copytree(build / "frames", staging / "frames", dirs_exist_ok=True)
+        print(f"{build_id}: {len(frames)} frames")
+        collected += 1
+    print(f"collected {collected} build(s) into {out}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--keep-frames", action="store_true")
+    parser.add_argument("--frames-out", type=Path, default=None)
+    args = parser.parse_args()
+    if args.keep_frames and args.frames_out is None:
+        parser.error("--keep-frames requires --frames-out")
+    return collect(
+        args.root,
+        args.out,
+        keep_frames=args.keep_frames,
+        frames_out=args.frames_out,
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
