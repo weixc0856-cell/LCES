@@ -103,13 +103,34 @@ def motion_project_dir() -> Path:
     return repository_root() / "motion"
 
 
+def _resolved_executable(command: str) -> str | None:
+    """An absolute, regular, executable file; symlinks are judged by target."""
+
+    path = Path(command).expanduser()
+    if not path.is_absolute():
+        return None
+    try:
+        resolved = path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        return None
+    return str(resolved)
+
+
 def node_binary() -> str | None:
-    """Controlled executable path: ``LCES_NODE_BIN`` or ``node`` on PATH."""
+    """Controlled executable path: ``LCES_NODE_BIN`` or ``node`` on PATH.
+
+    An override must be an absolute path to an executable file. Returning
+    ``None`` is a hard environment failure; the adapter never falls back to
+    ``node`` on PATH when an invalid override was supplied.
+    """
 
     override = os.environ.get("LCES_NODE_BIN", "").strip()
     if override:
-        return override if Path(override).is_file() else None
-    return shutil.which("node")
+        return _resolved_executable(override)
+    found = shutil.which("node")
+    return _resolved_executable(found) if found else None
 
 
 def _run_probe(command: list[str], *, cwd: Path | None = None) -> str:
@@ -247,7 +268,11 @@ def environment_report() -> list[DependencyStatus]:
             expected=NODE_VERSION,
             actual=node_version,
             ok=node_version == NODE_VERSION,
-            hint="install Node 24.22.1 and set LCES_NODE_BIN if it is not on PATH",
+            hint=(
+                "LCES_NODE_BIN must be an absolute executable file"
+                if os.environ.get("LCES_NODE_BIN", "").strip()
+                else "install Node 24.22.1 and set LCES_NODE_BIN if it is not on PATH"
+            ),
         ),
         DependencyStatus(
             name="npm",
@@ -323,6 +348,7 @@ class MotionCanvasRenderer(Renderer):
         self._lock = threading.Lock()
         self._cancel = threading.Event()
         self._process: subprocess.Popen[bytes] | None = None
+        self._process_group: int | None = None
         self._diagnostics: list[str] = []
         self._last: dict[str, Any] = {}
         self._environment_code = "environment_unavailable"
@@ -450,6 +476,15 @@ class MotionCanvasRenderer(Renderer):
                 code="dependency_mismatch",
                 stage="environment",
             )
+        node = node_binary()
+        if node is None:
+            override = os.environ.get("LCES_NODE_BIN", "").strip()
+            target = "LCES_NODE_BIN" if override else "node"
+            raise RenderError(
+                f"{target} is not an absolute executable file",
+                code="environment_unavailable",
+                stage="environment",
+            )
 
         with self._lock:
             if self._process is not None:
@@ -473,7 +508,7 @@ class MotionCanvasRenderer(Renderer):
                 max_render_ms=self.max_render_ms,
             )
             log_path = build_root / "driver.log"
-            command = [node_binary() or "node", "driver.mjs"]
+            command = [node, "driver.mjs"]
             self._diagnostics.append(f"build {build_id}: driver {command[-1]}")
             forced, returncode = self._execute_driver(
                 command,
@@ -614,6 +649,7 @@ class MotionCanvasRenderer(Renderer):
         finally:
             with self._lock:
                 self._process = None
+                self._process_group = None
 
     def _execute_driver(
         self,
@@ -643,23 +679,38 @@ class MotionCanvasRenderer(Renderer):
             )
             with self._lock:
                 self._process = process
+                self._process_group = pgid = _process_group(process)
             forced = ""
             while True:
                 code = process.poll()
                 if code is not None:
                     if self._cancel.is_set():
                         forced = "cancelled"
+                    if not _stop_driver(process, pgid):
+                        raise RenderError(
+                            f"driver process group {pgid} did not exit after the driver stopped",
+                            code="render_failed",
+                            stage="render",
+                        )
+                    self._diagnostics.append(
+                        f"build {env.get('BUILD_ID', '?')}: process group {pgid} cleaned"
+                    )
                     return forced, code
                 if self._cancel.is_set():
                     forced = "cancelled"
                 elif time.monotonic() > deadline:
                     forced = "render_timeout"
                 if forced:
-                    _terminate(process)
-                    try:
-                        process.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        pass
+                    if not _stop_driver(process, pgid):
+                        raise RenderError(
+                            f"driver process group {pgid} did not exit after {forced}",
+                            code="render_failed",
+                            stage="render",
+                        )
+                    self._diagnostics.append(
+                        f"build {env.get('BUILD_ID', '?')}: "
+                        f"process group {pgid} cleaned after {forced}"
+                    )
                     return forced, process.returncode if process.returncode is not None else -1
                 time.sleep(0.1)
 
@@ -669,8 +720,9 @@ class MotionCanvasRenderer(Renderer):
         self._cancel.set()
         with self._lock:
             process = self._process
+            pgid = self._process_group
         if process is not None:
-            _terminate(process)
+            _stop_driver(process, pgid)
 
     def collect_outputs(self, spec: VisualSpec, context: RenderContext) -> list[Path]:
         artifacts: list[Path] = []
@@ -860,6 +912,81 @@ def _load_report(path: Path, build_id: str) -> dict[str, Any]:
     return payload
 
 
+def _process_group(process: subprocess.Popen[bytes]) -> int | None:
+    getpgid = getattr(os, "getpgid", None)
+    if getpgid is None:
+        return None
+    try:
+        return int(getpgid(process.pid))
+    except ProcessLookupError:
+        return None
+
+
+def _group_alive(pgid: int | None) -> bool:
+    """True when the group has a live (non-zombie) member.
+
+    ``killpg(pgid, 0)`` also succeeds for zombies. In containers whose PID 1
+    does not reap orphans, a finished Vite/esbuild process can stay a zombie
+    forever; treating it as alive would turn every successful render into a
+    cleanup failure. On Linux, inspect ``/proc/<pid>/stat`` and ignore ``Z``.
+    """
+
+    if pgid is None:
+        return False
+    proc = Path("/proc")
+    if proc.is_dir():
+        try:
+            for entry in proc.iterdir():
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    text = (entry / "stat").read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                close = text.rfind(")")
+                if close < 0:
+                    continue
+                fields = text[close + 2 :].split()
+                if len(fields) < 3:
+                    continue
+                if fields[0] in {"Z", "X", "x"}:
+                    continue
+                try:
+                    group = int(fields[2])
+                except ValueError:
+                    continue
+                if group == pgid:
+                    return True
+            return False
+        except OSError:
+            pass
+    killpg = getattr(os, "killpg", None)
+    if killpg is None:
+        return False
+    try:
+        killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _signal_pgid(pgid: int | None, *, hard: bool) -> None:
+    if pgid is None:
+        return
+    killpg = getattr(os, "killpg", None)
+    if killpg is None:
+        return
+    # The Windows signal stub that mypy checks against has no SIGKILL; this
+    # branch only runs on Linux, where it exists.
+    sig = signal.SIGKILL if hard else signal.SIGTERM  # type: ignore[attr-defined]
+    try:
+        killpg(pgid, sig)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def _signal_group(process: subprocess.Popen[bytes], *, hard: bool) -> None:
     """Signal the whole process group where the platform supports it.
 
@@ -867,16 +994,9 @@ def _signal_group(process: subprocess.Popen[bytes], *, hard: bool) -> None:
     would leave them writing frames after the caller gave up.
     """
 
-    killpg = getattr(os, "killpg", None)
-    getpgid = getattr(os, "getpgid", None)
-    if killpg is not None and getpgid is not None:
-        # The Windows signal stub that mypy checks against has no SIGKILL;
-        # this branch only runs on Linux, where it exists.
-        sig = signal.SIGKILL if hard else signal.SIGTERM  # type: ignore[attr-defined]
-        try:
-            killpg(getpgid(process.pid), sig)
-        except (ProcessLookupError, PermissionError):
-            pass
+    pgid = _process_group(process)
+    if pgid is not None:
+        _signal_pgid(pgid, hard=hard)
         return
     if hard:
         process.kill()
@@ -884,15 +1004,41 @@ def _signal_group(process: subprocess.Popen[bytes], *, hard: bool) -> None:
         process.terminate()
 
 
-def _terminate(process: subprocess.Popen[bytes]) -> None:
-    if process.poll() is not None:
-        return
-    _signal_group(process, hard=False)
-    try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        _signal_group(process, hard=True)
+def _wait_group_gone(pgid: int | None, timeout: float) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _group_alive(pgid):
+            return True
+        time.sleep(0.05)
+    return not _group_alive(pgid)
+
+
+def _stop_driver(process: subprocess.Popen[bytes], pgid: int | None) -> bool:
+    """Terminate the driver group and prove it has no live members.
+
+    Returns ``False`` when the group outlives the SIGTERM/SIGKILL grace. A
+    dead driver process is not enough: Vite and Chromium may still be alive.
+    """
+
+    if process.poll() is None:
+        if pgid is not None:
+            _signal_pgid(pgid, hard=False)
+        else:
+            _signal_group(process, hard=False)
         try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            pass
+            if pgid is not None:
+                _signal_pgid(pgid, hard=True)
+            else:
+                _signal_group(process, hard=True)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+    if pgid is not None:
+        if _wait_group_gone(pgid, 2.0):
+            return True
+        _signal_pgid(pgid, hard=True)
+        return _wait_group_gone(pgid, 2.0)
+    return process.poll() is not None

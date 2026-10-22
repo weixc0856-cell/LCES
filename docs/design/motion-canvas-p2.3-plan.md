@@ -214,7 +214,29 @@ P2 主要缺口：
 - `title`/`flow`/`compare` 与 P2.1 生产构建回归通过。
 - 五个 CI job 全绿，A 批证据可追溯。
 
-## 6. 实施批次
+### A 批实现记录（本机，CI 待执行）
+
+- `node_binary()` 现在要求 `LCES_NODE_BIN` 为绝对路径的普通可执行文件；目录、
+  相对路径、不存在/不可执行文件、断链均返回 `None`；合法符号链接按解析后的
+  目标判断。
+- `render()` 在创建构建目录前硬校验 Node，非法 override 不再回退到 PATH 上的
+  `node`；驱动命令固定为 `[node, "driver.mjs"]`。
+- `_stop_driver()`：SIGTERM → 5 s 宽限 → SIGKILL → 检查进程组；主进程退出但
+  Vite/Chromium 仍存活时构建以 `render_failed` 失败，不会误报清理成功。
+- 取消/超时/正常退出都记录 `process group <pgid> cleaned` 诊断；真实 E2E
+  断言该诊断，并保留旧视频/无新视频与 QA。
+- 新增 Linux 进程组测试：整组清理、忽略 SIGTERM 后升级 SIGKILL、不同进程组
+  不被误杀；新增“子进程调用不使用 shell”的静态回归测试。
+- 本机：`uv run pytest` → **337 passed, 17 skipped**（5 个 POSIX 进程组测试在
+  Windows 跳过）；ruff/format/mypy 全绿。Linux 进程组与真实取消/超时证据
+  仍待 CI。
+
+**A 批失败记录（CI run `39814506769`）**：真实渲染全部报
+`render_failed: driver process group did not exit`；`test` job 的简单 sleeper
+进程组测试通过，说明问题出在真实 Vite/Chromium 子进程。原因是容器 PID 1 不
+回收孤儿，已退出的 Vite/esbuild 以 zombie 形式留在进程组内，而 `killpg(pgid, 0)`
+对 zombie 仍返回成功。修复：Linux 下扫描 `/proc/<pid>/stat`，忽略 `Z`/`X`
+状态；新增“未回收 zombie 不算活进程”的测试。
 
 | 批次 | 内容 | 完成条件 |
 |---|---|---|
@@ -230,7 +252,7 @@ P2 主要缺口：
 
 | ID | 验收项 | 状态 |
 |---|---|---|
-| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN |
+| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（可执行文件/进程组部分已实现并本地测试；输出目录与 Linux CI 证据待 A 批 CI） |
 | P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | NOT_RUN |
 | P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | NOT_RUN |
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN |
@@ -259,6 +281,6 @@ CI 执行，不得用“本机通过”替代。
 ## 9. 基线
 
 - `main` = `3730608`；CI run `39810527209` 五个 job success。
-- 本地：`333 passed, 11 skipped`；ruff/format/mypy 全绿。
+- 本地：`337 passed, 16 skipped`（A 批后）；ruff/format/mypy 全绿。
 - P2.2 计划、契约和证据已提交；P2.1 生产链路已合并。
 - 工作区仅 `.claude/` 未跟踪，无业务改动。

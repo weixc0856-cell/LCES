@@ -8,6 +8,7 @@ The real render lives in ``test_motion_canvas_e2e.py`` and is Linux-only.
 from __future__ import annotations
 
 import json
+import sys
 import zlib
 from pathlib import Path
 
@@ -219,6 +220,49 @@ def test_environment_failures_map_to_environment_unavailable(monkeypatch):
 def test_node_override_must_exist(monkeypatch):
     monkeypatch.setenv("LCES_NODE_BIN", "/nonexistent/node")
     assert mc.node_binary() is None
+
+
+def test_node_override_must_be_an_absolute_executable(tmp_path, monkeypatch):
+    directory = tmp_path / "node"
+    directory.mkdir()
+    monkeypatch.setenv("LCES_NODE_BIN", str(directory))
+    assert mc.node_binary() is None
+
+    monkeypatch.setenv("LCES_NODE_BIN", "relative/node")
+    assert mc.node_binary() is None
+
+    missing = tmp_path / "missing-node"
+    monkeypatch.setenv("LCES_NODE_BIN", str(missing))
+    assert mc.node_binary() is None
+
+
+def test_a_valid_node_override_is_resolved(monkeypatch):
+    monkeypatch.setenv("LCES_NODE_BIN", sys.executable)
+    assert mc.node_binary() == str(Path(sys.executable).resolve())
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="symlink semantics are POSIX")
+def test_node_override_symlink_is_judged_by_target(tmp_path, monkeypatch):
+    link = tmp_path / "node"
+    link.symlink_to(sys.executable)
+    monkeypatch.setenv("LCES_NODE_BIN", str(link))
+    assert mc.node_binary() == str(Path(sys.executable).resolve())
+
+
+def test_render_fails_before_the_build_when_node_is_missing(build_root, monkeypatch):
+    monkeypatch.setattr(mc, "node_binary", lambda: None)
+    with pytest.raises(RenderError) as caught:
+        _render(_StubRenderer(), build_root)
+    assert caught.value.code == "environment_unavailable"
+    assert not build_root.exists()
+
+
+def test_subprocess_calls_do_not_use_a_shell():
+    root = Path(__file__).resolve().parents[1] / "src" / "content_studio"
+    for name in ("motion_canvas.py", "encode.py", "media.py", "video_qa.py"):
+        text = (root / name).read_text(encoding="utf-8")
+        assert "shell=True" not in text, name
+        assert "os.system(" not in text, name
 
 
 def test_dependency_problems_accept_a_clean_tree(build_root):
