@@ -3,9 +3,9 @@
 状态（2026-10-22 第二轮评审后）：
 
 - 架构方向：**通过**
-- P0 可行性验证：**已执行；本轮结论 NO_GO（本环境离线隔离受阻）**，
-  详见 `docs/design/motion-canvas-spike.md`
-- 正式编码 / 注册表接入：**暂缓**，等待离线闭环后重新决策
+- P0 可行性验证：**CONDITIONAL_GO（CI/Linux）**，run `39742834259`；
+  条件见 `docs/design/motion-canvas-spike.md` §10
+- 正式编码 / 注册表接入：**暂缓**，满足 P0 条件并完成 P1 原型后才进入
 - Remotion：**暂不启动**
 - Graphviz 真实渲染：**CI 已验收（2.43.0，14/14）**；本机 Windows 16.1.0
   安装受策略限制，待人工执行，见 `docs/design/graphviz-acceptance.md`
@@ -447,6 +447,9 @@ Level 3 实测流程：同一环境连续构建 3 次 → 干净环境重复 →
 
 ### P1：最小可运行原型
 
+进入条件：P0 CONDITIONAL_GO 的四项条件（Windows 本地重跑或限定 Linux 范围、
+UI 契约测试、版本变更重跑、不进入生产），见 spike §10。
+
 - `title` 模板，固定画布/帧率/时长；
 - 帧序列 + FrameManifest + 系统 FFmpeg 编码；
 - 通过帧数、尺寸、时长、关键帧检查；
@@ -502,14 +505,15 @@ MC-01 反例、时间轴语义、FrameManifest、产物隔离、三级可复现�
 
 | # | 问题 | 验证方法 | 证据文件 | 决策 / 日期 |
 |---|---|---|---|---|
-| 1 | 是否存在显式就绪/完成信号 | P0 驱动实验 | `motion-canvas-spike.md` §4 | 有可用 DOM 信号（Abort/ETA/RENDER/帧数），非官方 API；仅作受控适配层候选 — 2026-10-22 |
+| 1 | 是否存在显式就绪/完成信号 | P0 驱动实验 + CI | `motion-canvas-spike.md` §4/§7 | 受控 DOM 信号已在 CI 验证（完成/取消/超时）；非官方 API — 2026-10-22 |
 | 2 | 视觉差分阈值 | P1 实测 | `internal/qa/` 报告 | 待定 |
-| 3 | CI 断网实现方式 | P0 实验 | spike §7、`docker-build-failure.txt` | **BLOCKED**：本机 apt 无法访问 deb.debian.org；需在可正常联网构建的环境重跑 — 2026-10-22 |
+| 3 | CI 断网实现方式 | P0 CI（`docker --network none`） | spike §7、run `39742834259` | **PASS**：300 帧、负控制失败、请求审计留存 — 2026-10-22 |
 | 4 | 官方 headless API 的长期稳定性 | 每次升级复核 | 版本核查记录 | 当前未发现官方 headless 入口；每次升级重新核查 — 2026-10-22 |
 | 5 | 场景模板字段冻结时间点 | P1 结束评审 | 本文件修订记录 | 待定 |
 
-P0 总体决策（2026-10-22）：**NO_GO（本环境）**，原因是离线渲染证据缺失；
-重跑条件见 `docs/design/motion-canvas-spike.md` §10。
+P0 总体决策（2026-10-22）：**CONDITIONAL_GO（CI/Linux）**。硬门槛全部通过；
+条件为 Windows 本地重跑或限定 Linux 范围、UI 契约测试、版本变更重跑 P0、
+完成 P1 前不进入生产。详见 `docs/design/motion-canvas-spike.md` §10。
 
 Graphviz 独立验收（A12）：CI 环境已用 Graphviz 2.43.0 完成真实 `dot`
 渲染、SVG 校验、缺依赖错误与 14/14 测试；Windows 本地 16.1.0 仍待安装。

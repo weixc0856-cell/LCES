@@ -1,24 +1,21 @@
 # Motion Canvas P0 可行性验证记录
 
 日期：2026-10-22
-状态：**已完成；本轮结论 NO_GO（本环境离线隔离受阻）**
+状态：**已完成；结论 CONDITIONAL_GO（CI/Linux），未进入生产**
 范围：可行性实验，不进入 `renderers/` 生产路径，不修改用户项目文件。
 
 ## 1. 结论
 
 - 官方 headless API：**未发现**。核心包只导出 `Renderer` 与 `ImageExporter`，
   帧数据通过 Vite HMR 事件 `motion-canvas:export` 写给 dev server。
-- 编辑器驱动：**技术上可驱动，但不是官方稳定 API**。在锁定 3.17.2 下可观察到
-  明确信号（见 §4），依赖 DOM 文本与 CSS 状态，升级必须重新验证。
-- 离线：**未能证明**。Docker `--network none` 隔离机制本身可用，但本环境无法
-  构建包含 Chromium 的离线镜像（apt 连接 deb.debian.org 失败）。按约定门禁，
-  离线未闭环 → **NO_GO**，不允许用 CONDITIONAL_GO 跳过。
-- 资源：1080p / 30 fps / 10 s，300 帧，约 5.5 s，峰值内存约 302 MB，
-  帧序列磁盘 17.2 MB。
-- 帧数：显式 range（帧 299）可精确得到 300 帧；全范围会多出 2 帧（302）。
-
-本轮 NO_GO 是对**实验环境**的结论，不是对 Motion Canvas 本身的最终否定。
-在具备正常网络构建能力的环境重跑 §10 的离线步骤后，可重新决策。
+- 编辑器驱动：**可稳定驱动，但不是官方 API**。锁定 3.17.2 下的信号已由 CI
+  验证（见 §4/§7），依赖 DOM 文本，升级必须重跑协议测试。
+- 离线：**CI 已证明**。镜像在正常网络下构建，渲染在
+  `docker run --network none` 中完成；负控制（`fetch` 与 `npm install`）均失败。
+- 资源：1080p / 30 fps / 10 s，300 帧，**4.71 s**，容器内存上限 768 MB；
+  帧序列可全部解码，尺寸 1920×1080。
+- 帧数：显式 range（帧 299）精确得到 300 帧；全范围会多出 2 帧（302）。
+- 决策：**CONDITIONAL_GO**，条件见 §10。未进入 P1 的正式实现。
 
 ## 2. 环境与依赖（P0-1）
 
@@ -44,6 +41,19 @@
 - npm 11 默认阻止 esbuild 的 postinstall；需在 package.json 写入
   `allowScripts: {"esbuild@0.18.20": true}` 后 `npm rebuild esbuild`。
   这是安装期必须显式处理的步骤。
+
+CI 环境（run `39742834259`，Ubuntu runner）：
+
+| 项 | 值 |
+|---|---|
+| Node / npm | v24.22.1 / 11.19.1 |
+| Playwright | 1.64.0 |
+| FFmpeg | 6.1.1-3ubuntu5 |
+| 镜像 ID | `sha256:5aaa2065fe2b971cd0c3928403587aade87897e7f4219a558a3a381c27cf2250` |
+| 输入哈希 | lock `c24d7c61…`；Dockerfile `8b6327f2…`；driver `693c1408…` |
+
+本机 Docker 构建曾因 apt 无法访问 deb.debian.org（解析到 `198.18.1.108`）
+失败；CI 正常网络下构建成功，说明阻塞在本机网络，而非镜像定义。
 
 ## 3. 官方 API 调查（P0-2）
 
@@ -73,6 +83,10 @@
 - 用 `locator("button").all()` + `inner_text()` 轮询，曾在 1.0 s 漏掉
   `Abort`；改用 `page.evaluate` 直接读取 DOM 后，100 ms 采样稳定。
 - body 级 `ETA` 正则可能在结束后短暂残留；完成判定不能只依赖“无 ETA”。
+- 按钮的 DOM 文本是 **`Render` / `Abort`**，大写只是 CSS `text-transform`。
+  Playwright 的 `innerText` 返回大写，而 JS `textContent` 返回原始大小写；
+  早期驱动用 `textContent === "RENDER"` 判断，导致离线渲染已产出 300 帧却
+  被误判为未完成。判定必须大小写不敏感，并在协议测试中锁定。
 - **建议契约**：rendering = `Abort` 存在于 DOM 且帧数增长；
   completed = `Abort` 消失 + `RENDER` 存在 + 帧数连续 2 次不变 + 帧数等于
   MC-01 计算值。任一信号缺失或选择器不匹配 → `driver_protocol_mismatch`。
@@ -111,48 +125,48 @@
 - **缺少依赖**：移除 `@motion-canvas/vite-plugin` 后，导入报
   `Cannot find package '@motion-canvas/vite-plugin'`，错误明确。
 
-## 7. 离线隔离（P0-3：BLOCKED）
+## 7. 离线隔离（P0-3：PASS，CI）
 
-编辑器默认请求（host 实测）：
+编辑器默认请求（实测）：
 
 - `fonts.googleapis.com`（Roboto、JetBrains Mono CSS）
 - `fonts.gstatic.com`（woff2）
 - `unpkg.com/highlightjs@9.16.2/styles/atom-one-dark.css`
 - `registry.npmjs.org/@motion-canvas/core/latest`
 
-隔离机制验证（通过）：
+CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 
-```text
-docker run --rm --network none node:24.22.1-bookworm-slim \
-  node -e "fetch('https://registry.npmjs.org').then(...).catch(...)"
-→ OFFLINE_OK TypeError
-```
+| 指标 | 结果 |
+|---|---|
+| 帧数 | **300** |
+| 渲染耗时 | **4.71 s** |
+| 尺寸 | 1920×1080，PNG，全帧 `ffmpeg` 解码通过 |
+| 外部请求 | 4 次尝试，**全部失败**（`ERR_INTERNET_DISCONNECTED`） |
+| 负控制 | `fetch_exit=1`、`npm install left-pad` `npm_exit=1` |
+| 隔离范围 | 渲染容器本身（Vite + Chromium 同一容器） |
 
-其中 `198.18.1.108` 是本机网络环境对 `deb.debian.org` 的解析/代理地址。apt 在
-下载到第 97/111 个包后开始出现 `Unable to connect ... [IP: 198.18.1.108 80]`，
-最终 `E: Unable to fetch some archives`，`playwright install --with-deps`
-退出码 100，镜像构建失败。
-
-构建包含 Chromium 的离线镜像在本环境无法完成，因此：
-
-- **没有**完成的离线渲染证据；
-- **没有**完成负控制（断网安装未缓存依赖失败）；
-- 不以浏览器请求日志替代操作系统级隔离证据。
-
-阻塞证据：`var/spike/evidence/docker-build-failure.txt`（构建日志尾部）。
-网络恢复或改用可正常访问 Debian 源的构建环境后，按 §10 重跑。
+请求审计来自驱动记录（`report.json` 的 `external_requests` 与
+`request_failures`），与操作系统级禁网互为佐证；不单独以日志代替隔离。
+本机 Docker 构建失败记录（apt 连接 `198.18.1.108`）保留为历史证据
+`var/spike/evidence/docker-build-failure.txt`；CI 正常网络下构建成功。
+证据 artifact：`motion-canvas-p0-evidence`（run `39742834259`）。
 
 ## 8. 证据路径
 
-- 证据目录：`var/spike/evidence/`
-  - `editor-initial.png`、`editor-30fps-10s-after.png`、
-    `editor-300frames-after.png`
+- CI artifact：`motion-canvas-p0-evidence`（run `39742834259`）
+  - `render/report.json`、`frame-count.txt`、`frame-info.txt`、`decode.log`
+  - `cancel/report.json`、`timeout/report.json`
+  - `negative-control.txt`、`image-id.txt`、`input-hashes.txt`、版本文件
+  - 本地副本：`var/spike/evidence/motion-canvas-p0-ci/`
+- 本机证据：`var/spike/evidence/`
+  - `editor-initial.png`、`editor-300frames-after.png`、
+    `offline-blocked-after.png`
   - `good-frame.png`、`corrupt-frame.png`
-  - `docker-build-failure.txt`（apt 失败日志）
+  - `docker-build-failure.txt`（本机构建阻塞记录）
   - `user-home-motion-canvas-settings.created-by-spike.json`
-- 工程与运行时：`var/spike/motion-canvas-standalone/`、
-  `var/spike/node-v24.22.1/`、`var/spike/npm-cache/`、`var/spike/docker/`
-- 全部位于 `var/`（gitignored），不进入生产路径。
+- 受控实验工程：`spike/motion-canvas/`（已入库）
+- 本机运行时/缓存：`var/spike/node-v24.22.1/`、`var/spike/npm-cache/`
+  （gitignored）
 
 副作用说明：首次打开编辑器时，Motion Canvas 在
 `C:\Users\99236\.motion-canvas\settings.json` 写入了 214 字节的默认设置
@@ -170,30 +184,37 @@ docker run --rm --network none node:24.22.1-bookworm-slim \
 
 ## 10. 决策（P0-5）
 
-**NO_GO（本环境本轮）**。
+**CONDITIONAL_GO（CI/Linux）**。
 
-理由：P0 的硬性门槛包含"可证明的离线渲染"。本轮：
+已通过的强制门槛（run `39742834259`）：
 
-- 驱动信号：有可用的受控信号（§4），但非官方 API；
-- 离线：隔离机制可用，但构建离线镜像失败（§7），无证据；
-- 输出完整性：帧数、解码、取消、损坏输出均已实测（§5/§6）。
+- 离线渲染：`--network none` 下 300 帧、4.71 s、全帧解码、1920×1080；
+- 网络负控制：`fetch` 与 `npm install` 均失败（exit 1）；
+- 请求审计：4 次外部尝试全部失败；
+- 取消：95 帧后 Abort，状态 `cancelled=true`；
+- 超时：76 帧时检测到并停止，`timed_out=true`；
+- 输出完整性：帧数、尺寸、解码、截图与报告已归档；
+- 资源上限：容器 `--memory=768m` 下完成渲染。
 
-按既定门禁，网络隔离不允许用 CONDITIONAL_GO 跳过，因此本轮只能判 NO_GO。
-这不是"Motion Canvas 不可用"的结论，而是"在本机网络环境下 P0 未闭环"。
+判为 CONDITIONAL 而非 GO 的原因：驱动依赖 DOM 文本/CSS 状态，不是官方 API，
+且只在 Linux CI 验证过。
 
-### 重跑条件（满足后重新决策）
+### 条件（进入 P1 前/期间必须满足）
 
-1. 构建环境能正常访问 Debian 源与 npm registry；
-2. 成功构建含 Node 24.22.1 + Chromium + 依赖的镜像；
-3. 在 `docker run --network none` 下完成 300 帧渲染，帧数/尺寸/时长通过；
-4. 断网安装未缓存依赖的负控制失败；
-5. 浏览器请求日志仅包含 `file:`/`data:`/`blob:`/`127.0.0.1`。
+1. **Windows 本地重跑**同一驱动；或明确把 P1 范围限定为 Linux 并以文档记录。
+2. **UI 契约测试**：把选择器/文本/状态机固化为测试；3.17.2 之外的版本一律
+   `driver_protocol_mismatch`，不得用启发式猜测。
+3. **版本变更即重跑 P0**：Node、Motion Canvas、Chromium、FFmpeg 任一升级，
+   重新执行本 CI 工作流并保留 artifact。
+4. **不进入生产**：P1 原型通过相同门禁前，不得写入 `renderers/` 或发布路径。
 
-满足 1–5 后，若驱动协议仍依赖 DOM 文本，最多可判 `CONDITIONAL_GO`，
-条件为：锁定版本、UI 变化即失败、每次升级重跑驱动契约测试。
+### 撤销条件
 
-### 重跑所需材料
+出现任一情况立即回到 NO_GO：离线渲染失败、完成信号无法判定、取消后产生可发布
+产物、帧数/解码校验失败、负控制意外成功。
 
-- `var/spike/docker/`（Dockerfile 与 driver.mjs）
-- `var/spike/motion-canvas-standalone/`（工程、lockfile、300 帧配置）
-- `var/spike/node-v24.22.1/`（精确 Node 运行时）
+### 重跑材料
+
+- 受控工程：`spike/motion-canvas/`（源码、lockfile、Dockerfile、driver）
+- CI 工作流：`.github/workflows/motion-canvas-p0.yml`（手动触发）
+- 本机实验残留（gitignored）：`var/spike/`

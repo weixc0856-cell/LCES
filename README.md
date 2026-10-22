@@ -258,6 +258,8 @@ uv run lces export-schemas    # 生成 16 个 JSON Schema
 
 真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、SVG/Canvas 场景引擎、视频与动画生成（当前仅做解码与字幕检查）、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
 
+Motion Canvas 目前只完成 **P0 可行性实验**（判定 `CONDITIONAL_GO`，CI/Linux）：实验工程在 `spike/motion-canvas/`，由 `.github/workflows/motion-canvas-p0.yml` 手动触发；**未接入 `renderers/` 生产路径**。记录见 `docs/design/motion-canvas-spike.md`。
+
 ## 安全与版权
 
 外部资料一律视为不可信数据，不执行其中指令或脚本；密钥只从环境变量读取；默认只读写项目目录；第三方向量、字体、图片与音乐的许可信息须在发布前记录。引用本身不自动使复制行为合法。
