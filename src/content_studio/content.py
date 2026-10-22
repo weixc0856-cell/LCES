@@ -13,8 +13,11 @@ from content_studio.errors import ValidationFailure
 from content_studio.models import (
     ContentOutline,
     EvidenceLedger,
+    FigureBlock,
     ProjectConfig,
+    PublicBlock,
     PublicContent,
+    PublicSlide,
     ReadingEdition,
     ResearchBrief,
     SourceRegistry,
@@ -56,6 +59,8 @@ PUBLIC_SYSTEM = """你是 LCES 的公开内容生成模块（tech-content-studio
 5. 每个 slide 的 slide_id 必须与大纲完全一致，顺序一致。
 6. source_ids 只能引用来源台账中存在的 source_id。
 7. 正文应完整支持目标受众理解，不使用空泛填充。
+8. 只有 content/ 下已存在对应文件时才能使用 figure 块；模型不能创建图片，
+   没有现成图表就改用表格或文字说明。
 只输出符合给定 JSON Schema 的 JSON。"""
 
 SCRIPT_SYSTEM = """你是 LCES 的内部口播稿模块（tech-content-studio 第三部分）。
@@ -204,8 +209,16 @@ def generate_public_content(
             "public content cites unknown source ids: " + ", ".join(sorted(unknown))
         )
 
+    content, dropped_figures = _drop_missing_figures(project_dir, content)
+
     write_json(project_dir / "content" / "public_content.json", content)
-    _trace(project_dir, "public_content", provider, "PublicContent")
+    _trace(
+        project_dir,
+        "public_content",
+        provider,
+        "PublicContent",
+        extra={"dropped_figures": dropped_figures} if dropped_figures else None,
+    )
     return content
 
 
@@ -311,7 +324,46 @@ def generate_reading_edition(
     return edition
 
 
-def _trace(project_dir: Path, stage: str, provider: ModelProvider, schema_name: str) -> None:
+def _drop_missing_figures(
+    project_dir: Path, content: PublicContent
+) -> tuple[PublicContent, list[str]]:
+    """Remove figure blocks that point at files the model never created.
+
+    The generator cannot write image files, so a dangling ``path`` can only
+    render as a broken image and would fail the Gate 3 figure check. The block
+    is dropped and the dropped paths are recorded in the generation trace.
+    """
+
+    dropped: list[str] = []
+    slides: list[PublicSlide] = []
+    for slide in content.slides:
+        body: list[PublicBlock] = []
+        removed = False
+        for block in slide.body:
+            if isinstance(block, FigureBlock):
+                figure_path = project_dir / "content" / block.path
+                if not figure_path.is_file():
+                    dropped.append(block.path)
+                    removed = True
+                    continue
+            body.append(block)
+        if not body:
+            raise ValidationFailure(
+                f"slide {slide.slide_id} contains only missing figures: {', '.join(dropped)}"
+            )
+        slides.append(slide.model_copy(update={"body": body}) if removed else slide)
+    if not dropped:
+        return content, []
+    return content.model_copy(update={"slides": slides}), dropped
+
+
+def _trace(
+    project_dir: Path,
+    stage: str,
+    provider: ModelProvider,
+    schema_name: str,
+    extra: dict[str, object] | None = None,
+) -> None:
     path = project_dir / "internal" / "qa" / "generation_trace.json"
     entries: list[dict[str, object]] = []
     if path.exists():
@@ -322,16 +374,17 @@ def _trace(project_dir: Path, stage: str, provider: ModelProvider, schema_name: 
         except ValueError:
             entries = []
     usage = provider.last_result.usage.as_dict() if provider.last_result else {}
-    entries.append(
-        {
-            "stage": stage,
-            "schema": schema_name,
-            "provider": provider.name,
-            "model": provider.model,
-            "usage": usage,
-            "generated_at": utc_now().isoformat(),
-        }
-    )
+    entry: dict[str, object] = {
+        "stage": stage,
+        "schema": schema_name,
+        "provider": provider.name,
+        "model": provider.model,
+        "usage": usage,
+        "generated_at": utc_now().isoformat(),
+    }
+    if extra:
+        entry.update(extra)
+    entries.append(entry)
     write_json(path, entries)
 
 
