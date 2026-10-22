@@ -214,7 +214,7 @@ uv run lces render-spec .\spec.json --out .\build\visuals
 - 视觉类型与渲染器：`table → html.table`、`figure_image → html.figure`、`custom_svg → svg.custom`、`data_chart → vega_lite.chart`、`diagram → mermaid.diagram`、`graph → graphviz.dot`
 - 自定义 SVG 必须是合法 XML，且拒绝 `<script>`、事件处理器、`<foreignObject>` 与外部链接
 - Mermaid 运行时随仓库交付（`vendor/mermaid/`，12.2.0，MIT，sha256 校验），渲染在 `offline=True` 的 Chromium 中完成；拒绝 `%%{init}%%` 与 `click` 指令
-- Graphviz 是外部系统依赖：`LCES_DOT_BIN` 或 PATH 中的 `dot`（>= 2.40）。缺失时明确报环境错误，不会静默换渲染器；安装固定版本：`winget install --id Graphviz.Graphviz -e --version 16.1.0`
+- Graphviz 是外部系统依赖：`LCES_DOT_BIN` 或 PATH 中的 `dot`（>= 2.40）。缺失时明确报环境错误，不会静默换渲染器；CI 已用 **2.43.0** 完成真实渲染验收（14/14），本机固定版本 16.1.0 待安装：`winget install --id Graphviz.Graphviz -e --version 16.1.0`
 - `lces doctor` 会报告 Mermaid 运行时与 Graphviz 的可用状态
 - 内联 SVG 带 `role="img"`、`aria-label` 和 `max-width:100%`，窄视口不会撑破布局
 - 未安装 `vl-convert` 时 `data_chart` 明确报错，不会静默输出空图

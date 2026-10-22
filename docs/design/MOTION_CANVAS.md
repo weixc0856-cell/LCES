@@ -7,7 +7,8 @@
   详见 `docs/design/motion-canvas-spike.md`
 - 正式编码 / 注册表接入：**暂缓**，等待离线闭环后重新决策
 - Remotion：**暂不启动**
-- Graphviz 真实渲染：**独立验收项，仍未闭环**，不与本文档互相抵扣
+- Graphviz 真实渲染：**CI 已验收（2.43.0，14/14）**；本机 Windows 16.1.0
+  安装受策略限制，待人工执行，见 `docs/design/graphviz-acceptance.md`
 
 本文只做技术设计与验收定义，不包含实现代码。
 
@@ -510,5 +511,6 @@ MC-01 反例、时间轴语义、FrameManifest、产物隔离、三级可复现�
 P0 总体决策（2026-10-22）：**NO_GO（本环境）**，原因是离线渲染证据缺失；
 重跑条件见 `docs/design/motion-canvas-spike.md` §10。
 
-Graphviz 独立验收（A12）：安装、`doctor` 检测、真实 `dot` 输出、安全校验与测试必须单独闭环，
-状态单独跟踪，不与本文档合并。
+Graphviz 独立验收（A12）：CI 环境已用 Graphviz 2.43.0 完成真实 `dot`
+渲染、SVG 校验、缺依赖错误与 14/14 测试；Windows 本地 16.1.0 仍待安装。
+该验收不与本文档的 Motion Canvas 结论合并。

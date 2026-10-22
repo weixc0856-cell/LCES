@@ -37,7 +37,7 @@ by a working code path.
 | Visual asset contract | Implemented | `VisualAsset` with workspace-relative paths, hashes, QA results; `internal/qa/visual_assets.json` per build |
 | Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
 | Mermaid diagrams | Implemented | Vendored runtime 12.2.0 (MIT, sha256-verified), offline Chromium, strict config, rejects init/click directives |
-| Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); missing `dot` is an environment error, never a fallback |
+| Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); CI acceptance on Graphviz 2.43.0 with real `dot` rendering (14/14 tests); Windows 16.1.0 install still pending |
 | Renderer environment diagnostics | Implemented | `lces doctor` reports Mermaid runtime and Graphviz availability |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |
 | Chart rendering (Vega-Lite) | Implemented | `data_chart` renders static SVG through `vl-convert`; optional `charts` extra; no Node.js or network |
@@ -68,7 +68,7 @@ by a working code path.
 | Video/animation generation (Manim/Remotion) | Not implemented | FFmpeg is used for inspection only |
 | FFmpeg video, subtitles, media checks | Not implemented | Phase 3 |
 | Local web interface | Not implemented | Phase 6 |
-| CI workflow | Partial | `test` job runs pytest/ruff/mypy on Python 3.13; `browser-qa` job installs Chromium and runs the browser tests. Neither job has been observed running on GitHub from this environment |
+| CI workflow | Implemented | `test`, `browser-qa`, and `graphviz` jobs all green (run `39740736404`); Graphviz evidence uploaded as an artifact |
 
 ## Verification status
 
@@ -78,7 +78,7 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 176 passed, 1 skipped (real Graphviz test) |
+| `pytest -q` | 177 passed, 1 skipped (local real Graphviz test) |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | no issues in 33 source files |
@@ -97,10 +97,12 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Stage fallback routing | local `ProviderError` retried with `mock`; `stage_runs` records one fail then one pass |
 | `lces run --only build` (asset contract) | `visual_assets.json`: `slide-003-block-01`, `table`, `html.table 1.0.0`, source + output sha256, status `rendered` |
 | `lces export-schemas` | 16 schemas, including `visual_asset`, `scene_contract`, `video_contract` |
-| `lces doctor` | reports `Mermaid: 可用 — vendored 12.2.0` and `Graphviz: 不可用 — ... winget ... 16.1.0` on this machine |
+| `lces doctor` (local) | `Mermaid: 可用 — vendored 12.2.0`; `Graphviz: 不可用 — ... winget ... 16.1.0` |
+| CI `test` / `browser-qa` / `graphviz` | all green (run `39740736404`); mypy passes without optional extras |
+| CI Graphviz evidence | `dot - graphviz version 2.43.0`; 14 tests, 0 failures; artifact `graphviz-evidence` uploaded |
+| Graphviz renderer | stubbed path covers syntax error, timeout, unsafe output; real `dot` test passes in CI (2.43.0), skipped locally until 16.1.0 is installed |
 | Mermaid renderer | flowchart + sequence render offline; invalid syntax, malicious labels, init directives, and a 1 ms timeout all fail explicitly |
-| Graphviz renderer | stubbed `dot` path covers success, syntax error, timeout, unsafe output; real `dot` test skipped until Graphviz is installed |
-| `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
+| `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial; no media in v1) |
 
 These results validate the implemented checks only. They do not prove
 scientific correctness, source authenticity, or end-to-end production
