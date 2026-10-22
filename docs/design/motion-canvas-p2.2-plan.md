@@ -148,10 +148,10 @@
 | P2.2-GATE-01 | `flow` 契约 | 合法数据通过；未知字段/类型/数量/边引用/自环/重复/布局越界全部 `invalid_input` | PASS（本机单元） |
 | P2.2-GATE-02 | `compare` 契约 | 合法数据通过；栏目/条目/字数/未知字段/画布可读性全部校验 | PASS（本机单元） |
 | P2.2-GATE-03 | 模板安全 | 恶意字符串只成为字面量；生成源码无动态执行；title 模板输出不变 | PASS（本机单元 + `tsc --noEmit`） |
-| P2.2-GATE-04 | 真实 `flow` 渲染 | Linux CI 640×360/30 帧真实渲染 + 编码；帧数/尺寸/清单/视频一致 | NOT_RUN |
-| P2.2-GATE-05 | 真实 `compare` 渲染 | 同上 | NOT_RUN |
-| P2.2-GATE-06 | 生产入口 | `lces build` 分别用 `flow` 与 `compare` 内容产出视频与 `visual_assets.json` | NOT_RUN |
-| P2.2-GATE-07 | 失败矩阵 | 非法 flow/compare 数据在渲染前失败；不产生视频或资产记录 | NOT_RUN |
+| P2.2-GATE-04 | 真实 `flow` 渲染 | Linux CI 640×360/30 帧真实渲染 + 编码；帧数/尺寸/清单/视频一致 | PASS（run `39807639618`：`test_template_renders_30_frames[flow]` 通过；30 帧、640×360、清单/视频一致；末帧人工查看） |
+| P2.2-GATE-05 | 真实 `compare` 渲染 | 同上 | PASS（run `39807639618`：`test_template_renders_30_frames[compare]` 通过；30 帧、640×360、清单/视频一致；末帧人工查看） |
+| P2.2-GATE-06 | 生产入口 | `lces build` 分别用 `flow` 与 `compare` 内容产出视频与 `visual_assets.json` | PASS（run `39807639618`：两个生产构建各 30 帧 640×360 1.0 s；视频/清单/编码记录/资产哈希与 `build_id` 独立复核一致） |
+| P2.2-GATE-07 | 失败矩阵 | 非法 flow/compare 数据在渲染前失败；不产生视频或资产记录 | PASS（run `39807639618`：真实 `lces build` 用非法 flow/compare 数据均失败；无视频、标记保留；单元契约/注入用例通过） |
 | P2.2-GATE-08 | 向后兼容 | P1/P2.1 全部测试与真实用例保持通过；未触碰 P2.3 | PASS（333 passed, 11 skipped；P2.1 真实用例在 CI 继续跑） |
 
 ## 7. 实施步骤
@@ -189,8 +189,11 @@
 - 生成的 `flow`/`compare` TSX 已用 `npx tsc --noEmit` 在本机运动工程中类型检查
   通过（Node 版本低于 P2 门禁，仅作语法/类型验证，不构成渲染证据）。
 
-P2.2-GATE-04/05/06/07 仍为 `NOT_RUN`，必须由 Linux CI 的真实渲染与
-`lces build` 证据关闭。
+最终 CI（run `39807639618`，commit `58abf8a`）五个 job 全绿：JUnit
+**17/0/0/0**、TAP **13/13**；flow/compare 的真实渲染与 `lces build`
+生产入口均通过，两个生产构建的视频/清单/编码记录/资产哈希与 `build_id`
+独立复核一致；非法 flow/compare 数据在渲染前失败。PR #11 合并后
+`main` run `39808284124` 五个 job 全绿。P2.2-GATE-01～08 全部为 PASS。
 
 
 ## 10. 失败与修复记录
