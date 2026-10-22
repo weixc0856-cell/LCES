@@ -73,11 +73,35 @@ jobs:
           set -o pipefail
           cd motion
           node --test --test-reporter=tap contract.test.mjs | tee ../motion-evidence/contract-tests.tap
-      - name: Real title render
+      - name: Real title renders
         run: >-
           LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v
-          --basetemp=motion-evidence/tmp
+          --basetemp=/tmp/lces-p1-builds
           --junitxml=motion-evidence/e2e-report.xml
+      - name: Collect frame manifests
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p motion-evidence/manifests /tmp/lces-p1-builds
+          for manifest in $(find /tmp/lces-p1-builds -name frame_manifest.json 2>/dev/null); do
+            build_dir=$(dirname "$manifest")
+            build_id=$(basename "$build_dir")
+            mkdir -p "motion-evidence/manifests/$build_id"
+            cp "$manifest" "motion-evidence/manifests/$build_id/"
+            cp "$build_dir/frames/report.json" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
+            cp "$build_dir/driver.log" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
+            first=$(find "$build_dir/frames" -name '000000.png' 2>/dev/null | head -1)
+            if [ -n "$first" ]; then
+              cp "$first" "motion-evidence/manifests/$build_id/first.png"
+              last=$(find "$build_dir/frames" -name '*.png' 2>/dev/null | sort | tail -1)
+              cp "$last" "motion-evidence/manifests/$build_id/last.png"
+            fi
+          done
+      - name: Collect failure diagnostics
+        if: failure()
+        run: |
+          mkdir -p motion-evidence/failure
+          cp -r /tmp/lces-p1-builds/* motion-evidence/failure/ 2>/dev/null || true
       - name: Upload P1 evidence
         if: always()
         uses: actions/upload-artifact@v4
