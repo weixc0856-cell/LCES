@@ -19,8 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -83,7 +81,7 @@ jobs:
           node --test --test-reporter=tap contract.test.mjs | tee ../motion-evidence/contract-tests.tap
       - name: Real title renders
         run: >-
-          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v
+          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py tests/test_encode.py -v
           --basetemp=/tmp/lces-p1-builds
           --junitxml=motion-evidence/e2e-report.xml
       - name: Collect frame manifests
@@ -98,6 +96,8 @@ jobs:
             cp "$manifest" "motion-evidence/manifests/$build_id/"
             cp "$build_dir/frames/report.json" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
             cp "$build_dir/driver.log" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
+            media_root=$(dirname "$(dirname "$build_dir")")
+            cp "$media_root/media/course.mp4" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
             first=$(find "$build_dir/frames" -name '000000.png' 2>/dev/null | head -1)
             if [ -n "$first" ]; then
               cp "$first" "motion-evidence/manifests/$build_id/first.png"
