@@ -186,9 +186,9 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 
 ## 10. 决策（P0-5）
 
-**CONDITIONAL_GO（CI/Linux）**。
+**GO（仅 Linux）** —— P1 准入范围由方案 B 确定（2026-10-22）。
 
-已通过的强制门槛（run `39742834259`）：
+已通过的强制门槛（run `39750119050`）：
 
 - 离线渲染：`--network none` 下 300 帧、4.71 s、全帧解码、1920×1080；
 - 网络负控制：`fetch` 与 `npm install` 均失败（exit 1）；
@@ -199,18 +199,22 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 - 资源上限：容器 `--memory=768m` 下完成渲染；
 - UI 契约：run `39750119050` **10/10**（DOM、状态转换、产物、负向用例）。
 
-判为 CONDITIONAL 而非 GO 的原因：驱动依赖 DOM 文本/CSS 状态，不是官方 API，
-且只在 Linux CI 验证过。
+判为 GO 的前提是**范围限定为 Linux**：驱动依赖 DOM 文本，只在 Linux CI 验证过。
+Windows 不在 P1 范围；P1 入口必须显式拒绝非 Linux 平台
+（`assertSupportedPlatform`，错误码 `unsupported_platform`），不得让 Windows
+路径“看起来可用”却在运行时失败。
 
 ### 条件（进入 P1 前/期间必须满足）
 
-1. **Windows 本地重跑**同一驱动（`docs/design/motion-canvas-windows-validation.md`）；
-   或明确把 P1 范围限定为 Linux 并以文档记录。
-2. **UI 契约测试**：`contract.test.mjs` 已覆盖选择器/状态机/产物；3.17.2 之外的
+1. **平台门禁**：P1 入口调用 `assertSupportedPlatform(process.platform)`；
+   非 Linux 立即失败。已实现于 `contract.mjs`，P1 必须使用。
+2. **UI 契约测试**：`contract.test.mjs` 覆盖选择器/状态机/产物；3.17.2 之外的
    版本一律 `driver_protocol_mismatch`，不得用启发式猜测。
 3. **版本变更即重跑 P0**：Node、Motion Canvas、Chromium、FFmpeg 任一升级，
    重新执行本 CI 工作流并保留 artifact。
 4. **不进入生产**：P1 原型通过相同门禁前，不得写入 `renderers/` 或发布路径。
+5. **Windows 另立准入**：需要新的 P0（断网、负控制、完整清单）并重新判定，
+   旧版本的 Linux 结果不自动继承。
 
 ### 撤销条件
 
@@ -228,8 +232,8 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 | 任务 | 内容 | 状态 |
 |---|---|---|
 | P1-GATE-01 | UI 驱动契约测试 | **已实现**；CI run `39750119050` **10/10**（`--network none`），Windows 主机 10/10 |
-| P1-GATE-02 | Windows 本地重跑 | **部分**：契约测试与驱动渲染已在 Windows 主机通过；断网隔离/负控制/完整清单未执行（`motion-canvas-windows-validation.md`） |
-| P1-GATE-03 | 准入决策记录 | **已更新**（本节与 §10） |
+| P1-GATE-02 | Windows 本地重跑 | **Out of scope**（方案 B：P1 仅 Linux）；本地 Linux 使用 WSL2 Ubuntu 24.04，环境由用户维护；Windows 清单保留供未来准入 |
+| P1-GATE-03 | 准入决策记录 | **已更新**：方案 B，仅 Linux |
 
 ### P1-GATE-01：契约测试范围
 
@@ -270,6 +274,11 @@ Windows 原生验证未完成前：
 
 ### 准入规则
 
-- 方案 A：Windows 与 Linux 强制项全部通过 → 进入 P1（双平台）。
-- 方案 B：限定 Linux，入口显式拒绝 Windows → 进入 P1（仅 Linux）。
+- 方案 A：Windows 与 Linux 强制项全部通过 → 未采用。
+- **方案 B（已选择）：P1 仅 Linux** —— 入口显式拒绝 Windows
+  （`unsupported_platform`）；文档、CI、发布范围均限定 Linux。
 - 两者都不满足 → 保持 `CONDITIONAL_GO`，不进入生产。
+
+P1 原型（title 场景）可以在 Linux 范围内开始；本地使用 WSL2 Ubuntu 24.04，
+Node/Chromium/FFmpeg 由用户维护（LCES 不自动安装）。Windows 支持需要新的 P0
+与重新准入。

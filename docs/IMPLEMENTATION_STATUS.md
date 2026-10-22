@@ -37,7 +37,7 @@ by a working code path.
 | Visual asset contract | Implemented | `VisualAsset` with workspace-relative paths, hashes, QA results; `internal/qa/visual_assets.json` per build |
 | Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
 | Mermaid diagrams | Implemented | Vendored runtime 12.2.0 (MIT, sha256-verified), offline Chromium, strict config, rejects init/click directives |
-| Motion Canvas P0 (experiment) | Conditional (CI) | `spike/motion-canvas` + manual workflow; offline 300-frame render, negative control, cancel/timeout, and UI contract tests (10/10 in CI and on Windows host); not in production |
+| Motion Canvas P0 (experiment) | GO, Linux-only | `spike/motion-canvas`; offline render, negative control, cancel/timeout, UI contract tests 10/10 (CI + Windows host diagnostic); P1 admitted for Linux (WSL2 local), Windows native out of scope; not in production |
 | Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); CI acceptance on Graphviz 2.43.0 with real `dot` rendering (14/14 tests); Windows 16.1.0 install still pending |
 | Renderer environment diagnostics | Implemented | `lces doctor` reports Mermaid runtime and Graphviz availability |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |

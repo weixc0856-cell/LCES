@@ -1,12 +1,13 @@
 # Motion Canvas Windows 本地验证清单
 
-状态：**未执行（模板）**
-用途：P1-GATE-02。Windows 原生环境的真实渲染与驱动验证；结果与 Linux CI
-分别记录，不得互相替代。
+状态：**P1 范围外（方案 B：仅 Linux，2026-10-22）**；模板保留，供未来
+Windows 原生准入使用。
+用途：P1-GATE-02（未采用）。本地 Linux 开发使用 **WSL2（Ubuntu 24.04）**，
+不属于“Windows 原生”，也不由本清单覆盖。
 
-> Docker Desktop 在 Windows 上运行的是 Linux 容器，不能作为 Windows 原生
-> 验证。若只能在 Docker 中运行，必须在结论中标注为“Windows 主机 + Linux
-> 容器”，不能写成 Windows 原生通过。
+> Docker Desktop / WSL2 在 Windows 上运行的是 Linux 用户态，不能作为 Windows
+> 原生验证。若将来要声明 Windows 支持，必须在 Windows 原生进程中重新执行
+> 本清单，不能引用 WSL 或容器结果。
 
 部分证据（2026-10-22，**有网环境**）：
 
@@ -14,6 +15,15 @@
 - `node driver.mjs`：**300 帧 / 5.45 s**，完成信号正常
 
 以上只证明契约与驱动在 Windows 主机可用；断网隔离、负控制、完整清单仍未执行。
+
+## WSL2 本地运行时（P1 Linux 范围）
+
+- 已安装 Ubuntu 24.04.4 LTS（WSL2），用于本地 Linux 开发。
+- 现有 Node `v22.22.2` / npm `10.9.7`；**P1 要求精确 Node 24.22.1**，
+  版本不符时入口应报 `environment_unavailable`。
+- Node、Chromium、FFmpeg 与依赖由用户维护；LCES **不自动安装**这些组件。
+- WSL 是 Linux 用户态，不是 Windows 原生；不能用于声明 Windows 支持。
+- P0 的离线/负控制证据仍以 Linux CI（run `39750119050`）为准，不由 WSL 替代。
 
 ## 0. 执行记录
 
@@ -92,8 +102,9 @@ node --test --test-reporter=tap contract.test.mjs
 
 ## 6. 准入规则（与设计文档一致）
 
-- **方案 A：Windows + Linux 都支持** —— 本清单全部强制项通过，且 Linux CI
-  保持绿色。
-- **方案 B：仅 Linux** —— 在 P1 入口明确拒绝 Windows，文档、CI、发布范围
-  全部限定 Linux；不得让 Windows 路径“看起来可用”却在运行时失败。
-- 两者都不满足 —— 保持 `CONDITIONAL_GO`，不进入生产 `renderers/` 与发布路径。
+**已选择方案 B（2026-10-22）：P1 仅 Linux。** 本清单不参与 P1 准入。
+
+- 方案 A：Windows + Linux 都支持 —— 未采用。
+- **方案 B：仅 Linux** —— 已在 P1 入口以 `assertSupportedPlatform` 显式拒绝
+  Windows；文档、CI、发布范围限定 Linux（含 WSL2）。
+- 若将来要改为方案 A，必须重新执行本清单并重新判定；旧结果不继承。

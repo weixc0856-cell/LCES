@@ -3,9 +3,14 @@
 状态（2026-10-22 第二轮评审后）：
 
 - 架构方向：**通过**
-- P0 可行性验证：**CONDITIONAL_GO（CI/Linux）**，run `39750119050`
-  （离线渲染 + 契约测试 10/10）；条件见 `docs/design/motion-canvas-spike.md` §10
-- 正式编码 / 注册表接入：**暂缓**，满足 P0 条件并完成 P1 原型后才进入
+- P0 可行性验证：**GO（仅 Linux，2026-10-22）**，run `39750119050`
+  （离线渲染 + 契约测试 10/10）；详见 `docs/design/motion-canvas-spike.md`
+- P1 运行范围：**Linux only**，本地使用 WSL2（Ubuntu 24.04）；Windows 原生
+  在入口显式拒绝（`unsupported_platform`），需新的 P0 才能纳入
+- 环境所有权：WSL / Node / 浏览器 / FFmpeg 由用户维护；LCES 不自动安装。
+  P1 只做版本检查，不符即 `environment_unavailable`
+- 正式编码 / 注册表接入：P1 可在 Linux 范围开始；生产 `renderers/` 仍暂缓到
+  P1 通过相同门禁
 - Remotion：**暂不启动**
 - Graphviz 真实渲染：**CI 已验收（2.43.0，14/14）**；本机 Windows 16.1.0
   安装受策略限制，待人工执行，见 `docs/design/graphviz-acceptance.md`
@@ -447,8 +452,10 @@ Level 3 实测流程：同一环境连续构建 3 次 → 干净环境重复 →
 
 ### P1：最小可运行原型
 
-进入条件：P0 CONDITIONAL_GO 的四项条件（Windows 本地重跑或限定 Linux 范围、
-UI 契约测试、版本变更重跑、不进入生产），见 spike §10。
+进入条件：Linux-only 已确定。入口调用 `assertSupportedPlatform`，非 Linux 以
+`unsupported_platform` 拒绝；本地使用 WSL2（Ubuntu 24.04），CI 使用 Linux
+容器；Windows 原生不在范围。UI 契约测试与版本变更重跑 P0 的规则继续有效。
+WSL 的 Node/npm/浏览器/FFmpeg 由用户维护，P1 只检查精确版本，不自动安装。
 
 - `title` 模板，固定画布/帧率/时长；
 - 帧序列 + FrameManifest + 系统 FFmpeg 编码；
@@ -511,9 +518,10 @@ MC-01 反例、时间轴语义、FrameManifest、产物隔离、三级可复现�
 | 4 | 官方 headless API 的长期稳定性 | 每次升级复核 | 版本核查记录 | 当前未发现官方 headless 入口；每次升级重新核查 — 2026-10-22 |
 | 5 | 场景模板字段冻结时间点 | P1 结束评审 | 本文件修订记录 | 待定 |
 
-P0 总体决策（2026-10-22）：**CONDITIONAL_GO（CI/Linux）**。硬门槛全部通过；
-条件为 Windows 本地重跑或限定 Linux 范围、UI 契约测试、版本变更重跑 P0、
-完成 P1 前不进入生产。详见 `docs/design/motion-canvas-spike.md` §10。
+P0 总体决策（2026-10-22）：**GO（仅 Linux）**。硬门槛全部通过；P1 入口必须
+调用 `assertSupportedPlatform` 拒绝非 Linux（`unsupported_platform`）。
+本地开发使用 WSL2（Ubuntu 24.04）；Windows 原生支持需要新的 P0 与重新准入。
+详见 `docs/design/motion-canvas-spike.md` §10/§11。
 
 Graphviz 独立验收（A12）：CI 环境已用 Graphviz 2.43.0 完成真实 `dot`
 渲染、SVG 校验、缺依赖错误与 14/14 测试；Windows 本地 16.1.0 仍待安装。

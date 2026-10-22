@@ -6,7 +6,21 @@ export const CODES = {
   driverProtocolMismatch: 'driver_protocol_mismatch',
   frameMismatch: 'frame_mismatch',
   outputCorrupt: 'output_corrupt',
+  unsupportedPlatform: 'unsupported_platform',
 };
+
+// P1 is admitted for Linux only (decision 2026-10-22). The entry point must
+// reject other platforms explicitly; Windows support requires a new P0 run.
+export const SUPPORTED_PLATFORMS = ['linux'];
+
+export function assertSupportedPlatform(platform) {
+  if (!SUPPORTED_PLATFORMS.includes(platform)) {
+    throw new ContractError(
+      CODES.unsupportedPlatform,
+      `Motion Canvas P1 is Linux-only; ${platform} is not supported`,
+    );
+  }
+}
 
 export class ContractError extends Error {
   constructor(code, message) {

@@ -9,6 +9,7 @@ import {
   CODES,
   ContractError,
   assertEditorVersion,
+  assertSupportedPlatform,
   classifyState,
   countFrames,
   isRenderComplete,
@@ -142,6 +143,14 @@ test('unknown editor version fails before rendering', () => {
   assert.throws(
     () => assertEditorVersion('9.9.9', EXPECTED_VERSION),
     error => error instanceof ContractError && error.code === CODES.driverProtocolMismatch,
+  );
+});
+
+test('P1 platform gate rejects non-Linux', () => {
+  assertSupportedPlatform('linux');
+  assert.throws(
+    () => assertSupportedPlatform('win32'),
+    error => error instanceof ContractError && error.code === CODES.unsupportedPlatform,
   );
 });
 
