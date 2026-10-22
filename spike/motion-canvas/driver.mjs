@@ -81,14 +81,13 @@ try {
   await page.waitForTimeout(2500);
 
   const state = () =>
-    page.evaluate(() => ({
-      abort: Array.from(document.querySelectorAll('button')).some(
-        b => (b.textContent || '').trim() === 'Abort',
-      ),
-      render: Array.from(document.querySelectorAll('button')).some(
-        b => (b.textContent || '').trim() === 'RENDER',
-      ),
-    }));
+    page.evaluate(() => {
+      // The button's DOM text is "Render"/"Abort"; CSS uppercases it in the UI.
+      const labels = Array.from(document.querySelectorAll('button')).map(b =>
+        (b.textContent || '').trim().toLowerCase(),
+      );
+      return {abort: labels.includes('abort'), render: labels.includes('render')};
+    });
 
   const started = Date.now();
   await page.getByRole('button', {name: 'Render', exact: true}).first().click();
