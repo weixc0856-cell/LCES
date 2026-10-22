@@ -201,9 +201,10 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 
 ### 条件（进入 P1 前/期间必须满足）
 
-1. **Windows 本地重跑**同一驱动；或明确把 P1 范围限定为 Linux 并以文档记录。
-2. **UI 契约测试**：把选择器/文本/状态机固化为测试；3.17.2 之外的版本一律
-   `driver_protocol_mismatch`，不得用启发式猜测。
+1. **Windows 本地重跑**同一驱动（`docs/design/motion-canvas-windows-validation.md`）；
+   或明确把 P1 范围限定为 Linux 并以文档记录。
+2. **UI 契约测试**：`contract.test.mjs` 已覆盖选择器/状态机/产物；3.17.2 之外的
+   版本一律 `driver_protocol_mismatch`，不得用启发式猜测。
 3. **版本变更即重跑 P0**：Node、Motion Canvas、Chromium、FFmpeg 任一升级，
    重新执行本 CI 工作流并保留 artifact。
 4. **不进入生产**：P1 原型通过相同门禁前，不得写入 `renderers/` 或发布路径。
@@ -215,6 +216,54 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 
 ### 重跑材料
 
-- 受控工程：`spike/motion-canvas/`（源码、lockfile、Dockerfile、driver）
+- 受控工程：`spike/motion-canvas/`（源码、lockfile、Dockerfile、driver、contract）
 - CI 工作流：`.github/workflows/motion-canvas-p0.yml`（手动触发）
 - 本机实验残留（gitignored）：`var/spike/`
+
+## 11. P1 准入任务（P1-GATE）
+
+| 任务 | 内容 | 状态 |
+|---|---|---|
+| P1-GATE-01 | UI 驱动契约测试 | **已实现**；Windows 主机 10/10，CI 已加入 `--network none` 步骤 |
+| P1-GATE-02 | Windows 本地重跑 | **部分**：契约测试与驱动渲染已在 Windows 主机通过；断网隔离/负控制/完整清单未执行（`motion-canvas-windows-validation.md`） |
+| P1-GATE-03 | 准入决策记录 | **已更新**（本节与 §10） |
+
+### P1-GATE-01：契约测试范围
+
+`contract.mjs` 统一驱动与测试使用的判定逻辑；`contract.test.mjs` 在真实
+编辑器构建上运行，失败映射到 `driver_protocol_mismatch`、`frame_mismatch`、
+`output_corrupt`。
+
+| 层级 | 覆盖 | 负向用例 |
+|---|---|---|
+| DOM 契约 | Render/Abort 存在与消失、ETA、loading | Render 与 Abort 同时存在/同时缺失 → 失败，不猜测 |
+| 状态转换 | idle → rendering → completed；rendering → cancelled/timeout | ETA 残留不得判定为渲染中或完成 |
+| 产物契约 | 300 帧、1920×1080、PNG 头、辅助文件排除、发布目录不变 | 帧数不足、截断 PNG、取消/超时后不得发布 |
+
+测试运行方式（CI，`--network none`）：
+
+```powershell
+docker run --rm --network none --memory=768m `
+  -v "$PWD/evidence/contract:/app/output" `
+  --entrypoint node lces-mc-p0 `
+  --test --test-reporter=tap contract.test.mjs
+```
+
+Windows 主机部分结果（2026-10-22，**非断网**）：`node --test contract.test.mjs`
+**10/10 通过**（约 61 s）；`node driver.mjs` 渲染 **300 帧 / 5.45 s**。该运行
+证明契约与驱动在 Windows 主机可工作，但不构成 Windows 断网/负控制证据。
+
+### P1-GATE-02：Windows 范围
+
+`docs/design/motion-canvas-windows-validation.md` 是执行模板，当前为 0/12。
+Windows 原生验证未完成前：
+
+- 不得声称 Windows 受支持；
+- 不得让 Windows 入口“看起来可用”；
+- 若选择仅 Linux，必须在 P1 入口显式拒绝 Windows 并写入支持矩阵。
+
+### 准入规则
+
+- 方案 A：Windows 与 Linux 强制项全部通过 → 进入 P1（双平台）。
+- 方案 B：限定 Linux，入口显式拒绝 Windows → 进入 P1（仅 Linux）。
+- 两者都不满足 → 保持 `CONDITIONAL_GO`，不进入生产。
