@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -61,3 +62,24 @@ def test_group_check_detects_a_live_group():
     finally:
         mc._stop_driver(process, pgid)
     assert not mc._group_alive(pgid)
+
+
+def test_zombies_are_not_treated_as_live_group_members():
+    process = subprocess.Popen(  # noqa: S603 - fixed argv, no shell
+        [sys.executable, "-c", "pass"],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    pgid = os.getpgid(process.pid)
+    try:
+        state = ""
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and state != "Z":
+            time.sleep(0.05)
+            stat = Path(f"/proc/{process.pid}/stat").read_text(encoding="utf-8")
+            state = stat[stat.rfind(")") + 2 :].split()[0]
+        assert state == "Z", "the child did not become an unreaped zombie"
+        assert not mc._group_alive(pgid)
+    finally:
+        process.wait(timeout=10)

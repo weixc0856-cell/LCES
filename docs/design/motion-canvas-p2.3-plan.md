@@ -227,9 +227,16 @@ P2 主要缺口：
   断言该诊断，并保留旧视频/无新视频与 QA。
 - 新增 Linux 进程组测试：整组清理、忽略 SIGTERM 后升级 SIGKILL、不同进程组
   不被误杀；新增“子进程调用不使用 shell”的静态回归测试。
-- 本机：`uv run pytest` → **337 passed, 16 skipped**（4 个 POSIX 进程组测试在
+- 本机：`uv run pytest` → **337 passed, 17 skipped**（5 个 POSIX 进程组测试在
   Windows 跳过）；ruff/format/mypy 全绿。Linux 进程组与真实取消/超时证据
   仍待 CI。
+
+**A 批失败记录（CI run `39814506769`）**：真实渲染全部报
+`render_failed: driver process group did not exit`；`test` job 的简单 sleeper
+进程组测试通过，说明问题出在真实 Vite/Chromium 子进程。原因是容器 PID 1 不
+回收孤儿，已退出的 Vite/esbuild 以 zombie 形式留在进程组内，而 `killpg(pgid, 0)`
+对 zombie 仍返回成功。修复：Linux 下扫描 `/proc/<pid>/stat`，忽略 `Z`/`X`
+状态；新增“未回收 zombie 不算活进程”的测试。
 
 | 批次 | 内容 | 完成条件 |
 |---|---|---|

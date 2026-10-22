@@ -923,8 +923,43 @@ def _process_group(process: subprocess.Popen[bytes]) -> int | None:
 
 
 def _group_alive(pgid: int | None) -> bool:
+    """True when the group has a live (non-zombie) member.
+
+    ``killpg(pgid, 0)`` also succeeds for zombies. In containers whose PID 1
+    does not reap orphans, a finished Vite/esbuild process can stay a zombie
+    forever; treating it as alive would turn every successful render into a
+    cleanup failure. On Linux, inspect ``/proc/<pid>/stat`` and ignore ``Z``.
+    """
+
     if pgid is None:
         return False
+    proc = Path("/proc")
+    if proc.is_dir():
+        try:
+            for entry in proc.iterdir():
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    text = (entry / "stat").read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                close = text.rfind(")")
+                if close < 0:
+                    continue
+                fields = text[close + 2 :].split()
+                if len(fields) < 3:
+                    continue
+                if fields[0] in {"Z", "X", "x"}:
+                    continue
+                try:
+                    group = int(fields[2])
+                except ValueError:
+                    continue
+                if group == pgid:
+                    return True
+            return False
+        except OSError:
+            pass
     killpg = getattr(os, "killpg", None)
     if killpg is None:
         return False
