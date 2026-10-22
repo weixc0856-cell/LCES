@@ -411,13 +411,16 @@ class MotionCanvasRenderer(Renderer):
                 reported = str(report["error_code"])
                 code = reported if reported in ERROR_CODES else "render_failed"
                 raise RenderError(
-                    f"driver reported {reported}: {report.get('terminal', 'failed')}",
+                    f"driver reported {reported}: {report.get('terminal', 'failed')}"
+                    f"{_log_tail(log_path)}",
                     code=code,
                     stage=ERROR_CODES[code].stage,
                 )
             if returncode != 0:
                 raise RenderError(
-                    f"driver exited with {returncode}", code="render_failed", stage="render"
+                    f"driver exited with {returncode}{_log_tail(log_path)}",
+                    code="render_failed",
+                    stage="render",
                 )
             if report.get("terminal") != "completed" or not report.get("finished"):
                 raise RenderError(
@@ -701,9 +704,22 @@ def _driver_env(
             "BUILD_ID": build_id,
             "MAX_RENDER_MS": str(max_render_ms),
             "LCES_ERROR_CODES_PATH": str(ERROR_CODES_PATH),
+            "MC_OUTPUT_DIR": str(output_dir),
+            "MC_NODE_MODULES": str(motion_project_dir() / "node_modules"),
         }
     )
     return env
+
+
+def _log_tail(path: Path, limit: int = 1200) -> str:
+    """Keep the end of the driver log in the failure, not only on disk."""
+
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    tail = text.strip()[-limit:]
+    return f"; driver log: {tail}" if tail else ""
 
 
 def _load_report(path: Path, build_id: str) -> dict[str, Any]:
@@ -769,12 +785,15 @@ def _terminate(process: subprocess.Popen[bytes]) -> None:
 
 
 def _frame_problems(frames_dir: Path, expected: int, width: int, height: int) -> list[str]:
-    names = sorted(name for name in os.listdir(frames_dir) if _FRAME_NAME.match(name))
-    if len(names) != expected:
-        return [f"expected {expected} frames, found {len(names)} in the build directory"]
+    # The image-sequence exporter writes into a project subdirectory, the same
+    # way the driver counts frames recursively. A top-level listing would
+    # report zero frames and fail a good build.
+    frames = sorted(path for path in frames_dir.rglob("*.png") if _FRAME_NAME.match(path.name))
+    if len(frames) != expected:
+        return [f"expected {expected} frames, found {len(frames)} in the build directory"]
     problems: list[str] = []
-    for name in names:
-        issue = _png_problem(frames_dir / name, width, height)
+    for path in frames:
+        issue = _png_problem(path, width, height)
         if issue:
             problems.append(issue)
         if len(problems) >= 5:

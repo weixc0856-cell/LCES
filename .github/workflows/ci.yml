@@ -74,7 +74,10 @@ jobs:
           cd motion
           node --test --test-reporter=tap contract.test.mjs | tee ../motion-evidence/contract-tests.tap
       - name: Real title render
-        run: LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v --junitxml=motion-evidence/e2e-report.xml
+        run: >-
+          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v
+          --basetemp=motion-evidence/tmp
+          --junitxml=motion-evidence/e2e-report.xml
       - name: Upload P1 evidence
         if: always()
         uses: actions/upload-artifact@v4

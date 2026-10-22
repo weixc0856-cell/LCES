@@ -255,6 +255,10 @@ def test_render_returns_build_id_and_report(build_root):
     assert renderer.seen is not None
     assert renderer.seen["env"]["EXPECTED_FRAMES"] == "30"
     assert renderer.seen["command"][1] == "driver.mjs"
+    # The exporter and the frame counter must agree on one absolute directory,
+    # and Vite must be allowed to read the pinned node_modules.
+    assert renderer.seen["env"]["MC_OUTPUT_DIR"] == renderer.seen["env"]["OUTPUT_DIR"]
+    assert renderer.seen["env"]["MC_NODE_MODULES"].endswith("node_modules")
     # The driver env is a whitelist: no API keys leak into the Node process.
     leaked = [name for name in renderer.seen["env"] if "KEY" in name.upper()]
     assert leaked == []
@@ -388,3 +392,11 @@ def test_png_dimension_mismatch_is_detected(tmp_path):
 def test_frame_problems_reports_a_shortfall(tmp_path):
     problems = mc._frame_problems(tmp_path, 2, 320, 180)
     assert any("expected 2 frames" in problem for problem in problems)
+
+
+def test_frame_problems_walks_the_exporter_subdirectory(tmp_path):
+    nested = tmp_path / "course-v1"
+    nested.mkdir()
+    for index in range(2):
+        (nested / f"{index:06d}.png").write_bytes(_png())
+    assert mc._frame_problems(tmp_path, 2, 320, 180) == []

@@ -9,6 +9,19 @@
 状态只有四种：`NOT_RUN`、`PASS`、`FAIL`、`BLOCKED`。
 未执行的检查不得记为 `PASS`；CI job 的总体成功不得代替逐条断言。
 
+**当前状态（2026-10-22）**：P1.1 已在 Linux CI 通过真实渲染
+（run `39762458701`，commit `c9d31af`，job `motion-canvas-p1` 全绿）；
+P1.2–P1.4 尚未开始。
+
+**两种渲染配置**（不得混用）：
+
+| 配置 | 画布 / 帧数 | 用途 | 验收项 |
+|---|---|---|---|
+| 冒烟 | 640×360 / 30 帧（1 s） | 每次 PR 的快速真实渲染 | P1-GATE-08 |
+| 生产 | 1920×1080 / 300 帧（10 s @ 30 fps） | P1 的正式渲染规格 | P1-GATE-14 |
+
+冒烟通过不等于生产规格通过；两者都在同一 CI job 中真实执行。
+
 ## 1. 冻结决策
 
 | 决策 | 最终方案 | 落地位置 |
@@ -106,7 +119,11 @@ class Renderer:
 ## 4. P1-GATE 验收表
 
 本机环境：Windows 11 Pro 10.0.26300；Python 3.13（项目 `.venv`）；
-Node `v24.14.1`（**不满足 P1 要求**，仅用于生成 lockfile 与 Node 契约冒烟）。
+Node `v24.14.1`（**不满足 P1 要求**，本机只跑拒绝路径、单元测试与 Node 契约冒烟）。
+
+CI 环境（run `39762458701`，`ubuntu-latest`）：Node `v24.22.1`、npm `11.19.1`、
+Playwright `1.64.0`、FFmpeg `6.1.1-3ubuntu5`；`lces doctor` 报告
+Motion Canvas 可用。
 
 | ID | 验收项 | 命令 / 环境 | 结果 | 证据 | 状态 |
 |---|---|---|---|---|---|
@@ -115,17 +132,29 @@ Node `v24.14.1`（**不满足 P1 要求**，仅用于生成 lockfile 与 Node �
 | P1-GATE-03 | 环境报告 | `uv run lces doctor`（Windows） | Motion Canvas 不可用，逐项列出 platform/node/MC/Playwright/Chromium | 本机终端 | PASS |
 | P1-GATE-04 | 共享失败码表 | `node -e "import('./motion/contract.mjs')…"`（Node 24.14.1，`motion/`） | 13 个码；`cancelled=130/cancelled`；`win32 → unsupported_platform`；`linux ok` | 本机终端 | PASS |
 | P1-GATE-05 | lockfile 可安装 | `cd motion && npm ci && npm rebuild esbuild` | `added 69 packages`；`EBADENGINE` 警告符合预期（Node 24.14.1 ≠ 24.22.1） | 本机终端 | PASS |
-| P1-GATE-06 | 单元/契约测试 | `uv run pytest` | **246 passed, 2 skipped**（Graphviz 未安装、`LCES_MC_E2E` 未设置） | `var/p1/pytest-full.log` | PASS |
-| P1-GATE-07 | 静态检查 | `ruff check .`、`ruff format --check .`、`mypy src` | 全部通过（35 个源文件） | 本机终端 | PASS |
-| P1-GATE-08 | 真实 title 渲染（P1.1 完成条件） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py`（Linux + Node 24.22.1 + Chromium + FFmpeg） | 未执行：本机 Windows、无 WSL；CI job 已定义但尚未推送运行 | — | BLOCKED |
-| P1-GATE-09 | Node 契约套件 | `cd motion && node --test contract.test.mjs`（Linux） | 未执行：需要 Chromium；本机 Node 版本也不符 | — | BLOCKED |
-| P1-GATE-10 | CI 必过真实渲染 | `.github/workflows/ci.yml` `motion-canvas-p1` | 已写入，从未运行 | — | NOT_RUN |
+| P1-GATE-06 | 单元/契约测试 | `uv run pytest`（本地） | **247 passed, 2 skipped**（Graphviz 未安装、`LCES_MC_E2E` 未设置） | `var/p1/pytest-final3.log` | PASS |
+| P1-GATE-07 | 静态检查 | `ruff check .`、`ruff format --check .`、`mypy src`（本地与 CI `test` job） | 全部通过（35 个源文件） | 本机终端；CI run `39762458701` `test` job | PASS |
+| P1-GATE-08 | 真实 title 渲染（P1.1 完成条件） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v --basetemp=motion-evidence/tmp --junitxml=motion-evidence/e2e-report.xml` | JUnit 1 test / 0 failures / 7.0 s；driver 报告 `frames=30`、`terminal=completed`、`error_code=""`、0.87 s；帧目录 30 个 PNG，首末帧 640×360 且 PNG 结构有效 | CI run `39762458701` artifact `motion-canvas-p1-evidence` | PASS |
+| P1-GATE-09 | Node 契约套件 | `cd motion && node --test --test-reporter=tap contract.test.mjs` | TAP **13 tests / 13 pass / 0 fail**（34.4 s） | 同上 artifact `contract-tests.tap` | PASS |
+| P1-GATE-10 | CI 必过真实渲染 | `.github/workflows/ci.yml` `motion-canvas-p1` | run `39762458701` 四个 job 全部 success；缺依赖不会 skip | GitHub Actions run | PASS |
 | P1-GATE-11 | FrameManifest（P1.2） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-12 | 编码与原子发布（P1.3） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-13 | 故障注入（P1.4） | — | 未实现 | — | NOT_RUN |
+| P1-GATE-14 | 生产配置渲染（1920×1080 / 300 帧） | `test_motion_canvas_e2e.py::test_production_config_renders_300_frames_at_1080p` | 已加入 CI，等待运行 | — | NOT_RUN |
 
 `BLOCKED` 的含义是：验收本身已定义、可执行，但当前环境不满足；
 它不是通过，也不是失败。
+
+### 4.1 失败与修复记录
+
+P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
+
+| 运行 | 现象 | 原因 | 修复 |
+|---|---|---|---|
+| `39760664001` | 契约 13/13 通过；真实渲染 `render_failed`，约 35 s 后结束 | 构建工程把 `node_modules` 软链回 `motion/`，Vite 默认 `server.fs.allow` 不包含该真实路径，编辑器 bundle 返回 403，页面没有 Render 控件 | `vite.config.ts` 显式放行 `MC_NODE_MODULES`；导出目录改用绝对路径 `MC_OUTPUT_DIR`；失败信息附驱动日志尾部 |
+| `39761467582` | 驱动报告 30 帧、`completed`，Python 随后报 `expected 30 frames, found 0` | image-sequence 导出器把帧写在 `<output>/<project>/` 子目录，Python 只列了顶层 | `_frame_problems` 改为递归扫描，与驱动 `countFrames` 一致，并加测试 |
+
+两次失败都不是“放宽断言”解决的；修复后的断言与 P1.1 完成条件一致。
 
 ## 5. 本轮变更
 
@@ -157,10 +186,13 @@ Node `v24.14.1`（**不满足 P1 要求**，仅用于生成 lockfile 与 Node �
 
 ## 6. 未执行与阻塞
 
-1. **真实渲染未验证**：本机是 Windows，P1 在入口拒绝；WSL 的 Node 22.22.2
-   不满足 24.22.1。第一次真实渲染应发生在 `motion-canvas-p1` job。
-2. **Node 契约套件未运行**：需要 Chromium，且本地 Node 版本不符。
-3. **P1.2–P1.4 未实现**：FrameManifest、编码、原子发布、故障注入。
+1. **本地 WSL 仍未执行**：本机是 Windows，P1 在入口拒绝；WSL 的 Node 22.22.2
+   不满足 24.22.1。P1 的真实执行环境是 CI 的 Linux runner，本地不降低门禁。
+2. **P1.2–P1.4 未实现**：FrameManifest、编码、原子发布、故障注入。
+3. **离线隔离尚未由操作系统证明**：本次渲染记录了 6 个外部请求
+   （fonts.googleapis/gstatic、unpkg highlight.js、npm registry），
+   本次网络可用、请求成功。P0 的 `--network none` 证据不能自动继承到 P1；
+   P1.4 必须重新做断网与负控制。
 4. Graphviz Windows 16.1.0 安装仍是独立待办，与本计划无关。
 
 ## 7. 已知偏差与决定
@@ -172,13 +204,21 @@ Node `v24.14.1`（**不满足 P1 要求**，仅用于生成 lockfile 与 Node �
    `MOTION_CANVAS.md` §5.3，而不是改代码。
 2. **FFmpeg 版本采用“下限 + 记录实际值”。** CI 是 6.1.1，本机是 8.1；
    精确锁定应放到 P1.3 的编码参数与证据里，否则会在不同发行版上制造假失败。
-3. **P1.1 不产出 MP4。** 因此 `build/media/course.mp4` 与发布路径未被触碰；
+3. **冒烟配置不是生产验收。** CI 冒烟是 640×360 / 30 帧；生产规格
+   1920×1080 / 300 帧作为独立验收项 P1-GATE-14 执行，冒烟通过不能替代。
+4. **P1.1 不产出 MP4。** 因此 `build/media/course.mp4` 与发布路径未被触碰；
    发布隔离在 P1.3 验证。
-4. **P1 只支持单场景 title。** 多场景、`flow`、`compare` 留给 P2；
+5. **P1 只支持单场景 title。** 多场景、`flow`、`compare` 留给 P2；
    `SceneSet` 的结构已经按有序多场景设计，不需要改契约。
-5. **`motion/` 与 `spike/` 的契约副本。** spike 保留为 P0 证据，不被导入；
+6. **`motion/` 与 `spike/` 的契约副本。** spike 保留为 P0 证据，不被导入；
    `motion/contract.test.mjs` 断言两份 `CODES`、`SUPPORTED_PLATFORMS` 一致，
    防止分叉。
+7. **构建工程依赖软链，不是整份复制。** `node_modules` 以软链指回
+   `motion/`；因此 Vite 必须显式放行该路径，导出目录必须是绝对路径。
+   P1.2 增加 FrameManifest 时沿用同一构建目录约定。
+8. **外部字体与编辑器自检请求仍会发生。** 它们不阻断渲染（P0 断网时也成功
+   产出 300 帧），但属于 P1.4 的离线证据范围，不能因为本次 CI 通过而记为
+   离线已验收。
 
 ## 8. 运行方式
 
@@ -190,5 +230,7 @@ uv run lces render-scene projects/example-course var/p1/scene.json --out var/p1/
 
 # Linux / WSL2（Node 24.22.1，Chromium，FFmpeg 由用户维护）
 cd motion && npm ci && npm rebuild esbuild && npx playwright install chromium
-cd .. && LCES_MC_E2E=1 uv run pytest -m motion -v
+cd .. && LCES_MC_E2E=1 uv run pytest -m motion -v   --basetemp=motion-evidence/tmp --junitxml=motion-evidence/e2e-report.xml
+# Node 契约（需要 Chromium）
+cd motion && node --test --test-reporter=tap contract.test.mjs
 ```
