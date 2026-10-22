@@ -25,7 +25,33 @@ from content_studio.visuals import verify_build_assets
 pytestmark = pytest.mark.motion
 
 
-def _write_project(tmp_path: Path) -> Path:
+def _scene_data(scene_type: str) -> dict:
+    if scene_type == "flow":
+        return {
+            "title": "请求处理流程",
+            "subtitle": "从网关到存储",
+            "direction": "lr",
+            "nodes": [
+                {"id": "gateway", "label": "网关", "kind": "start"},
+                {"id": "auth", "label": "鉴权", "kind": "step"},
+                {"id": "store", "label": "存储", "kind": "end"},
+            ],
+            "edges": [
+                {"from": "gateway", "to": "auth"},
+                {"from": "auth", "to": "store", "label": "写入"},
+            ],
+        }
+    if scene_type == "compare":
+        return {
+            "title": "两种方案",
+            "subtitle": "吞吐与复杂度",
+            "left": {"title": "方案 A", "items": ["实现简单", "吞吐稳定"]},
+            "right": {"title": "方案 B", "items": ["扩展性好", "运维复杂"]},
+        }
+    return {"title": "P2.1", "subtitle": "production entry"}
+
+
+def _write_project(tmp_path: Path, scene_type: str) -> Path:
     project = tmp_path / "project"
     (project / "content" / "scenes").mkdir(parents=True)
     (project / "project.yaml").write_text(
@@ -67,9 +93,9 @@ def _write_project(tmp_path: Path) -> Path:
             "scenes": [
                 {
                     "scene_id": "scene-001",
-                    "scene_type": "title",
+                    "scene_type": scene_type,
                     "duration_ms": 1000,
-                    "data": {"title": "P2.1", "subtitle": "production entry"},
+                    "data": _scene_data(scene_type),
                 }
             ]
         },
@@ -91,13 +117,18 @@ def _write_project(tmp_path: Path) -> Path:
     return project
 
 
-def test_lces_build_renders_animation_end_to_end(tmp_path, monkeypatch):
+def _require_toolchain() -> None:
     if os.environ.get("LCES_MC_E2E") != "1":
         pytest.skip("set LCES_MC_E2E=1 on a Linux host with the pinned toolchain")
     if sys.platform != "linux":
         pytest.fail("LCES_MC_E2E=1 but the host is not Linux; P1/P2 are Linux-only")
 
-    project = _write_project(tmp_path)
+
+@pytest.mark.parametrize("scene_type", ["flow", "compare"])
+def test_lces_build_renders_animation_end_to_end(tmp_path, monkeypatch, scene_type):
+    _require_toolchain()
+
+    project = _write_project(tmp_path, scene_type)
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(app, ["build", str(project)])
     assert result.exit_code == 0, result.output
@@ -126,3 +157,34 @@ def test_lces_build_renders_animation_end_to_end(tmp_path, monkeypatch):
     report = json.loads((qa_dir / "encode_report.json").read_text(encoding="utf-8"))
     assert report["video_sha256"] == sha256_file(video)
     assert verify_build_assets(project) == []
+
+
+_BAD_DATA = {
+    "flow": {
+        "title": "坏流程",
+        "nodes": [{"id": "a", "label": "A"}, {"id": "a", "label": "B"}],
+        "edges": [{"from": "a", "to": "a"}],
+    },
+    "compare": {
+        "title": "坏对照",
+        "left": {"title": "A", "items": []},
+        "right": {"title": "B", "items": ["x"]},
+    },
+}
+
+
+@pytest.mark.parametrize("scene_type", ["flow", "compare"])
+def test_lces_build_rejects_invalid_template_data(tmp_path, monkeypatch, scene_type):
+    _require_toolchain()
+    project = _write_project(tmp_path, scene_type)
+    scene_path = project / "content" / "scenes" / "course.json"
+    scene = json.loads(scene_path.read_text(encoding="utf-8"))
+    scene["scene_set"]["scenes"][0]["data"] = _BAD_DATA[scene_type]
+    scene_path.write_text(json.dumps(scene), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["build", str(project)])
+
+    assert result.exit_code != 0
+    assert not (project / "build" / "media" / "course.mp4").exists()
+    assert (project / "build" / BUILD_MARKER).is_file()

@@ -166,6 +166,52 @@ and removed only after the page, specs, render manifest and `visual_assets.json`
 have all been written and re-verified. `lces release` and `build_release()`
 refuse while the marker exists; Gate 3 reports `build_committed=fail`.
 
+## Scene templates: `title`, `flow`, `compare` (P2)
+
+`SceneContract.data` is validated per `scene_type`; unknown fields are
+rejected rather than ignored. All templates are fixed TypeScript in
+`motion_templates.py`; data is embedded as JSON literals, so labels cannot
+become code.
+
+Common fields: `title` (required), `subtitle`, `accent_color`,
+`background_color`. `title` keeps the P1 limit of 200 characters; `flow` and
+`compare` use 120.
+
+**`flow`** — 2–6 nodes, 1–10 edges:
+
+```json
+{
+  "title": "请求处理流程",
+  "direction": "lr",
+  "nodes": [{"id": "gateway", "label": "网关", "kind": "start"}],
+  "edges": [{"from": "gateway", "to": "auth", "label": "写入"}]
+}
+```
+
+- `direction`: `lr` (default) or `tb`; node `id` is unique, lowercase
+  alphanumeric/hyphen; `label` ≤ 40; `kind` ∈ start/step/decision/end.
+- Edges must reference existing nodes; self-loops and duplicate
+  `(from, to)` pairs are rejected; edge labels ≤ 24.
+- Layout is deterministic: nodes in index order, fixed gaps, no auto-layout.
+  If the minimum node size/gap does not fit the canvas, the scene is
+  `invalid_input`.
+
+**`compare`** — two panels:
+
+```json
+{
+  "title": "两种方案",
+  "left": {"title": "方案 A", "items": ["实现简单"]},
+  "right": {"title": "方案 B", "items": ["扩展性好"]}
+}
+```
+
+- Panel title ≤ 60; 1–6 items per side, each ≤ 120 characters.
+- Two equal-width panels; item positions are computed with a deterministic
+  line estimate. If the items cannot fit the panel, the scene is
+  `invalid_input`.
+- No third column, icons, images, or rich text.
+
 ## Traceability
 
 `build_public_html` writes, under `internal/qa/`:

@@ -269,7 +269,8 @@ Motion Canvas 已完成 **P1.1-P1.4（Linux）**：`title` 模板的逐帧渲染
 `docker --network none` 运行真实渲染/编码/Gate 4，`fetch` 与 `npm install`
 负控制必须失败。CI run `39785216053` 已通过，证据见
 `docs/design/motion-canvas-p1-plan.md` §4.3（本机 Docker 构建仍被网络策略阻断）。
-P2.1 正在把动画接入生产入口：`PublicContent` 支持
+P2.2 增加 `flow`/`compare` 场景模板（固定模板 + 严格 JSON 契约，模型不生成
+可执行 TypeScript）。P2.1 已把动画接入生产入口：`PublicContent` 支持
 `{"type": "animation", "scene_file": "content/scenes/<file>.json", "alt": "..."}`，
 `lces build` 通过 `default_registry()` 调用 Motion Canvas，产出
 `build/media/course.mp4`，并在 `internal/qa/visual_assets.json` 记录视频、
@@ -277,8 +278,8 @@ FrameManifest、编码记录与 `build_id`。`build/.build-in-progress` 标记�
 `lces release` 拒绝发布。真实 `lces build` 已由 CI run `39796759273` 验收；
 接口细节见 `docs/CONTENT_CONTRACTS.md` 与 `docs/design/motion-canvas-p2-plan.md`。
 
-Motion Canvas 仍只支持 Linux；P2.2（`flow`/`compare` 模板）、P2.3（路径/子进程
-隔离与供应链）和 P2.4（P2 全量验收）尚未开始。Windows 原生仍由入口显式拒绝，
+Motion Canvas 仍只支持 Linux；P2.2 的实现与本地测试已完成，真实渲染与生产入口
+证据待 CI。P2.3（路径/子进程隔离与供应链）和 P2.4（P2 全量验收）尚未开始。Windows 原生仍由入口显式拒绝，
 需要新的 P0 才能纳入。P1 的运行范围与验收记录见
 `docs/design/motion-canvas-p1-plan.md`，设计与边界见
 `docs/design/MOTION_CANVAS.md`。
