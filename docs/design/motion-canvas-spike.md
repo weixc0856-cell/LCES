@@ -196,7 +196,8 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 - 取消：95 帧后 Abort，状态 `cancelled=true`；
 - 超时：76 帧时检测到并停止，`timed_out=true`；
 - 输出完整性：帧数、尺寸、解码、截图与报告已归档；
-- 资源上限：容器 `--memory=768m` 下完成渲染。
+- 资源上限：容器 `--memory=768m` 下完成渲染；
+- UI 契约：run `39750119050` **10/10**（DOM、状态转换、产物、负向用例）。
 
 判为 CONDITIONAL 而非 GO 的原因：驱动依赖 DOM 文本/CSS 状态，不是官方 API，
 且只在 Linux CI 验证过。
@@ -226,7 +227,7 @@ CI run `39742834259` 在 `docker run --network none` 中完成真实渲染：
 
 | 任务 | 内容 | 状态 |
 |---|---|---|
-| P1-GATE-01 | UI 驱动契约测试 | **已实现**；Windows 主机 10/10，CI 已加入 `--network none` 步骤 |
+| P1-GATE-01 | UI 驱动契约测试 | **已实现**；CI run `39750119050` **10/10**（`--network none`），Windows 主机 10/10 |
 | P1-GATE-02 | Windows 本地重跑 | **部分**：契约测试与驱动渲染已在 Windows 主机通过；断网隔离/负控制/完整清单未执行（`motion-canvas-windows-validation.md`） |
 | P1-GATE-03 | 准入决策记录 | **已更新**（本节与 §10） |
 
@@ -251,8 +252,11 @@ docker run --rm --network none --memory=768m `
   --test --test-reporter=tap contract.test.mjs
 ```
 
+CI 契约结果（run `39750119050`）：**10 tests / 10 pass / 0 fail**，
+TAP 归档为 `contract-tests.tap`；同一轮离线渲染、负控制、取消、超时全部通过。
+
 Windows 主机部分结果（2026-10-22，**非断网**）：`node --test contract.test.mjs`
-**10/10 通过**（约 61 s）；`node driver.mjs` 渲染 **300 帧 / 5.45 s**。该运行
+**10/10 通过**（约 61–74 s）；`node driver.mjs` 渲染 **300 帧 / 5.45 s**。该运行
 证明契约与驱动在 Windows 主机可工作，但不构成 Windows 断网/负控制证据。
 
 ### P1-GATE-02：Windows 范围

@@ -37,7 +37,7 @@ by a working code path.
 | Visual asset contract | Implemented | `VisualAsset` with workspace-relative paths, hashes, QA results; `internal/qa/visual_assets.json` per build |
 | Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
 | Mermaid diagrams | Implemented | Vendored runtime 12.2.0 (MIT, sha256-verified), offline Chromium, strict config, rejects init/click directives |
-| Motion Canvas P0 (experiment) | Conditional (CI) | `spike/motion-canvas` + manual workflow; offline 300-frame render, negative control, cancel/timeout, and UI contract tests; Windows contract tests 10/10 (network available); not in production |
+| Motion Canvas P0 (experiment) | Conditional (CI) | `spike/motion-canvas` + manual workflow; offline 300-frame render, negative control, cancel/timeout, and UI contract tests (10/10 in CI and on Windows host); not in production |
 | Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); CI acceptance on Graphviz 2.43.0 with real `dot` rendering (14/14 tests); Windows 16.1.0 install still pending |
 | Renderer environment diagnostics | Implemented | `lces doctor` reports Mermaid runtime and Graphviz availability |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |
@@ -101,7 +101,7 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | `lces doctor` (local) | `Mermaid: 可用 — vendored 12.2.0`; `Graphviz: 不可用 — ... winget ... 16.1.0` |
 | CI `test` / `browser-qa` / `graphviz` | all green (run `39740736404`); mypy passes without optional extras |
 | CI Graphviz evidence | `dot - graphviz version 2.43.0`; 14 tests, 0 failures; artifact `graphviz-evidence` uploaded |
-| Motion Canvas P0 CI (manual) | run `39742834259`: `--network none` 300 frames in 4.71 s; negative controls exit 1; cancel 95 frames; timeout 76 frames; evidence artifact uploaded |
+| Motion Canvas P0 CI (manual) | run `39750119050`: `--network none` 300 frames, contract tests 10/10, negative controls exit 1, cancel/timeout pass; evidence artifact uploaded |
 | Motion Canvas contract tests (Windows host) | `contract.test.mjs` 10/10 in ~61 s; driver render 300 frames in 5.45 s (network available; not an offline proof) |
 | Graphviz renderer | stubbed path covers syntax error, timeout, unsafe output; real `dot` test passes in CI (2.43.0), skipped locally until 16.1.0 is installed |
 | Mermaid renderer | flowchart + sequence render offline; invalid syntax, malicious labels, init directives, and a 1 ms timeout all fail explicitly |

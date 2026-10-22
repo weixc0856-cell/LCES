@@ -3,8 +3,8 @@
 状态（2026-10-22 第二轮评审后）：
 
 - 架构方向：**通过**
-- P0 可行性验证：**CONDITIONAL_GO（CI/Linux）**，run `39742834259`；
-  条件见 `docs/design/motion-canvas-spike.md` §10
+- P0 可行性验证：**CONDITIONAL_GO（CI/Linux）**，run `39750119050`
+  （离线渲染 + 契约测试 10/10）；条件见 `docs/design/motion-canvas-spike.md` §10
 - 正式编码 / 注册表接入：**暂缓**，满足 P0 条件并完成 P1 原型后才进入
 - Remotion：**暂不启动**
 - Graphviz 真实渲染：**CI 已验收（2.43.0，14/14）**；本机 Windows 16.1.0
@@ -505,9 +505,9 @@ MC-01 反例、时间轴语义、FrameManifest、产物隔离、三级可复现�
 
 | # | 问题 | 验证方法 | 证据文件 | 决策 / 日期 |
 |---|---|---|---|---|
-| 1 | 是否存在显式就绪/完成信号 | P0 驱动实验 + CI | `motion-canvas-spike.md` §4/§7 | 受控 DOM 信号已在 CI 验证（完成/取消/超时）；非官方 API — 2026-10-22 |
+| 1 | 是否存在显式就绪/完成信号 | P0 驱动实验 + CI 契约测试 | `motion-canvas-spike.md` §4/§11 | 受控 DOM 信号；contract.test.mjs 10/10（run `39750119050`）；非官方 API — 2026-10-22 |
 | 2 | 视觉差分阈值 | P1 实测 | `internal/qa/` 报告 | 待定 |
-| 3 | CI 断网实现方式 | P0 CI（`docker --network none`） | spike §7、run `39742834259` | **PASS**：300 帧、负控制失败、请求审计留存 — 2026-10-22 |
+| 3 | CI 断网实现方式 | P0 CI（`docker --network none`） | spike §7、run `39750119050` | **PASS**：300 帧、负控制失败、请求审计留存 — 2026-10-22 |
 | 4 | 官方 headless API 的长期稳定性 | 每次升级复核 | 版本核查记录 | 当前未发现官方 headless 入口；每次升级重新核查 — 2026-10-22 |
 | 5 | 场景模板字段冻结时间点 | P1 结束评审 | 本文件修订记录 | 待定 |
 
