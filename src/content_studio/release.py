@@ -23,7 +23,7 @@ from content_studio.models import (
     QAReport,
     ReleaseManifest,
 )
-from content_studio.paths import BUILD_MARKER
+from content_studio.paths import BUILD_MARKER, symlink_components, symlinks_in_tree
 from content_studio.storage import TaskStore
 from content_studio.utils import sha256_file, write_json, write_text
 from content_studio.validation import run_release_checks
@@ -46,7 +46,7 @@ MEDIA_TYPES = {
 
 
 def _approval_path(project_dir: Path, version: str) -> Path:
-    return project_dir / "internal" / "qa" / f"approval-{version}.json"
+    return _qa_dir(project_dir) / f"approval-{version}.json"
 
 
 def approve(
@@ -83,7 +83,7 @@ def load_approval(project_dir: Path, version: str) -> ApprovalRecord | None:
 
 
 def load_qa_report(project_dir: Path) -> QAReport | None:
-    path = project_dir / "internal" / "qa" / "qa_report.json"
+    path = _qa_dir(project_dir) / "qa_report.json"
     if not path.exists():
         return None
     return QAReport.model_validate_json(path.read_text(encoding="utf-8"))
@@ -110,10 +110,52 @@ def _media_type(path: Path) -> str:
     return MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
 
 
+def _reject_link_path(path: Path, root: Path, *, what: str) -> None:
+    """Reject a symlink in the path itself, not only in the final file.
+
+    Leaf checks see a regular file when a parent directory is linked, so a
+    pre-placed build/slides link would otherwise let an external index.html
+    into the release.
+    """
+
+    links = symlink_components(path, root)
+    if not links:
+        return
+    try:
+        shown = links[0].relative_to(root.resolve()).as_posix()
+    except ValueError:
+        shown = links[0].as_posix()
+    raise ValidationFailure(f"{what} path contains a symlink: {shown}")
+
+
+def _qa_dir(project_dir: Path) -> Path:
+    qa_dir = project_dir / "internal" / "qa"
+    _reject_link_path(qa_dir, project_dir, what="internal/qa")
+    return qa_dir
+
+
+def _reject_symlinks(root: Path, *, stage: str) -> None:
+    links = symlinks_in_tree(root)
+    if links:
+        raise ValidationFailure(
+            f"{stage} contains a symlink: {links[0].as_posix()}; refusing to follow it"
+        )
+
+
+def _copy_regular_file(source: Path, destination: Path, *, what: str) -> bool:
+    if source.is_symlink():
+        raise ValidationFailure(f"{what} is a symlink; refusing to follow it")
+    if not source.is_file():
+        return False
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+    return True
+
+
 def _manifest_files(staging: Path) -> list[ManifestFile]:
     entries: list[ManifestFile] = []
     for path in sorted(staging.rglob("*")):
-        if not path.is_file():
+        if path.is_symlink() or not path.is_file():
             continue
         relative = path.relative_to(staging).as_posix()
         if relative == "release_manifest.json":
@@ -130,40 +172,51 @@ def _manifest_files(staging: Path) -> list[ManifestFile]:
 
 
 def _stage(project_dir: Path, config: ProjectConfig, staging: Path) -> None:
+    build_dir = project_dir / "build"
+    slides_dir = build_dir / "slides"
+    charts_dir = slides_dir / "charts"
+    media_dir = build_dir / "media"
+    # Check the source directories before creating staging: a linked
+    # build/slides would copy an external index.html into the release.
+    _reject_link_path(build_dir, project_dir, what="build directory")
+    _reject_link_path(slides_dir, project_dir, what="build/slides")
+    _reject_link_path(charts_dir, project_dir, what="build/slides/charts")
+    _reject_link_path(media_dir, project_dir, what="build/media")
+
     if staging.exists():
         shutil.rmtree(staging)
     staging.mkdir(parents=True)
 
-    html = project_dir / "build" / "slides" / "index.html"
-    if not html.is_file():
+    html = slides_dir / "index.html"
+    if not _copy_regular_file(html, staging / "slides" / "index.html", what="public HTML"):
         raise ValidationFailure("public HTML is missing; run `lces build` first")
-    (staging / "slides").mkdir(parents=True)
-    shutil.copy2(html, staging / "slides" / "index.html")
-    charts = project_dir / "build" / "slides" / "charts"
-    if charts.is_dir():
-        shutil.copytree(charts, staging / "slides" / "charts")
+    if charts_dir.is_dir():
+        _reject_symlinks(charts_dir, stage="build chart directory")
+        shutil.copytree(charts_dir, staging / "slides" / "charts")
 
-    reading = project_dir / "build" / "reading_edition.html"
-    if reading.is_file():
-        shutil.copy2(reading, staging / "reading_edition.html")
+    reading = build_dir / "reading_edition.html"
+    _copy_regular_file(reading, staging / "reading_edition.html", what="reading edition")
 
     write_text(staging / "metadata" / "description.md", _description(project_dir, config))
 
-    media = project_dir / "build" / "media"
-    if media.is_dir():
+    if media_dir.is_dir():
         for name in ("course.mp4", "course.srt", "course.vtt"):
-            source = media / name
-            if source.is_file():
-                (staging / "media").mkdir(exist_ok=True)
-                shutil.copy2(source, staging / "media" / name)
+            _copy_regular_file(media_dir / name, staging / "media" / name, what=f"media/{name}")
 
 
-def _write_archive(release_root: Path, destination: Path, project_id: str) -> Path:
+def _write_archive(
+    release_root: Path, destination: Path, project_id: str, *, project_dir: Path
+) -> Path:
+    _reject_link_path(destination, project_dir, what="release archive")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
         destination.unlink()
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(release_root.rglob("*")):
+            if path.is_symlink():
+                raise ValidationFailure(
+                    f"release tree contains a symlink: {path.relative_to(release_root).as_posix()}"
+                )
             if path.is_file():
                 relative = path.relative_to(release_root).as_posix()
                 archive.write(path, arcname=f"{project_id}/{relative}")
@@ -181,12 +234,20 @@ def build_release(
     if not VERSION_PATTERN.fullmatch(version):
         raise ConfigurationError("release version must look like v1, v2, ...")
     project_dir = project_dir.resolve()
-    marker = project_dir / "build" / BUILD_MARKER
+    build_dir = project_dir / "build"
+    release_root = project_dir / "release" / version
+    staging = build_dir / f"release-staging-{version}"
+    # Reject linked source and target paths before staging creates anything.
+    _reject_link_path(build_dir, project_dir, what="build directory")
+    _reject_link_path(build_dir / "artifacts", project_dir, what="build/artifacts")
+    _reject_link_path(release_root, project_dir, what="release directory")
+    _reject_link_path(staging, project_dir, what="release staging directory")
+    _qa_dir(project_dir)
+    marker = build_dir / BUILD_MARKER
     if marker.is_file():
         raise ValidationFailure(
             "build is incomplete: build/.build-in-progress exists; run `lces build` again"
         )
-    release_root = project_dir / "release" / version
     if release_root.exists() and not force:
         raise ConfigurationError(
             f"{release_root} already exists; pass --force to rebuild the same version"
@@ -205,8 +266,8 @@ def build_release(
             f"human approval for {version} is missing; run `lces approve` after review"
         )
 
-    staging = project_dir / "build" / f"release-staging-{version}"
     _stage(project_dir, config, staging)
+    _reject_symlinks(staging, stage="release staging tree")
 
     files = _manifest_files(staging)
     content_hash = ""
@@ -261,6 +322,7 @@ def build_release(
         release_root,
         project_dir / "build" / "artifacts" / f"{config.project_id}-{version}.zip",
         config.project_id,
+        project_dir=project_dir,
     )
 
     if store is not None:
@@ -274,7 +336,11 @@ def build_release(
 def verify_release(
     project_dir: Path, version: str = "v1"
 ) -> tuple[ReleaseManifest | None, list[str]]:
+    project_dir = project_dir.resolve()
     release_root = project_dir / "release" / version
+    # Reject before reading the manifest: a linked release/ (or version
+    # directory) would otherwise feed external JSON into the verifier.
+    _reject_link_path(release_root, project_dir, what="release directory")
     manifest_path = release_root / "release_manifest.json"
     if not manifest_path.is_file():
         return None, [f"manifest missing: {manifest_path}"]

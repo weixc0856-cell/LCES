@@ -31,6 +31,7 @@ from content_studio.models import (
     VisualSpec,
 )
 from content_studio.motion_canvas import MotionCanvasRenderer
+from content_studio.paths import symlink_components
 from content_studio.renderers import RenderContext, RendererRegistry, default_registry
 from content_studio.utils import is_within, sha256_file, write_json_atomic
 from content_studio.video_qa import verify_video_against_manifest
@@ -144,8 +145,18 @@ def _animation_spec(
             code="invalid_input",
             stage="input",
         )
-    scenes_root = (project_dir / "content" / "scenes").resolve()
-    scene_path = (project_dir / block.scene_file).resolve()
+    project_root = project_dir.resolve()
+    scenes_root = (project_root / "content" / "scenes").resolve()
+    scene_ref = project_root / block.scene_file
+    links = symlink_components(scene_ref, project_root)
+    if links:
+        raise RenderError(
+            f"visual '{identifier}': scene file path contains a symlink: "
+            f"{links[0].relative_to(project_root).as_posix()}",
+            code="invalid_input",
+            stage="input",
+        )
+    scene_path = scene_ref.resolve()
     if not is_within(scene_path, scenes_root):
         raise RenderError(
             f"visual '{identifier}': scene file escapes content/scenes: {block.scene_file}",
@@ -279,6 +290,13 @@ def write_render_manifest(
     """Persist specs, renderer provenance, and the visual asset contracts."""
 
     qa_dir = project_dir / "internal" / "qa"
+    links = symlink_components(qa_dir, project_dir)
+    if links:
+        raise RenderError(
+            f"internal/qa contains a symlink: {links[0]}",
+            code="invalid_input",
+            stage="input",
+        )
     qa_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(
         qa_dir / "visual_specs.json", [item.spec.model_dump(mode="json") for item in rendered]
@@ -426,7 +444,11 @@ def verify_build_assets(project_dir: Path) -> list[str]:
     window; this function catches anything that did commit.
     """
 
-    assets_path = project_dir / "internal" / "qa" / "visual_assets.json"
+    qa_dir = project_dir / "internal" / "qa"
+    links = symlink_components(qa_dir, project_dir)
+    if links:
+        return [f"internal/qa contains a symlink: {links[0]}"]
+    assets_path = qa_dir / "visual_assets.json"
     if not assets_path.is_file():
         return ["internal/qa/visual_assets.json is missing"]
     try:

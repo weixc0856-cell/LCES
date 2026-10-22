@@ -245,10 +245,112 @@ P2.3-GATE-01 仍保留 `NOT_RUN`，因为其中“输出目录边界”属于 B 
 对 zombie 仍返回成功。修复：Linux 下扫描 `/proc/<pid>/stat`，忽略 `Z`/`X`
 状态；新增“未回收 zombie 不算活进程”的测试。
 
+### B 批实现记录（本机 + WSL Linux；CI 待执行）
+
+**B1 输出目录边界（N04/N05/N07）**
+
+- `render()` 在创建任何目录前校验非 publish 路径的 `RenderContext.output_dir`：
+  必须位于项目内、不得是项目根、不得位于 `input/`、`internal/`、`content/`、
+  `release/`；路径任一组件是符号链接即拒绝（`invalid_input`）。CLI
+  `render-scene --out` 走同一条路径，退出码 13。
+- publish 路径仍固定为 `<project>/build`；`build/`、`media/` 也做链接组件检查。
+- `LCES_BUILD_ID` 继续由 `BUILD_ID_PATTERN` 拒绝 `/`、`..` 和大写；新增显式用例。
+- 注意：P1 文档里 `--out var/p1/build`（项目外）的示例按决策 6 不再可用；独立渲染
+  必须写到项目内（通常 `<project>/build`）。那是 Windows 平台门禁的旧记录，历史
+  证据仍成立，但 Linux 上该命令现在以 `invalid_input`（退出码 13）拒绝。
+- 驱动 `OUTPUT_DIR` 由适配器创建为 `<build>/frames`。Node 侧新增
+  `motion/output-dir.mjs`：要求绝对路径、目录本身及其父链 realpath 不得经过
+  链接、目录内只允许 `report.json`、`after.png`、`NNNNNN.png`，并且只删除这些
+  已知条目。目录被拒绝时不写报告、不在该目录创建任何文件。
+
+**B2 HOME/XDG/TMP/缓存隔离（N09）**
+
+- `_driver_env` 只继承 `PATH`、`LANG`、`LC_ALL`。`HOME`、
+  `XDG_CONFIG_HOME`/`XDG_CACHE_HOME`/`XDG_DATA_HOME`/`XDG_STATE_HOME`、
+  `TMPDIR`/`TMP`/`TEMP` 都指向 `build/motion/<id>/home|tmp`；编辑器默认配置
+  写入构建目录。
+- `PLAYWRIGHT_BROWSERS_PATH` 仍是宿主只读输入：显式设置时原样传入；未设置时
+  回退到宿主默认浏览器目录，避免隔离 HOME 后找不到 Chromium。
+- 真实 E2E 把宿主 HOME 指向 canary 目录；渲染成功后 canary 仍为空，且
+  `build/motion/<id>/home` 存在。
+
+**B3 符号链接与临时文件（N01/N02/N10/N11）**
+
+- `paths.symlink_components()` / `symlinks_in_tree()` 作为统一检查。
+- 场景：`content/scenes` 或其下任一组件为链接时拒绝，不读取链接目标。
+- 帧：`build_frame_manifest` 扫描前拒绝帧目录内任何链接；
+  `verify_frame_manifest` 对清单路径与帧目录再次检查并报 `qa_failed`，
+  同时修掉了链接越界时 `resolve().relative_to()` 直接抛错的问题。
+- charts：`_copy_charts` 拒绝源树链接与链接目标目录；`release._stage` 在复制
+  前再次检查，`build/` 本身是链接时拒绝发布，staging 树不允许链接；
+  `_manifest_files`/`_write_archive` 不会跟随链接；Gate 4 新增阻断检查
+  `no_symlinks`。
+- 临时文件：`write_text_atomic` 改用 `tempfile.mkstemp`（`O_EXCL`、随机名），
+  预先放置的 `.target.txt.tmp` 链接不会被跟随；已有目标保留原权限。
+
+**B 批修复记录（提交前反向审计）**
+
+反向审计发现两项阻断，已在同一分支本地修复：
+
+1. **E2E HOME canary 与浏览器解析冲突**：原测试先把宿主 `HOME` 指向空 canary，
+   驱动又被隔离到构建 HOME，Playwright 因而找不到 Chromium；CI 因 job 级
+   `PLAYWRIGHT_BROWSERS_PATH` 不会暴露，但 `scripts/ci-local.sh render` 会失败。
+   现在 `host_home_canary` 在移动 `HOME` 之前解析浏览器目录：显式配置时原样保留
+   （包括 `0`），未配置但宿主默认目录可解析时仅在测试作用域内固定，无法解析时
+   明确 fail 而不是 skip。驱动仍只收到隔离 HOME，宿主 canary 断言保留。
+2. **Release 中间目录链接**：叶子文件检查看不到“父目录是链接”的情况。新增
+   `_reject_link_path` 在读取/写入前检查路径每个组件，覆盖 `build/`、
+   `build/slides`、`build/slides/charts`、`build/media`、`build/artifacts`、
+   `release/`、staging 与 ZIP 目标；`internal/qa` 在 `approve`、
+   `load_qa_report`、`run_validation`、`write_render_manifest`、
+   `verify_build_assets` 与动画 QA 写入前拒绝链接。负向测试 A/B/C/D 分别断言：
+   外部 `index.html` 不进入任何产物、外部 artifacts 目录不出现 ZIP、外部
+   release 目录为空、`internal/qa` 无新写入，且不留下 staging 或发布树。
+
+**TOCTOU 边界**：当前符号链接检查属于文件操作前的路径校验，主要防御预先存在的
+符号链接及非并发场景下的路径绕过。不承诺抵御具有同一操作系统账户权限、能够并发
+修改仓库目录的攻击者。检查与使用之间仍可能存在 TOCTOU 窗口。实现没有使用
+`openat2`/`O_NOFOLLOW`/目录 fd 相对操作，因此不得声称竞态已消除。
+
+**补充测试**：`write_text_atomic` 增加“目标为链接时不跟随”“`os.replace` 失败时
+清理临时文件”“POSIX 权限保留”三项；文件 `fsync` 不等于目录项持久性，目录未
+fsync 的事实继续记录。E2E canary 的浏览器路径分支（已配置/未配置可解析/不可
+解析）各有单元测试。
+
+**本轮未覆盖的残余**：`browser_qa` 的 screenshots/baselines 与 `content` 的
+generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据，发布链已会在
+读取前拒绝链接目录，本轮未逐一加锁。Windows 无法在本机创建符号链接，所有链接
+负向用例只在 WSL/Linux 执行；Windows 上 `os.replace` 覆盖链接的语义也未本地
+验证。非 Motion Canvas 渲染器的输出路径检查不在本轮范围。
+
+**B 批测试与证据**
+
+- 新增 `tests/test_p23_filesystem_boundaries.py`（N01/N02/N04/N05/N07/N09/N10/N11）；
+  符号链接用例在无创建权限的 Windows 跳过，在 WSL Linux 全部执行。
+- 新增 `motion/output-dir.test.mjs`（N07，9 项），CI 的 Node 契约测试步骤会
+  同时运行 `contract.test.mjs` 与 `output-dir.test.mjs`。
+- 本机 Windows：`uv run pytest` → **349 passed, 38 skipped**；ruff/format/mypy
+  全绿；Node `output-dir.test.mjs` → 6 pass / 3 skipped（符号链接用例）。
+- WSL Ubuntu（同一份代码，`uv run --python 3.13`）：**353 passed, 34 skipped**；
+  `tests/test_p23_filesystem_boundaries.py` **33 passed, 0 skipped**（含 A/B/C/D、
+  release-check/Gate 4 链接根、全部链接负向用例）；ruff 全绿。
+- WSL 工具链：Node **v24.22.1**（官方 tarball，SHA256 校验通过）、FFmpeg
+  **7.0.2-static**、Playwright 1.64.0 + Chromium 156.0.8078.4；在 WSL 内
+  `npm ci` 重新安装 Linux 依赖（69 包），不再复用 Windows `node_modules`。
+- WSL Node 测试：`contract.test.mjs` + `output-dir.test.mjs` → **22 tests /
+  22 pass / 0 fail**（契约 13/13，输出目录 9/9）。
+- WSL `scripts/ci-local.sh render`：**通过**。Node 契约 47.4 s；真实渲染/编码/
+  Gate 4 **12 passed / 0 failed / 60.5 s**（e2e 4、production 4、templates 2、
+  release_video 2），其中真实 E2E 含 HOME canary 断言。初次运行曾因
+  Node 22.22.2 与 FFmpeg 缺失非零退出；安装锁定工具链后重跑，以上为最终结果。
+- Windows 上 `ci-local.sh render` 是 Linux-only，未运行。
+- **未执行**：`--network none` 离线 job、五个 CI job。B 批在 CI 证据产生前
+  不得记为 PASS。
+
 | 批次 | 内容 | 完成条件 |
 |---|---|---|
 | P2.3-A 执行边界 | 校验 `OUTPUT_DIR`/`--out` 在项目内且为专用目录；HOME/XDG 隔离；可执行文件校验；进程残留断言 | N04/N05/N06/N07/N08/N09 通过；P1/P2 回归 |
-| P2.3-B 文件系统 | 符号链接统一检查（场景、帧、charts、staging）；临时文件安全；发布拒绝链接 | N01/N02/N10/N11 通过 |
+| P2.3-B 文件系统 | 符号链接统一检查（场景、帧、charts、staging）；临时文件安全；发布拒绝链接；输出目录/HOME 隔离（A 批表内遗留项） | 实现与本机/WSL 测试完成；CI 待执行 |
 | P2.3-C 供应链 | Node tarball SHA256；base image digest；CI actions SHA/记录；lockfile/registry/浏览器来源记录；构建可复现性分级 | N12/N13/N14 通过；文档记录来源/版本/可复现边界 |
 | P2.3-D 网络隔离 | 驱动层 Playwright 路由只允许 localhost/data/blob；外部请求失败并记录；字体回退 | N15 通过；P1.4 断网 job 继续 |
 | P2.3-E 安全验收 | 全量负向矩阵；CI artifact（JUnit、报告、截图/关键帧）；P2.1/P2.2 回归 | N01-N18 + 全部 P2.1/P2.2 测试；五个 CI job 绿 |
@@ -259,12 +361,12 @@ P2.3-GATE-01 仍保留 `NOT_RUN`，因为其中“输出目录边界”属于 B 
 
 | ID | 验收项 | 状态 |
 |---|---|---|
-| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（A1/A2 可执行文件与进程组已通过 CI；输出目录边界属于 B 批） |
-| P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | NOT_RUN |
+| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（A1/A2 已通过 CI run `39816426680`；输出目录/HOME 边界本机 + WSL 测试通过，WSL 真实渲染门禁 12/12 通过；CI 待执行） |
+| P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | NOT_RUN（B 批实现与本机 + WSL 测试通过，边界模块 33/33；CI 待执行） |
 | P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | NOT_RUN |
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN |
-| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN |
-| P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | NOT_RUN |
+| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01/N02/N04-N11 已覆盖；N12-N15 属 C/D 批） |
+| P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | NOT_RUN（WSL 真实渲染 12/12 覆盖 P2.1/P2.2 用例；CI 待执行） |
 | P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | NOT_RUN |
 | P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | NOT_RUN |
 
@@ -287,7 +389,13 @@ CI 执行，不得用“本机通过”替代。
 
 ## 9. 基线
 
-- `main` = `68ba9ff`（A 批合并后）；CI run `39817559381` 五个 job success。
-- 本地：`337 passed, 17 skipped`（A 批后）；ruff/format/mypy 全绿。
-- P2.2 计划、契约和证据已提交；P2.1 生产链路已合并。
+- `main` = `04e879f`（A 批证据合并后）；CI run `39817559381` 五个 job success。
+- B 批分支 `feat/motion-canvas-p2.3-b`；审计修复后本地：Windows
+  `349 passed, 38 skipped`，WSL Linux `353 passed, 34 skipped`（边界模块 33/33）；
+  ruff/format/mypy（Windows）全绿；Node Windows 6/0/3、Linux 22/0/0（契约 +
+  输出目录）。
+- WSL `scripts/ci-local.sh render` 已通过：Node 契约 13/13，真实渲染/编码/
+  Gate 4 12/12（60.5 s）；工具链为 Node 24.22.1、FFmpeg 7.0.2-static、
+  Playwright 1.64.0、Chromium 156.0.8078.4。离线 job 与 CI 仍未运行。
+- 真实渲染与五个 CI job 尚未运行；C（供应链）与 D（网络）批未开始。
 - 工作区仅 `.claude/` 未跟踪，无业务改动。

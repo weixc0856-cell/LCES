@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -88,3 +89,44 @@ def require_inside(path: Path, root: Path, *, what: str = "path") -> Path:
     except ValueError as exc:
         raise ConfigurationError(f"{what} must stay inside the project directory: {path}") from exc
     return resolved
+
+
+def symlink_components(path: Path, root: Path) -> list[Path]:
+    """Symlinked components between *root* and *path*, lexically checked.
+
+    The path is not resolved first: a link that points back inside the tree is
+    still a link the caller did not create. Components outside *root* are the
+    caller's containment check, so they are not reported here.
+    """
+
+    root_path = Path(os.path.abspath(root))
+    try:
+        relative = Path(os.path.abspath(path)).relative_to(root_path)
+    except ValueError:
+        return []
+    found: list[Path] = []
+    current = root_path
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            found.append(current)
+    return found
+
+
+def symlinks_in_tree(root: Path) -> list[Path]:
+    """Every symlink entry below *root*, as a path relative to it.
+
+    ``os.walk`` does not follow directory links, so a link pointing outside
+    the tree is reported but never traversed. The root itself is not included.
+    """
+
+    if root.is_symlink():
+        return [Path(".")]
+    root_path = Path(os.path.abspath(root))
+    found: list[Path] = []
+    for directory, dirnames, filenames in os.walk(root_path, followlinks=False):
+        for name in (*dirnames, *filenames):
+            candidate = Path(directory) / name
+            if candidate.is_symlink():
+                found.append(candidate.relative_to(root_path))
+    return found

@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test": "node --test contract.test.mjs"
+    "test": "node --test contract.test.mjs output-dir.test.mjs"
   },
   "dependencies": {
     "@motion-canvas/2d": "3.17.2",

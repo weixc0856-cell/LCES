@@ -16,6 +16,7 @@ from content_studio.content import (
     load_public_content,
     load_speaker_script,
 )
+from content_studio.errors import ValidationFailure
 from content_studio.evidence import is_contradicted, review_state
 from content_studio.ingestion import load_registry
 from content_studio.media import MediaError, probe_media, subtitle_problems, tool_status
@@ -29,7 +30,12 @@ from content_studio.models import (
     QAReport,
     ReleaseManifest,
 )
-from content_studio.paths import BUILD_MARKER, PUBLIC_BUILD_ALLOWLIST
+from content_studio.paths import (
+    BUILD_MARKER,
+    PUBLIC_BUILD_ALLOWLIST,
+    symlink_components,
+    symlinks_in_tree,
+)
 from content_studio.research import load_evidence_ledger, load_research_brief
 from content_studio.utils import sha256_file, write_json
 from content_studio.video_qa import verify_video_against_manifest
@@ -298,6 +304,9 @@ def run_validation(
     browser_qa: bool = True,
 ) -> QAReport:
     project_dir = project_dir.resolve()
+    qa_links = symlink_components(project_dir / "internal" / "qa", project_dir)
+    if qa_links:
+        raise ValidationFailure(f"internal/qa contains a symlink: {qa_links[0]}")
     checks: list[CheckResult] = []
 
     registry = load_registry(project_dir)
@@ -665,13 +674,38 @@ def run_release_checks(
     project_dir: Path | None = None,
 ) -> list[CheckResult]:
     checks: list[CheckResult] = []
+    if project_dir is not None:
+        root_links = symlink_components(release_root, project_dir.resolve())
+        if root_links:
+            # Known-bad root: stop before reading external content.
+            return [
+                _check(
+                    "gate_4_release",
+                    "no_symlinks",
+                    "fail",
+                    "发布目录路径包含符号链接："
+                    + ", ".join(link.as_posix() for link in root_links),
+                )
+            ]
     if not release_root.is_dir():
         return [_check("gate_4_release", "release_directory_exists", "fail", "发布目录不存在")]
+
+    links = symlinks_in_tree(release_root)
+    checks.append(
+        _check(
+            "gate_4_release",
+            "no_symlinks",
+            "fail" if links else "pass",
+            "发布目录包含符号链接：" + ", ".join(link.as_posix() for link in links)
+            if links
+            else "发布目录无符号链接",
+        )
+    )
 
     files = sorted(
         path.relative_to(release_root).as_posix()
         for path in release_root.rglob("*")
-        if path.is_file()
+        if path.is_file() and not path.is_symlink()
     )
     unexpected = [
         name

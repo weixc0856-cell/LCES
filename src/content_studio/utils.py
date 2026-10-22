@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -57,13 +58,38 @@ def write_json(path: Path, data: Any, *, sort_keys: bool = False) -> Path:
 
 
 def write_text_atomic(path: Path, text: str) -> Path:
-    """Write beside the target, then ``os.replace``; never expose half a file."""
+    """Write beside the target, then ``os.replace``; never expose half a file.
+
+    The temporary file is created exclusively with a random name. A fixed
+    ``.tmp`` name could be pre-created as a symlink by another process with the
+    same OS account, and a plain write would then follow it and clobber the
+    link target.
+    """
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.tmp")
     payload = text if text.endswith("\n") else text + "\n"
-    temporary.write_text(payload, encoding="utf-8", newline="\n")
-    os.replace(temporary, path)
+    handle, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # mkstemp creates 0600; keep the target's mode when it already exists.
+        try:
+            mode = path.stat().st_mode & 0o777
+        except OSError:
+            mode = 0o644
+        try:
+            os.chmod(name, mode)
+        except OSError:
+            pass
+        os.replace(name, path)
+    except BaseException:
+        try:
+            os.unlink(name)
+        except OSError:
+            pass
+        raise
     return path
 
 

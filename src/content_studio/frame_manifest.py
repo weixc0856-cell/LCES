@@ -19,6 +19,7 @@ from pydantic import ValidationError
 
 from content_studio.errors import RenderError
 from content_studio.models import FrameEntry, FrameManifest, SceneFrameSpan
+from content_studio.paths import symlink_components, symlinks_in_tree
 from content_studio.timeline import TimelinePlan
 from content_studio.utils import sha256_file, write_json
 
@@ -105,6 +106,13 @@ def build_frame_manifest(
     invalid PNG fails here instead of producing a manifest over bad output.
     """
 
+    links = symlinks_in_tree(frames_dir)
+    if links:
+        raise RenderError(
+            f"frame directory contains a symlink: {links[0].as_posix()}",
+            code="qa_failed",
+            stage="qa",
+        )
     entries = _frame_paths(frames_dir)
     if not entries:
         raise RenderError("no frames were rendered", code="output_missing", stage="output")
@@ -205,9 +213,15 @@ def verify_frame_manifest(
                 )
 
     root = build_root.resolve()
+    for link in symlinks_in_tree(frames_dir):
+        problems.append(f"frame directory contains a symlink: {link.as_posix()}")
     listed: set[str] = set()
     for entry in manifest.frames:
-        path = (build_root / entry.path).resolve()
+        unresolved = build_root / entry.path
+        if unresolved.is_symlink() or symlink_components(unresolved, root):
+            problems.append(f"frame {entry.index}: path contains a symlink")
+            continue
+        path = unresolved.resolve()
         try:
             path.relative_to(root)
         except ValueError:
@@ -223,9 +237,14 @@ def verify_frame_manifest(
         if structural:
             problems.extend(structural)
 
-    actual = {
-        path.resolve().relative_to(root).as_posix() for _index, path in _frame_paths(frames_dir)
-    }
+    actual: set[str] = set()
+    for _index, path in _frame_paths(frames_dir):
+        if path.is_symlink():
+            continue  # already reported above
+        try:
+            actual.add(path.resolve().relative_to(root).as_posix())
+        except ValueError:
+            problems.append(f"frame {path.name} resolves outside the build directory")
     missing = sorted(listed - actual)
     unexpected = sorted(actual - listed)
     if missing:
