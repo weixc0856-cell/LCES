@@ -79,7 +79,7 @@ jobs:
             -v "$PWD/evidence/contract:/app/output" \
             --entrypoint node lces-mc-p0 \
             --test --test-reporter=tap contract.test.mjs \
-            | tee evidence/contract/tests.tap
+            | tee evidence/contract-tests.tap
 
       - name: Network negative control
         run: |
