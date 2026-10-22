@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # Accept both LCES_-prefixed and conventional vendor variable names.
     deepseek_api_key: str = Field(
         default="",
-        validation_alias=AliasChoices("LCES_DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY"),
+        validation_alias=AliasChoices("LCES_DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY", "LCES_API_KEY"),
     )
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_model: str = "deepseek-chat"
