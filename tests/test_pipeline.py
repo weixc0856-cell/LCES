@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from content_studio.content import load_public_content, load_speaker_script
-from content_studio.errors import ValidationFailure
+from content_studio.errors import ProviderError, ValidationFailure
 from content_studio.models import ProjectConfig
 from content_studio.orchestrator import STAGES, run_pipeline
 from content_studio.paths import ensure_project_layout
@@ -69,6 +69,51 @@ def test_full_pipeline_runs_all_stages(tmp_path):
     store = TaskStore(settings.database_path)
     task = store.get_task(result.task_id)
     assert task is not None and task["status"] == "NEEDS_REVISION"
+
+
+def test_pipeline_retries_stage_with_fallback(tmp_path, monkeypatch):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path).model_copy(update={"local_model": "qwen-local"})
+    routing = tmp_path / "routing.yaml"
+    routing.write_text("stages:\n  outline: {provider: local, fallback: mock}\n", encoding="utf-8")
+
+    from content_studio import orchestrator
+
+    calls: list[str] = []
+
+    def fake_outline(project_dir, config, settings, provider):
+        calls.append(provider.name)
+        if provider.name == "local":
+            raise ProviderError("local exploded", provider="local")
+        return None
+
+    monkeypatch.setitem(orchestrator._STAGE_FUNCS, "outline", fake_outline)
+
+    result = run_pipeline(root, config, settings, only_stage="outline", routing_path=routing)
+
+    assert result.failed_stage is None
+    assert calls == ["local", "mock"]
+
+    runs = TaskStore(settings.database_path).stage_runs(result.task_id)
+    assert [run["status"] for run in runs] == ["fail", "pass"]
+    assert [run["provider"] for run in runs] == ["local", "mock"]
+
+
+def test_pipeline_stops_when_no_fallback_is_configured(tmp_path, monkeypatch):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path)
+
+    from content_studio import orchestrator
+
+    def failing(project_dir, config, settings, provider):
+        raise ProviderError("boom", provider=provider.name)
+
+    monkeypatch.setitem(orchestrator._STAGE_FUNCS, "outline", failing)
+
+    result = run_pipeline(root, config, settings, only_stage="outline")
+
+    assert result.status == "FAILED"
+    assert "ProviderError" in (result.error or "")
 
 
 def test_pipeline_can_rerun_single_stage(tmp_path):

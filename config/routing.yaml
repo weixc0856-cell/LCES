@@ -14,3 +14,11 @@ stages:
   research: deepseek
   outline: local
   generate: local
+
+# Per-stage fallback (optional). If a model stage fails with a provider error
+# after its own retries, LCES retries that stage once with the fallback and
+# records both attempts in SQLite. Example:
+#
+# stages:
+#   research: {provider: deepseek, fallback: local}
+#   generate: {provider: local, fallback: deepseek}

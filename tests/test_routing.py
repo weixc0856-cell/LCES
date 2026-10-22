@@ -28,3 +28,29 @@ def test_routing_rejects_unknown_provider():
 def test_routing_missing_file(tmp_path):
     with pytest.raises(ConfigurationError):
         load_routing(tmp_path / "missing.yaml")
+
+
+def test_routing_supports_per_stage_fallback(tmp_path):
+    path = tmp_path / "routing.yaml"
+    path.write_text(
+        "default: local\n"
+        "stages:\n"
+        "  research: {provider: deepseek, fallback: local}\n"
+        "  generate: local\n",
+        encoding="utf-8",
+    )
+    policy = load_routing(path)
+
+    assert policy.provider_for("research", "mock") == "deepseek"
+    assert policy.fallback_for("research", "deepseek") == "local"
+    assert policy.fallback_for("research", "local") == "", "no retry with the same provider"
+    assert policy.fallback_for("generate", "local") == "", "plain stages have no fallback"
+
+
+def test_routing_rejects_unknown_fallback_provider(tmp_path):
+    path = tmp_path / "routing.yaml"
+    path.write_text(
+        "stages:\n  research: {provider: deepseek, fallback: mystery}\n", encoding="utf-8"
+    )
+    with pytest.raises(ConfigurationError):
+        load_routing(path)

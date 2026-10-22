@@ -18,11 +18,18 @@ from content_studio.providers.factory import KNOWN_PROVIDERS
 ROUTABLE_STAGES = ("research", "outline", "generate")
 
 
+class StageRoute(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    fallback: str = ""
+
+
 class RoutingPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     default: str = ""
-    stages: dict[str, str] = Field(default_factory=dict)
+    stages: dict[str, str | StageRoute] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _validate(self) -> RoutingPolicy:
@@ -32,14 +39,30 @@ class RoutingPolicy(BaseModel):
                 f"routing stages must be a subset of {list(ROUTABLE_STAGES)}; "
                 f"unknown: {unknown_stages}"
             )
-        names = [self.default, *self.stages.values()]
+        names = [self.default]
+        for route in self.stages.values():
+            if isinstance(route, StageRoute):
+                names.extend([route.provider, route.fallback])
+            else:
+                names.append(route)
         unknown = sorted({name for name in names if name and name.lower() not in KNOWN_PROVIDERS})
         if unknown:
             raise ValueError(f"unknown providers in routing: {unknown}")
         return self
 
     def provider_for(self, stage: str, fallback: str) -> str:
-        return self.stages.get(stage) or self.default or fallback
+        route = self.stages.get(stage)
+        if isinstance(route, StageRoute):
+            return route.provider or self.default or fallback
+        return route or self.default or fallback
+
+    def fallback_for(self, stage: str, primary: str) -> str:
+        """Provider to retry with when *primary* fails, or an empty string."""
+
+        route = self.stages.get(stage)
+        if isinstance(route, StageRoute) and route.fallback and route.fallback != primary:
+            return route.fallback
+        return ""
 
 
 def load_routing(path: Path) -> RoutingPolicy:

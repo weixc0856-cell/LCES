@@ -14,7 +14,7 @@ from content_studio.content import (
     load_public_content,
     load_reading_edition,
 )
-from content_studio.errors import LCESError, ValidationFailure
+from content_studio.errors import LCESError, ProviderError, ValidationFailure
 from content_studio.ingestion import ingest_project, load_registry
 from content_studio.models import ProjectConfig, QAReport, TaskStatus
 from content_studio.paths import template_dir
@@ -163,6 +163,12 @@ def _select_stages(from_stage: str | None, only_stage: str | None) -> list[str]:
     return list(STAGES)
 
 
+def _close_provider(provider: ModelProvider) -> None:
+    close = getattr(provider, "close", None)
+    if callable(close):
+        close()
+
+
 def run_pipeline(
     project_dir: Path,
     config: ProjectConfig,
@@ -210,14 +216,29 @@ def run_pipeline(
         store.update_task(task_id, status=STAGE_STATUS[stage], stage=stage)
         run_id = store.start_stage(task_id, stage, provider.name, provider.model)
         try:
-            outcome = _STAGE_FUNCS[stage](project_dir, config, settings, provider)
+            try:
+                outcome = _STAGE_FUNCS[stage](project_dir, config, settings, provider)
+            except ProviderError as exc:
+                fallback_name = policy.fallback_for(stage, provider.name) if policy else ""
+                if not fallback_name:
+                    raise
+                store.finish_stage(run_id, status="fail", error=f"{exc.__class__.__name__}: {exc}")
+                store.log_event(
+                    task_id,
+                    "warn",
+                    f"stage {stage} failed on {provider.name}; retrying with {fallback_name}",
+                )
+                _close_provider(provider)
+                provider = build_provider(settings, fallback_name)
+                run_id = store.start_stage(task_id, stage, provider.name, provider.model)
+                outcome = _STAGE_FUNCS[stage](project_dir, config, settings, provider)
             usage = provider.last_result.usage.as_dict() if provider.last_result else {}
             store.finish_stage(run_id, status="pass", usage=usage)
             completed.append(stage)
             store.log_event(task_id, "info", f"stage {stage} completed")
             if isinstance(outcome, QAReport):
                 qa = outcome
-        except Exception as exc:  # stage boundary: record, then report to caller
+        except Exception as exc:
             message = f"{exc.__class__.__name__}: {exc}"
             store.finish_stage(run_id, status="fail", error=message)
             store.update_task(task_id, status="FAILED", stage=stage, error=message)
@@ -230,9 +251,7 @@ def run_pipeline(
                 error=message,
             )
         finally:
-            close = getattr(provider, "close", None)
-            if callable(close):
-                close()
+            _close_provider(provider)
 
     if qa is None:
         qa = load_qa_report(project_dir)
