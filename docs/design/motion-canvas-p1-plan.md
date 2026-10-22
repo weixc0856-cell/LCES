@@ -254,7 +254,7 @@ CI job `motion-canvas-offline`）：
 
 | 检查 | 环境 | 结果 | 状态 |
 |---|---|---|---|
-| 单元/契约测试（含 lockfile 与故障矩阵） | Windows 11，项目 `.venv` | `uv run pytest` → **315 passed, 6 skipped**；`ruff check .`、`ruff format --check .`、`mypy src` 全部通过 | PASS |
+| 单元/契约测试（含 lockfile 与故障矩阵） | Windows 11，项目 `.venv` | `uv run pytest` → **333 passed, 11 skipped**；`ruff check .`、`ruff format --check .`、`mypy src` 全部通过 | PASS |
 | 真实取消/超时 | CI run `39785216053` `motion-canvas-p1` | JUnit 11 / 0 failures；取消用例 6.0 s（首帧后取消），超时用例 2.1 s（1.5 s 期限） | PASS |
 | 本机 Docker 断网门禁 | Docker Desktop 29.9.1（Linux 容器） | 构建长时间停在依赖安装阶段，未产出镜像；本机 P0 记录显示同一策略会把 `deb.debian.org` 解析到 `198.18.1.108` 并失败。本次未进入渲染阶段，手动终止 | BLOCKED |
 | CI `motion-canvas-offline`（run `39784382250`） | GitHub Actions，main / commit `c8663de` | 镜像构建成功；负控制 `fetch_exit=1 npm_exit=1` 符合预期；但渲染在工具链门禁失败：Debian bookworm 的 FFmpeg 为 **5.1.9**，低于要求的 6.0 | FAIL |
