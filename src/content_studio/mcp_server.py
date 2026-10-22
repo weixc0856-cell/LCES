@@ -15,7 +15,7 @@ from content_studio.tools import ToolContext, invoke_tool
 
 def mcp_available() -> bool:
     try:
-        import mcp.server.fastmcp  # noqa: F401  # type: ignore[import-not-found]
+        import mcp.server.fastmcp  # type: ignore[import-not-found]  # noqa: F401
     except ImportError:
         return False
     return True

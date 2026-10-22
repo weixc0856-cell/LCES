@@ -84,7 +84,7 @@ def playwright_error() -> str:
     """Return why browser QA cannot run here, or an empty string if it can."""
 
     try:
-        import playwright.sync_api  # noqa: F401  # type: ignore[import-not-found]
+        import playwright.sync_api  # type: ignore[import-not-found]  # noqa: F401
     except ImportError:
         return (
             "Playwright 未安装；执行 `uv sync --extra browser` 后再运行 "
@@ -118,8 +118,8 @@ def run_browser_qa(
     screenshots_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        from playwright.sync_api import Error as PlaywrightError
-        from playwright.sync_api import sync_playwright
+        from playwright.sync_api import Error as PlaywrightError  # type: ignore[import-not-found]  # type: ignore[import-not-found]
+        from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
     except ImportError as exc:  # pragma: no cover - playwright_error already checked
         return BrowserQAResult(ran=False, reason=str(exc))
 
@@ -174,7 +174,7 @@ def _visit(
     height: int,
     screenshots_dir: Path,
 ) -> VisitResult:
-    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import Error as PlaywrightError  # type: ignore[import-not-found]
 
     screenshot_path = screenshots_dir / f"{page_name}-{viewport_name}.png"
     visit = VisitResult(
