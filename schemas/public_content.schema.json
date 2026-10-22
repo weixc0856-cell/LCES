@@ -1,6 +1,39 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "AnimationBlock": {
+      "additionalProperties": false,
+      "description": "An animation backed by a structured scene file, never generated code.\n\nP2.1 admits one animation per course and one scene per animation. The\nscene file lives under ``content/scenes/`` and is validated by the\nrenderer's contract before any frames are produced.",
+      "properties": {
+        "type": {
+          "const": "animation",
+          "default": "animation",
+          "title": "Type",
+          "type": "string"
+        },
+        "scene_file": {
+          "minLength": 1,
+          "title": "Scene File",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_file",
+        "alt"
+      ],
+      "title": "AnimationBlock",
+      "type": "object"
+    },
     "BulletsBlock": {
       "additionalProperties": false,
       "properties": {
@@ -282,6 +315,7 @@
           "items": {
             "discriminator": {
               "mapping": {
+                "animation": "#/$defs/AnimationBlock",
                 "bullets": "#/$defs/BulletsBlock",
                 "callout": "#/$defs/CalloutBlock",
                 "chart": "#/$defs/ChartBlock",
@@ -323,6 +357,9 @@
               },
               {
                 "$ref": "#/$defs/GraphBlock"
+              },
+              {
+                "$ref": "#/$defs/AnimationBlock"
               },
               {
                 "$ref": "#/$defs/CalloutBlock"

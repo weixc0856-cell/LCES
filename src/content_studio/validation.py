@@ -25,10 +25,11 @@ from content_studio.models import (
     EvidenceLedger,
     FrameManifest,
     ProjectConfig,
+    PublicContent,
     QAReport,
     ReleaseManifest,
 )
-from content_studio.paths import PUBLIC_BUILD_ALLOWLIST
+from content_studio.paths import BUILD_MARKER, PUBLIC_BUILD_ALLOWLIST
 from content_studio.research import load_evidence_ledger, load_research_brief
 from content_studio.utils import sha256_file, write_json
 from content_studio.video_qa import verify_video_against_manifest
@@ -606,6 +607,9 @@ def run_validation(
             )
         )
 
+        checks.extend(_animation_media_checks(project_dir, public))
+
+    checks.append(_build_committed_check(project_dir))
     checks.extend(_browser_checks(project_dir, enabled=browser_qa))
 
     report = QAReport(
@@ -616,6 +620,40 @@ def run_validation(
     )
     write_json(project_dir / "internal" / "qa" / "qa_report.json", report)
     return report
+
+
+def _animation_media_checks(project_dir: Path, public: PublicContent) -> list[CheckResult]:
+    has_animation = any(
+        block.type == "animation" for slide in public.slides for block in slide.body
+    )
+    if not has_animation:
+        return []
+    required = {
+        "build/media/course.mp4": project_dir / "build" / "media" / "course.mp4",
+        "internal/qa/frame_manifest.json": project_dir / "internal" / "qa" / "frame_manifest.json",
+        "internal/qa/encode_report.json": project_dir / "internal" / "qa" / "encode_report.json",
+    }
+    missing = [name for name, path in required.items() if not path.is_file()]
+    return [
+        _check(
+            "gate_3_engineering",
+            "animation_media_exists",
+            "fail" if missing else "pass",
+            "动画媒体或证据缺失：" + ", ".join(missing)
+            if missing
+            else "动画视频、帧清单与编码记录均存在",
+        )
+    ]
+
+
+def _build_committed_check(project_dir: Path) -> CheckResult:
+    marker = project_dir / "build" / BUILD_MARKER
+    return _check(
+        "gate_3_engineering",
+        "build_committed",
+        "fail" if marker.is_file() else "pass",
+        "构建未完成（build/.build-in-progress 仍存在）" if marker.is_file() else "构建已提交",
+    )
 
 
 def run_release_checks(

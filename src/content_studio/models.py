@@ -291,6 +291,33 @@ class GraphBlock(StrictModel):
     caption: str = ""
 
 
+class AnimationBlock(StrictModel):
+    """An animation backed by a structured scene file, never generated code.
+
+    P2.1 admits one animation per course and one scene per animation. The
+    scene file lives under ``content/scenes/`` and is validated by the
+    renderer's contract before any frames are produced.
+    """
+
+    type: Literal["animation"] = "animation"
+    scene_file: str = Field(min_length=1)
+    alt: str = Field(min_length=1)
+    caption: str = ""
+
+    @field_validator("scene_file")
+    @classmethod
+    def _scene_path(cls, value: str) -> str:
+        normalized = value.replace("\\", "/")
+        parts = normalized.split("/")
+        if normalized.startswith("/") or ".." in parts or ":" in parts[0]:
+            raise ValueError("scene_file must be relative to the project workspace")
+        if not normalized.startswith("content/scenes/"):
+            raise ValueError("scene_file must live under content/scenes/")
+        if not normalized.endswith(".json"):
+            raise ValueError("scene_file must be a .json file")
+        return normalized
+
+
 class CalloutBlock(StrictModel):
     type: Literal["callout"] = "callout"
     kind: Literal["note", "warning", "limitation", "assumption"] = "note"
@@ -314,6 +341,7 @@ PublicBlock = Annotated[
         ChartBlock,
         DiagramBlock,
         GraphBlock,
+        AnimationBlock,
         CalloutBlock,
         QuoteBlock,
     ],

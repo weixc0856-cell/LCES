@@ -23,6 +23,7 @@ from content_studio.models import (
     QAReport,
     ReleaseManifest,
 )
+from content_studio.paths import BUILD_MARKER
 from content_studio.storage import TaskStore
 from content_studio.utils import sha256_file, write_json, write_text
 from content_studio.validation import run_release_checks
@@ -180,6 +181,11 @@ def build_release(
     if not VERSION_PATTERN.fullmatch(version):
         raise ConfigurationError("release version must look like v1, v2, ...")
     project_dir = project_dir.resolve()
+    marker = project_dir / "build" / BUILD_MARKER
+    if marker.is_file():
+        raise ValidationFailure(
+            "build is incomplete: build/.build-in-progress exists; run `lces build` again"
+        )
     release_root = project_dir / "release" / version
     if release_root.exists() and not force:
         raise ConfigurationError(

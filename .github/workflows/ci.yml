@@ -99,7 +99,7 @@ jobs:
           node --test --test-reporter=tap contract.test.mjs | tee ../motion-evidence/contract-tests.tap
       - name: Real title renders
         run: >-
-          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py tests/test_encode.py tests/test_release_video.py -v
+          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py tests/test_motion_canvas_production.py tests/test_encode.py tests/test_release_video.py -v
           --basetemp=/tmp/lces-p1-builds
           --junitxml=motion-evidence/e2e-report.xml
       - name: Collect frame manifests

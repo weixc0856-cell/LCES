@@ -54,10 +54,17 @@ _SVG_DANGEROUS = (
 
 @dataclass(frozen=True)
 class RenderContext:
-    """Where a renderer may read assets from and write side artifacts to."""
+    """Where a renderer may read assets from and write side artifacts to.
+
+    ``publish`` is reserved for the production build path: a renderer may then
+    write the artifacts a release consumes (for example
+    ``build/media/course.mp4``). Standalone ``render-scene`` calls leave it
+    false and keep writing under ``output_dir``.
+    """
 
     project_dir: Path | None = None
     output_dir: Path | None = None
+    publish: bool = False
 
 
 @dataclass
@@ -918,6 +925,10 @@ def _string_list(value: object, field_name: str) -> list[str]:
 
 
 def default_registry() -> RendererRegistry:
+    # Local import: motion_canvas imports this module for the Renderer
+    # protocol, so importing it at module load would be circular.
+    from content_studio.motion_canvas import MotionCanvasRenderer
+
     registry = RendererRegistry()
     registry.register(TableRenderer())
     registry.register(FigureRenderer())
@@ -925,4 +936,5 @@ def default_registry() -> RendererRegistry:
     registry.register(VegaLiteRenderer())
     registry.register(MermaidRenderer())
     registry.register(GraphvizRenderer())
+    registry.register(MotionCanvasRenderer())
     return registry

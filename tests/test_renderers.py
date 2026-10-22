@@ -201,6 +201,7 @@ def test_build_writes_render_manifest(tmp_path):
             "renderer": "html.table",
             "renderer_version": "1.0.0",
             "output_sha256": manifest[0]["output_sha256"],
+            "build_id": "",
         }
     ]
     assert len(manifest[0]["output_sha256"]) == 64
