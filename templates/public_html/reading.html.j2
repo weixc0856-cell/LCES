@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ edition.title }} · 研究阅读版</title>
+<style>
+:root{color-scheme:light;--ink:#222;--muted:#666;--accent:#8a4b1f;--line:#e3ded6;--bg:#fcfbf9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.8 "Noto Serif SC","Source Han Serif SC",system-ui,serif}
+main{width:min(860px,calc(100% - 40px));margin:auto;padding:56px 0 96px}
+header{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:36px}
+.eyebrow{color:var(--accent);font-size:.76rem;font-weight:700;letter-spacing:.14em;margin:0 0 8px}
+h1{font-size:clamp(1.9rem,4vw,2.8rem);line-height:1.22;margin:0 0 12px}
+.abstract{color:#444;background:#f5f1ea;border-radius:10px;padding:18px 22px}
+h2{font-size:1.3rem;margin:2.4em 0 .6em}
+nav ol{columns:2;font-size:.92rem}
+nav a{color:var(--accent);text-decoration:none}
+.cite{color:var(--muted);font-size:.82rem;margin-top:.7em}
+footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);margin-top:48px;padding-top:20px}
+@media print{body{background:#fff}nav{display:none}}
+</style>
+</head>
+<body><main>
+<header>
+<p class="eyebrow">研究阅读版</p>
+<h1>{{ edition.title }}</h1>
+<div class="abstract"><strong>摘要</strong><br>{{ edition.abstract }}</div>
+</header>
+<nav aria-label="目录"><h2>目录</h2><ol>
+{% for section in edition.sections %}<li><a href="#{{ section.slide_id }}">{{ section.title }}</a></li>{% endfor %}
+</ol></nav>
+{% for section in edition.sections %}
+<section id="{{ section.slide_id }}">
+<h2>{{ section.title }}</h2>
+{% for paragraph in section.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+{% if section.source_ids %}<p class="cite">来源：{{ section.source_ids | join("、") }}</p>{% endif %}
+</section>
+{% endfor %}
+{% if edition.references %}
+<h2>参考文献与来源</h2>
+<ul>{% for reference in edition.references %}<li>{{ reference }}</li>{% endfor %}</ul>
+{% endif %}
+<footer>本页由 LCES 从阅读版内容模型构建。</footer>
+</main></body>
+</html>

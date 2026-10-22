@@ -1,0 +1,25 @@
+{
+  "project_id": "example-course",
+  "title": "示例课程：公开内容模型",
+  "subtitle": "仅用于验证公开构建流程",
+  "language": "zh-CN",
+  "audience": "具备技术背景的学习者",
+  "slides": [
+    {
+      "slide_id": "slide-001",
+      "title": "系统目标",
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "本页面仅用于验证公开内容模型与 HTML 构建流程，不代表研究已完成或事实已核验。"
+        },
+        {
+          "type": "callout",
+          "kind": "limitation",
+          "text": "示例内容不包含真实研究结论，不得作为正式课程发布。"
+        }
+      ],
+      "source_ids": []
+    }
+  ]
+}

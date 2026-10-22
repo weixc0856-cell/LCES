@@ -1,0 +1,9 @@
+project_id: example-course
+title: 示例课程项目（占位）
+content_mode: paper_course
+language: zh-CN
+audience: 具备技术背景的学习者
+input_paths: []
+source_urls: []
+target_duration_minutes: 20
+release_requires_human_approval: true

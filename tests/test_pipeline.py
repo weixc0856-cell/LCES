@@ -1,0 +1,99 @@
+from pathlib import Path
+
+import pytest
+
+from content_studio.content import load_public_content, load_speaker_script
+from content_studio.errors import ValidationFailure
+from content_studio.models import ProjectConfig
+from content_studio.orchestrator import STAGES, run_pipeline
+from content_studio.paths import ensure_project_layout
+from content_studio.release import build_release
+from content_studio.settings import Settings
+from content_studio.storage import TaskStore
+
+
+def _settings(tmp_path: Path) -> Settings:
+    return Settings(
+        _env_file=None,
+        provider="mock",
+        database_path=tmp_path / "var" / "lces.sqlite3",
+        projects_dir=tmp_path / "projects",
+        temperature=0.2,
+    )
+
+
+def _project(tmp_path: Path) -> tuple[Path, ProjectConfig]:
+    root = ensure_project_layout(tmp_path / "project")
+    (root / "input" / "sample.md").write_text(
+        "# 示例论文\n\n这是用于测试的正文段落，不包含真实研究结论。\n", encoding="utf-8"
+    )
+    config = ProjectConfig(
+        project_id="demo-course",
+        title="示例课程",
+        input_paths=["input/sample.md"],
+        target_duration_minutes=12,
+    )
+    return root, config
+
+
+def test_full_pipeline_runs_all_stages(tmp_path):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path)
+
+    result = run_pipeline(root, config, settings, provider_name="mock")
+
+    assert result.failed_stage is None
+    assert result.completed_stages == list(STAGES)
+    assert result.qa is not None
+
+    assert (root / "internal" / "source_registry.json").is_file()
+    assert (root / "internal" / "evidence_ledger.csv").is_file()
+    assert (root / "internal" / "research_brief.md").is_file()
+    assert (root / "content" / "outline.json").is_file()
+    assert (root / "content" / "public_content.json").is_file()
+    assert (root / "internal" / "speaker_script.json").is_file()
+    assert (root / "content" / "reading_edition.json").is_file()
+    assert (root / "build" / "slides" / "index.html").is_file()
+    assert (root / "build" / "reading_edition.html").is_file()
+
+    public = load_public_content(root)
+    script = load_speaker_script(root)
+    assert public is not None and script is not None
+    assert [slide.slide_id for slide in public.slides] == [
+        section.slide_id for section in script.sections
+    ]
+
+    assert result.qa.blocking_failures
+    assert result.status == "NEEDS_REVISION"
+
+    store = TaskStore(settings.database_path)
+    task = store.get_task(result.task_id)
+    assert task is not None and task["status"] == "NEEDS_REVISION"
+
+
+def test_pipeline_can_rerun_single_stage(tmp_path):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path)
+    run_pipeline(root, config, settings, provider_name="mock")
+
+    rerun = run_pipeline(root, config, settings, only_stage="build")
+    assert rerun.failed_stage is None
+    assert rerun.completed_stages == ["build"]
+
+
+def test_pipeline_reports_failed_stage(tmp_path):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path)
+
+    # Skip ingest and start at research: there is no source registry.
+    result = run_pipeline(root, config, settings, only_stage="research")
+    assert result.failed_stage == "research"
+    assert result.status == "FAILED"
+
+
+def test_release_is_blocked_when_qa_fails(tmp_path):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path)
+    run_pipeline(root, config, settings, provider_name="mock")
+    with pytest.raises(ValidationFailure):
+        build_release(root, config, "v1")

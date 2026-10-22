@@ -1,0 +1,14 @@
+project_name: Local Content Engineering Studio
+projects_dir: projects
+database_path: var/lces.sqlite3
+default_language: zh-CN
+default_content_mode: paper_course
+release_requires_human_approval: true
+public_build_allowlist:
+  - slides/index.html
+  - reading_edition.html
+  - media/course.mp4
+  - media/course.srt
+  - media/course.vtt
+  - metadata/description.md
+  - release_manifest.json

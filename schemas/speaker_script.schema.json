@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ScriptSection": {
+      "additionalProperties": false,
+      "properties": {
+        "slide_id": {
+          "pattern": "^slide-[0-9]{3,}$",
+          "title": "Slide Id",
+          "type": "string"
+        },
+        "narration": {
+          "minLength": 1,
+          "title": "Narration",
+          "type": "string"
+        },
+        "pronunciation_notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pronunciation Notes",
+          "type": "array"
+        },
+        "estimated_seconds": {
+          "default": 0,
+          "maximum": 3600,
+          "minimum": 0,
+          "title": "Estimated Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slide_id",
+        "narration"
+      ],
+      "title": "ScriptSection",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Internal model. Must never be rendered into public HTML.",
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "language": {
+      "default": "zh-CN",
+      "title": "Language",
+      "type": "string"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/ScriptSection"
+      },
+      "minItems": 1,
+      "title": "Sections",
+      "type": "array"
+    },
+    "total_estimated_seconds": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Total Estimated Seconds",
+      "type": "integer"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "sections"
+  ],
+  "title": "SpeakerScript",
+  "type": "object"
+}

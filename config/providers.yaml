@@ -1,0 +1,19 @@
+# Provider definitions. Secrets belong in .env, never in this file.
+# `mock` is deterministic and never publishable; release gates reject it.
+providers:
+  mock:
+    adapter: mock
+    model: mock-deterministic
+  deepseek:
+    adapter: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    # Verify the current model IDs against https://api-docs.deepseek.com/ before production use.
+    model: deepseek-chat
+    api_key_env: LCES_DEEPSEEK_API_KEY
+  anthropic:
+    adapter: anthropic
+    base_url: https://api.anthropic.com
+    model: claude-sonnet-4-5
+    api_key_env: LCES_ANTHROPIC_API_KEY
+
+default_provider: mock

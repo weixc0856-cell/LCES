@@ -1,0 +1,46 @@
+# Machine-checkable rules implemented in src/content_studio/validation.py.
+# A rule absent from code is reported as NOT_RUN, never as passing.
+
+gates:
+  gate_1_research:
+    blocking_checks:
+      - source_registry_exists
+      - research_brief_exists
+      - evidence_references_valid
+      - key_claims_have_evidence
+    advisory_checks:
+      - sources_available
+      - unverified_key_evidence_flagged
+    not_run:
+      - scientific_review
+  gate_2_content:
+    blocking_checks:
+      - public_content_schema_valid
+      - speaker_script_separate
+      - speaker_script_covers_slides
+      - public_text_clean
+      - citations_have_source_ids
+      - no_mock_provider_in_release
+    advisory_checks:
+      - duration_within_tolerance
+    not_run: []
+  gate_3_engineering:
+    blocking_checks:
+      - public_html_built
+      - public_html_utf8
+      - figures_exist
+      - no_internal_markers_in_html
+    advisory_checks:
+      - no_external_assets
+    not_run:
+      - browser_visual_regression
+  gate_4_release:
+    blocking_checks:
+      - release_directory_exists
+      - allowlist_only
+      - no_internal_markers
+      - no_secret_patterns
+      - manifest_hashes_match
+      - human_approval_recorded
+    not_run:
+      - media_decode_check

@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "LCES: Sync",
+      "type": "shell",
+      "command": "uv sync --all-groups",
+      "problemMatcher": []
+    },
+    {
+      "label": "LCES: Tests",
+      "type": "shell",
+      "command": "uv run pytest",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "LCES: Lint",
+      "type": "shell",
+      "command": "uv run ruff check .",
+      "problemMatcher": []
+    },
+    {
+      "label": "LCES: Doctor",
+      "type": "shell",
+      "command": "uv run lces doctor",
+      "problemMatcher": []
+    }
+  ]
+}

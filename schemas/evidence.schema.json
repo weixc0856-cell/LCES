@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "evidence_id": {
+      "pattern": "^evidence-[0-9]{3,}$",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "source_id": {
+      "title": "Source Id",
+      "type": "string"
+    },
+    "claim_id": {
+      "title": "Claim Id",
+      "type": "string"
+    },
+    "evidence_type": {
+      "enum": [
+        "quote",
+        "data",
+        "figure",
+        "table",
+        "experiment",
+        "official_statement",
+        "analysis"
+      ],
+      "title": "Evidence Type",
+      "type": "string"
+    },
+    "locator": {
+      "default": "",
+      "title": "Locator",
+      "type": "string"
+    },
+    "source_excerpt": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Source Excerpt",
+      "type": "string"
+    },
+    "support_relation": {
+      "enum": [
+        "supports",
+        "refutes",
+        "partially_supports",
+        "background"
+      ],
+      "title": "Support Relation",
+      "type": "string"
+    },
+    "verification_status": {
+      "default": "unverified",
+      "enum": [
+        "unverified",
+        "verified",
+        "conflict",
+        "unverifiable"
+      ],
+      "title": "Verification Status",
+      "type": "string"
+    },
+    "reviewer": {
+      "default": "",
+      "title": "Reviewer",
+      "type": "string"
+    },
+    "checked_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checked At"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evidence_id",
+    "source_id",
+    "claim_id",
+    "evidence_type",
+    "support_relation"
+  ],
+  "title": "EvidenceRecord",
+  "type": "object"
+}

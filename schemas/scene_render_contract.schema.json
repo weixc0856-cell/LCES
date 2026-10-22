@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneRenderContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scene_id",
+    "duration_seconds",
+    "fps",
+    "width",
+    "height",
+    "scale_mode"
+  ],
+  "properties": {
+    "scene_id": {
+      "type": "string"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "fps": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "scale_mode": {
+      "enum": [
+        "GLOBAL_ABSOLUTE_SCALE",
+        "ROW_INTERNAL_NORMALIZED"
+      ]
+    }
+  }
+}

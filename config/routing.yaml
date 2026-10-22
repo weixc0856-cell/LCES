@@ -1,0 +1,17 @@
+# Phase 4 placeholder. Phase 1 uses `default_provider` for every stage.
+# Do not treat this file as an implemented routing engine yet.
+default:
+  provider: mock
+  model: mock-deterministic
+
+stages:
+  research:
+    provider: mock
+  outline:
+    provider: mock
+  public_content:
+    provider: mock
+  speaker_script:
+    provider: mock
+  reading_edition:
+    provider: mock

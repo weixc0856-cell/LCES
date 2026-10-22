@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "OutlineSection": {
+      "additionalProperties": false,
+      "properties": {
+        "slide_id": {
+          "pattern": "^slide-[0-9]{3,}$",
+          "title": "Slide Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "learning_objectives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Learning Objectives",
+          "type": "array"
+        },
+        "key_points": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Points",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "visual_requirements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Visual Requirements",
+          "type": "array"
+        },
+        "estimated_minutes": {
+          "exclusiveMinimum": 0,
+          "maximum": 120,
+          "title": "Estimated Minutes",
+          "type": "number"
+        }
+      },
+      "required": [
+        "slide_id",
+        "title",
+        "estimated_minutes"
+      ],
+      "title": "OutlineSection",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "audience": {
+      "default": "",
+      "title": "Audience",
+      "type": "string"
+    },
+    "prerequisites": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Prerequisites",
+      "type": "array"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/OutlineSection"
+      },
+      "minItems": 1,
+      "title": "Sections",
+      "type": "array"
+    },
+    "total_minutes": {
+      "exclusiveMinimum": 0,
+      "maximum": 600,
+      "title": "Total Minutes",
+      "type": "number"
+    }
+  },
+  "required": [
+    "project_id",
+    "title",
+    "sections",
+    "total_minutes"
+  ],
+  "title": "ContentOutline",
+  "type": "object"
+}

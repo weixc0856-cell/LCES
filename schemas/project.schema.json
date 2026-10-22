@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "content_mode": {
+      "default": "paper_course",
+      "enum": [
+        "paper_course",
+        "research_report",
+        "news_commentary",
+        "engineering_tutorial",
+        "series_course",
+        "quick_brief"
+      ],
+      "title": "Content Mode",
+      "type": "string"
+    },
+    "language": {
+      "default": "zh-CN",
+      "title": "Language",
+      "type": "string"
+    },
+    "audience": {
+      "default": "具备技术背景的学习者",
+      "title": "Audience",
+      "type": "string"
+    },
+    "input_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Input Paths",
+      "type": "array"
+    },
+    "source_urls": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Urls",
+      "type": "array"
+    },
+    "target_duration_minutes": {
+      "default": 20,
+      "maximum": 240,
+      "minimum": 1,
+      "title": "Target Duration Minutes",
+      "type": "integer"
+    },
+    "release_requires_human_approval": {
+      "default": true,
+      "title": "Release Requires Human Approval",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "title"
+  ],
+  "title": "ProjectConfig",
+  "type": "object"
+}
