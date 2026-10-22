@@ -17,6 +17,7 @@ end-to-end path; it does not attempt a general agent platform.
 | Evidence review | `evidence.py` | Canonical review states, named-reviewer rule, `lces review-claims` |
 | Media checks | `media.py` | ffprobe metadata, FFmpeg frame sampling, SRT/VTT timing; used by Gate 4 |
 | Tool layer / MCP | `tools.py`, `mcp_server.py` | Pydantic-validated tools with read/write access, JSONL audit log, optional stdio server |
+| Evaluation / cost | `eval.py`, `usage.py` | Fixed benchmark set with mechanical checks; token, failure, time, and cost report from `stage_runs` |
 | Content | `content.py` | Outline, public content, speaker script, reading edition |
 | Rendering | `rendering.py` + `templates/` | Public HTML from public-only models |
 | Providers | `providers/` | Provider-neutral interface; DeepSeek, Anthropic, local llama.cpp, Mock |
@@ -101,10 +102,12 @@ can reproduce the old output for parity tests. See
 ## Local/cloud split
 
 `config/routing.yaml` can send research to a cloud model while drafting stays
-local. `lces models` probes `/health` and `/v1/models` without making a
-completion request. Each stage records provider, model, and token usage in
-SQLite, so a mixed run remains auditable. Automatic escalation based on failure
-counts or eval scores is not implemented yet.
+local. A stage entry may also name a fallback provider: a provider error after
+the adapter's own retries triggers one retry with the fallback, and both
+attempts stay in `stage_runs`. `lces models` probes `/health` and
+`/v1/models` without making a completion request. Each stage records provider,
+model, and token usage in SQLite, so a mixed run remains auditable. Escalation
+based on eval scores or a cost budget is not implemented.
 
 ## State machine
 

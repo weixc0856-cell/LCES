@@ -1,8 +1,7 @@
 # Implementation Status
 
-Updated for Phases 0-6: baseline, browser QA, renderer registry, chart/SVG
-backends, evidence governance, media checks, and the permissioned MCP tool
-layer (package version 0.8.0).
+Updated through the roadmap phases (0-6) plus the continuous evaluation, cost,
+and routing work (package version 0.9.0).
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -13,7 +12,7 @@ by a working code path.
 |---|---|---|
 | Python 3.13 pin / project `.venv` | Implemented | `.python-version`, `requires-python`, `scripts/bootstrap.*`, VS Code interpreter path |
 | Dependency groups + lock workflow | Implemented | `dev` group installed by `uv sync`; regenerate `uv.lock` locally after changes |
-| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`, `media-check`, `mcp-serve`) | Implemented | |
+| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`, `media-check`, `mcp-serve`, `eval`, `usage`) | Implemented | |
 | Unified Pydantic contracts | Implemented | `models.py`; JSON Schema export command |
 | SQLite task/stage/asset/approval records | Implemented | `storage.py`; state machine values from PRD |
 | DeepSeek adapter (OpenAI-compatible) | Implemented | `httpx`, timeout, bounded retry, usage extraction |
@@ -53,8 +52,10 @@ by a working code path.
 | Release staging + manifest + ZIP | Implemented | ZIP built only from `release/` tree |
 | Human approval recording | Implemented | File + SQLite; not a web UI |
 | Failure recovery | Partial | Stage-scoped rerun with task records; no automatic retry queue |
-| Model routing / cost statistics | Partial | Explicit stage routing works; automatic escalation, eval-based routing and pricing are not implemented |
-| Local model evaluation suite | Not implemented | No `evals/` benchmark runner yet; see `local model.md` for the proposed test set |
+| Model routing / cost statistics | Partial | Explicit stage routing with per-stage fallback and a usage/cost report; automatic quality-based routing and per-task cost prediction are not implemented |
+| Failure escalation | Implemented | Provider error triggers one fallback retry; both stage runs recorded |
+| Usage and cost report | Implemented | `lces usage` from `stage_runs`; local/unpriced models reported as not costed, never zero |
+| Local model evaluation suite | Implemented | `evals/basic.jsonl` (8 task types) + `lces eval`; mechanical checks, JSON reports in `var/evals/` |
 | Playwright browser QA | Implemented | Optional `browser` extra; checks page load, JS errors, resources, overflow at 1280/1920/2560/3840/mobile viewports |
 | Visual regression | Partial | Screenshot baselines compared byte-for-byte; differences are `warn` for human review, no pixel-diff tooling yet |
 | SVG/Canvas scene engine, frame export | Not implemented | `scene_render_contract` schema only |
@@ -71,10 +72,10 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 117 passed |
+| `pytest -q` | 133 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | no issues in 31 source files |
+| `mypy src` | no issues in 33 source files |
 | `lces run` (local `Qwen3.5-4B`, arXiv 1706.03762) | all 6 stages completed; browser QA established 10 baselines; Gate 3 passed |
 | `lces run --only build` through the registry | table rendered by `html.table` 1.0.0; manifest hash recorded; screenshots still match baseline |
 | `lces render-spec` (unknown `visual_type`) | exits 1 with `UnsupportedVisualType`; no placeholder output |
@@ -85,6 +86,9 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Gate 4 media checks | corrupt video fails; valid video plus in-range subtitles passes; no media reports `NOT_RUN` |
 | `lces mcp-serve` (MCP SDK absent) | exits 1 and names `uv sync --extra mcp` |
 | MCP server smoke | lists `project_status`, `task_status`, `qa_report`, `release_manifest`; `run_validate` only with `--allow-write`; no release tool |
+| `lces eval --provider local` (8 tasks) | 7/8 passed, average latency 23.2 s; `explain-001` failed for omitting `softmax`; report kept in `var/evals/` |
+| `lces usage --pricing config/pricing.yaml` | local: 4 calls, 12,777 in / 4,808 out tokens, reported as 未核算 (not zero) |
+| Stage fallback routing | local `ProviderError` retried with `mock`; `stage_runs` records one fail then one pass |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
 
 These results validate the implemented checks only. They do not prove

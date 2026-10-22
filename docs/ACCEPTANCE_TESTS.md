@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 117 passed |
+| `pytest -q` | 133 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -21,6 +21,9 @@ is considered passing because the code exists.
 | `lces review-claims` | writes reviewer/time; rejects unknown status and empty reviewer |
 | `lces media-check` | probes duration/resolution/codecs and samples keyframes (FFmpeg required) |
 | `lces mcp-serve` | read-only tool list by default; `--allow-write` adds `run_validate`; no release tool |
+| `lces eval --provider local` | 7/8 on the fixed 8-task set; report written to `var/evals/` |
+| `lces usage --pricing config/pricing.yaml` | token/failure/time figures from `stage_runs`; local marked 未核算 |
+| fallback routing | provider error retries once with the configured fallback; both attempts recorded |
 
 ## Environment
 
@@ -67,6 +70,10 @@ is considered passing because the code exists.
 - Tools/MCP: `tests/test_tools.py` covers input validation, permission denial,
   JSONL logging, and the MCP tool list; `tests/test_cli.py` covers the missing
   SDK message.
+- Evaluation/routing/cost: `tests/test_eval.py` covers check kinds and report
+  contents; `tests/test_usage.py` covers aggregation, pricing, and the
+  not-costed rules; `tests/test_routing.py` and `tests/test_pipeline.py` cover
+  fallback parsing and the retry path.
 
 ## Manual checks that automation cannot replace
 

@@ -177,6 +177,21 @@ uv run lces mcp-serve --caller "my-client" --allow-write   # 额外允许 run_va
 
 只暴露 `project_status`、`task_status`、`qa_report`、`release_manifest`，以及授权后的 `run_validate`。**没有发布、审批、删除或命令执行工具**；`run_validate` 只重跑 Gate 1-3，不能绕过门禁。每次调用写入 `var/tool_calls.jsonl`（调用方、工具、权限、参数摘要、结果、耗时，不含密钥或文件内容）。详见 `docs/MCP.md`。
 
+### 模型评测、路由与成本（持续工作）
+
+```powershell
+uv run lces eval --provider local        # 固定 8 项基准，报告写入 var/evals/
+uv run lces eval --provider deepseek
+uv run lces usage --pricing config/pricing.yaml
+```
+
+- 基准集 `evals/basic.jsonl` 只用可机械判定的标准（JSON 字段、选项、必需内容、最小长度），"读起来不错"不算通过
+- `usage` 的数字全部来自 `stage_runs`：调用次数、token、失败数、阶段耗时；本地 provider 与未配置价格的模型一律记为 **未核算**，不冒充零成本
+- `config/routing.yaml` 支持逐阶段 fallback：`research: {provider: deepseek, fallback: local}`。模型阶段 provider 报错后自动用 fallback 重试一次，两次尝试都留在 `stage_runs`
+- 节省成本不会自动接受低质量：fallback 只处理 provider 错误，输出不合格仍然被 Schema 与 QA 门禁拦下
+
+详见 `docs/EVALUATION.md`。
+
 ### 浏览器 QA（Phase 1）
 
 ```powershell
@@ -213,6 +228,8 @@ src/content_studio/
 ├── media.py            FFmpeg 探测、关键帧抽取、字幕时间轴检查
 ├── tools.py            权限化工具层（校验、授权、JSONL 调用日志）
 ├── mcp_server.py       可选 MCP stdio 绑定（复用 tools）
+├── eval.py             固定基准集评测（本地/云端对比）
+├── usage.py            用量与成本统计（来自 stage_runs 实记录）
 ├── content.py          大纲、公开内容、口播稿、阅读版
 ├── rendering.py        Jinja2 公开 HTML（经渲染器注册表输出视觉块）
 ├── renderers.py        渲染器接口与注册表（table / figure / custom SVG / Vega-Lite）
