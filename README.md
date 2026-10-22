@@ -140,8 +140,18 @@ git push -u origin main
 
 - Gate 1：来源台账、证据引用可解析、关键主张有支持证据、未核验证据告警；科学审查为 `NOT_RUN`。
 - Gate 2：公开模型校验、讲稿独立与章节映射、公开文本无内部标记、引用存在、mock 内容禁止发布、时长偏差告警。
-- Gate 3：HTML 构建、UTF-8、内部标记、图表文件存在、外部资源告警；浏览器视觉回归为 `NOT_RUN`。
+- Gate 3：HTML 构建、UTF-8、内部标记、图表文件存在、外部资源告警；安装浏览器依赖后还会用 Chromium 实际渲染，检查页面加载、JavaScript 错误、资源加载、桌面/16:9/2K/4K/移动视口横向溢出，并保存基准截图（见下节）。
 - Gate 4：白名单、内部标记、密钥模式、清单哈希、人工审批；媒体解码为 `NOT_RUN`。
+
+### 浏览器 QA（Phase 1）
+
+```powershell
+uv sync --extra browser
+uv run playwright install chromium
+uv run lces validate .\projects\<project>
+```
+
+渲染检查默认启用；`LCES_BROWSER_QA=false` 可显式跳过（跳过记为 `NOT_RUN`，不代表通过）。未安装 Playwright 时同样记为 `NOT_RUN`。截图写入 `internal/qa/screenshots/`，基准图写入 `internal/qa/baselines/`；两者随项目目录一起被 git 忽略。基准图与当前截图不一致时记 `warn`，需人工确认后才能发布。
 
 ## 仓库结构
 
@@ -165,7 +175,7 @@ src/content_studio/
 
 ## 尚未实现
 
-真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、Playwright 视觉回归、SVG/Canvas 场景引擎、FFmpeg 视频与字幕、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
+真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、SVG/Canvas 场景引擎、FFmpeg 视频与字幕、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
 
 ## 安全与版权
 

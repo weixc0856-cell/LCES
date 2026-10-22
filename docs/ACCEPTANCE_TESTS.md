@@ -54,6 +54,8 @@ repeating these checks locally.
 
 ## Known NOT_RUN items
 
-Browser rendering, visual regression, font fallback, media decode, subtitle
-timing, and audio/video synchronization are not implemented. They must remain
-`NOT_RUN` in QA reports.
+Font fallback, media decode, subtitle timing, and audio/video synchronization
+are not implemented. They must remain `NOT_RUN` in QA reports. Browser page
+load, JavaScript errors, resource loads, viewport overflow, and screenshot
+baselines are covered by Gate 3 when the `browser` extra is installed; without
+it those checks are reported `NOT_RUN`, never `PASS`.

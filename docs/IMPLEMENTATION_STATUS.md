@@ -1,6 +1,6 @@
 # Implementation Status
 
-Updated for the Phase 0 + Phase 1 baseline (package version 0.2.0).
+Updated for the Phase 0 baseline plus Phase 1 browser QA (package version 0.3.0).
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -16,7 +16,7 @@ by a working code path.
 | SQLite task/stage/asset/approval records | Implemented | `storage.py`; state machine values from PRD |
 | DeepSeek adapter (OpenAI-compatible) | Implemented | `httpx`, timeout, bounded retry, usage extraction |
 | Anthropic adapter | Implemented | Messages API via `httpx`; no SDK dependency |
-| Local llama.cpp adapter | Implemented | OpenAI-compatible `/v1`, no key required, model auto-discovery, `/health` probe |
+| Local llama.cpp adapter | Implemented | OpenAI-compatible `/v1`, optional `--api-key`, model auto-discovery, `/health` probe, loopback traffic bypasses OS proxies |
 | Mock provider | Implemented | Deterministic; release gates reject it |
 | Stage routing (local/cloud mix) | Partial | `research`/`outline`/`generate` only; no automatic escalation or quality-based routing |
 | Model diagnostics | Implemented | `lces models` probes local `/health` and `/v1/models` |
@@ -32,37 +32,37 @@ by a working code path.
 | Public HTML build | Implemented | Jinja2, autoescaping, offline inline CSS |
 | Gate 1 research checks | Partial | Structural checks only; scientific review is `NOT_RUN` |
 | Gate 2 content checks | Partial | Schema, mapping, markers, citations, mock detection, duration estimate |
-| Gate 3 engineering checks | Partial | Build/UTF-8/markers/figures; browser visual regression `NOT_RUN` |
+| Gate 3 engineering checks | Implemented | Build/UTF-8/markers/figures plus Playwright page load, JS errors, resource loads, overflow at five viewports; screenshot baselines |
 | Gate 4 release checks | Partial | Allowlist/markers/secrets/hashes/approval; media decode `NOT_RUN` |
 | Release staging + manifest + ZIP | Implemented | ZIP built only from `release/` tree |
 | Human approval recording | Implemented | File + SQLite; not a web UI |
 | Failure recovery | Partial | Stage-scoped rerun with task records; no automatic retry queue |
 | Model routing / cost statistics | Partial | Explicit stage routing works; automatic escalation, eval-based routing and pricing are not implemented |
 | Local model evaluation suite | Not implemented | No `evals/` benchmark runner yet; see `local model.md` for the proposed test set |
-| Playwright visual regression | Not implemented | Phase 3 |
+| Playwright browser QA | Implemented | Optional `browser` extra; checks page load, JS errors, resources, overflow at 1280/1920/2560/3840/mobile viewports |
+| Visual regression | Partial | Screenshot baselines compared byte-for-byte; differences are `warn` for human review, no pixel-diff tooling yet |
 | SVG/Canvas scene engine, frame export | Not implemented | `scene_render_contract` schema only |
 | FFmpeg video, subtitles, media checks | Not implemented | Phase 3 |
 | Local web interface | Not implemented | Phase 6 |
-| CI workflow | Partial | `.github/workflows/ci.yml` runs pytest/ruff on Python 3.13; not verified in this environment |
+| CI workflow | Partial | `test` job runs pytest/ruff/mypy on Python 3.13; `browser-qa` job installs Chromium and runs the browser tests. Neither job has been observed running on GitHub from this environment |
 
 ## Verification status
 
-Executed in the environment that produced this baseline (Linux sandbox,
-Python 3.13.15, dependencies from `pyproject.toml`, separate environment so the
-Windows `.venv` was not modified):
+Executed on the development machine (Windows 11, Python 3.13.12, project
+`.venv` rebuilt by `scripts/bootstrap.ps1`) on 2026-10-22:
 
 | Command | Result |
 |---|---|
-| `uv sync` | 47 packages resolved/installed |
-| `pytest -q` | 51 passed |
+| `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
+| `pytest -q` | 64 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | no issues in 24 source files |
-| `lces export-schemas` | 12 schemas written |
-| `lces run` (mock, temp project) | all 6 stages completed; QA correctly returned `NEEDS_REVISION` and blocked release |
+| `mypy src` | no issues in 25 source files |
+| `lces run` (local `Qwen3.5-4B`, arXiv 1706.03762) | all 6 stages completed; browser QA established 10 baselines; Gate 3 passed |
+| `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
 
 These results validate the implemented checks only. They do not prove
 scientific correctness, source authenticity, or end-to-end production
-readiness. On the user's machine the existing `.venv` was created with Python
-3.14.3 and must be rebuilt with Python 3.13 (`scripts/bootstrap.ps1` or
-`uv sync`), after which the same commands should be re-run locally.
+readiness. The sample run needed manual corrections to a model-generated
+complexity claim that no automated gate could detect; `scientific_review`
+remains `NOT_RUN`.

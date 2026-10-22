@@ -98,6 +98,7 @@ downstream assets without re-fetching sources.
 
 ## Explicit non-goals in Phase 1
 
-Browser frame export, FFmpeg encoding, subtitles, visual regression, web UI,
-multi-model routing, cache/incremental builds. These are reported as `NOT_RUN`
-rather than silently treated as passing.
+Browser frame export, FFmpeg encoding, subtitles, web UI, multi-model routing,
+cache/incremental builds. These are reported as `NOT_RUN` rather than silently
+treated as passing. Browser rendering and screenshot baselines are implemented
+in Gate 3 (`browser_qa.py`) as an optional extra.

@@ -25,7 +25,9 @@ uv run mypy src
 
 - Runtime dependencies: `uv add <package>` then commit `pyproject.toml` + `uv.lock`.
 - Dev tools: `uv add --dev <package>` (writes `[dependency-groups].dev`).
-- Media-only packages (Playwright) stay in the `media` extra and are not installed by default.
+- Media-only packages (Playwright) stay in the `media` and `browser` extras and are not installed by default.
+  Gate 3 browser checks need `uv sync --extra browser` plus `uv run playwright install chromium`;
+  without them the checks report `NOT_RUN`.
 - Do not claim a dependency is locked until `uv.lock` contains it.
 
 ## Coding rules
