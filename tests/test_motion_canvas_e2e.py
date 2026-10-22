@@ -113,6 +113,8 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
     assert encode_report["video_sha256"] == sha256_file(video)
     assert encode_report["command"], "the FFmpeg argv must be recorded"
     assert (qa_dir / "frame_manifest.json").is_file()
+    diagnostics = " | ".join(renderer.get_diagnostics())
+    assert "process group" in diagnostics and "cleaned" in diagnostics
     return report
 
 
@@ -197,6 +199,8 @@ def test_cancel_mid_render_publishes_nothing(tmp_path):
     assert sentinel.read_bytes() == b"old-video"
     assert not list(tmp_path.rglob("frame_manifest.json"))
     assert sorted(path.name for path in media.glob("*.mp4")) == ["course.mp4"]
+    diagnostics = " | ".join(renderer.get_diagnostics())
+    assert "process group" in diagnostics and "cleaned" in diagnostics
 
 
 def test_timeout_stops_the_driver_and_publishes_nothing(tmp_path):
@@ -219,3 +223,5 @@ def test_timeout_stops_the_driver_and_publishes_nothing(tmp_path):
     assert sentinel.read_bytes() == b"old-video"
     assert not list(tmp_path.rglob("frame_manifest.json"))
     assert sorted(path.name for path in media.glob("*.mp4")) == ["course.mp4"]
+    diagnostics = " | ".join(renderer.get_diagnostics())
+    assert "process group" in diagnostics and "cleaned" in diagnostics
