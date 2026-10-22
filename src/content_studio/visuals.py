@@ -12,6 +12,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from content_studio.errors import RenderError
 from content_studio.models import (
     AssetCheck,
     ChartBlock,
@@ -182,6 +183,7 @@ _ASSET_TYPES = {
     "data_chart": "chart",
     "diagram": "diagram",
     "graph": "diagram",
+    "animation": "animation",
 }
 
 
@@ -200,6 +202,13 @@ def _asset_contracts(
         for artifact in item.artifacts:
             relative = _relative(artifact, project_dir)
             if relative is None:
+                if item.spec.visual_type == "animation":
+                    # A video build must stay inside the workspace: a dropped
+                    # path would make the asset contract point at the page.
+                    raise RenderError(
+                        f"visual '{item.spec.visual_id}': artifact {artifact} "
+                        "is outside the project workspace"
+                    )
                 continue
             output_paths.append(relative)
             output_hashes[relative] = sha256_file(artifact)

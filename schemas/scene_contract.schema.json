@@ -95,6 +95,11 @@
       ],
       "title": "Fallback Policy",
       "type": "string"
+    },
+    "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
     }
   },
   "required": [

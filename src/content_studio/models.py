@@ -448,6 +448,10 @@ class SceneContract(StrictModel):
     evidence_refs: list[str] = Field(default_factory=list)
     quality_profile: str = "default"
     fallback_policy: FallbackPolicy = "fail"
+    # Template payload (title text, accent colour, ...). Kept as data so the
+    # contract does not hard-code one template's fields; the renderer's
+    # validate_input() is what admits or rejects a template shape.
+    data: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("schema_version")
     @classmethod
@@ -455,6 +459,37 @@ class SceneContract(StrictModel):
         if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
             raise ValueError(f"unsupported scene schema_version '{value}'")
         return value
+
+
+class SceneSet(StrictModel):
+    """Ordered scenes for one video build.
+
+    The list order *is* the timeline order. Canvas, frame rate, and encoding
+    stay in :class:`VideoContract`; this model must not restate them.
+    """
+
+    schema_version: str = VISUAL_SCHEMA_VERSION
+    scenes: list[SceneContract] = Field(min_length=1)
+
+    @field_validator("schema_version")
+    @classmethod
+    def _scene_set_schema_major(cls, value: str) -> str:
+        if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
+            raise ValueError(f"unsupported scene set schema_version '{value}'")
+        return value
+
+    @model_validator(mode="after")
+    def _unique_scene_ids(self) -> SceneSet:
+        seen: set[str] = set()
+        for scene in self.scenes:
+            if scene.scene_id in seen:
+                raise ValueError(f"duplicate scene_id '{scene.scene_id}' in scene set")
+            seen.add(scene.scene_id)
+        return self
+
+    @property
+    def scene_ids(self) -> list[str]:
+        return [scene.scene_id for scene in self.scenes]
 
 
 class VideoContract(StrictModel):

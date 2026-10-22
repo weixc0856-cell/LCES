@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from content_studio.models import SceneContract, VideoContract, VisualAsset
+from content_studio.models import SceneContract, SceneSet, VideoContract, VisualAsset
 
 
 def _asset(**overrides) -> VisualAsset:
@@ -124,3 +124,39 @@ def test_video_contract_requires_scenes_and_valid_hash():
             output_path="build/media/course.mp4",
             build_hash="xyz",
         )
+
+
+def test_scene_contract_carries_template_data():
+    scene = SceneContract(
+        scene_id="scene-001",
+        scene_type="title",
+        duration_ms=2500,
+        data={"title": "Hello", "subtitle": "world"},
+    )
+    assert scene.data["title"] == "Hello"
+    # Unknown keys stay rejected at the contract level.
+    with pytest.raises(ValidationError):
+        SceneContract(scene_id="scene-001", scene_type="title", duration_ms=2500, timing={})
+
+
+def test_scene_set_keeps_order_and_rejects_duplicates():
+    scenes = SceneSet(
+        scenes=[
+            SceneContract(scene_id="scene-001", scene_type="title", duration_ms=1000),
+            SceneContract(scene_id="scene-002", scene_type="title", duration_ms=1000),
+        ]
+    )
+    assert scenes.scene_ids == ["scene-001", "scene-002"]
+
+    with pytest.raises(ValidationError, match="duplicate scene_id"):
+        SceneSet(
+            scenes=[
+                SceneContract(scene_id="scene-001", scene_type="title", duration_ms=1000),
+                SceneContract(scene_id="scene-001", scene_type="title", duration_ms=1000),
+            ]
+        )
+
+
+def test_scene_set_needs_at_least_one_scene():
+    with pytest.raises(ValidationError):
+        SceneSet(scenes=[])

@@ -25,6 +25,11 @@ which belongs to Phase 3).
 | `reading_edition.schema.json` | `ReadingEdition` |
 | `qa_report.schema.json` | `QAReport` |
 | `release_manifest.schema.json` | `ReleaseManifest` |
+| `visual_spec.schema.json` | `VisualSpec` (renderer input) |
+| `visual_asset.schema.json` | `VisualAsset` (rendered artifact provenance) |
+| `scene_contract.schema.json` | `SceneContract` (one timeline shot, integer ms) |
+| `scene_set.schema.json` | `SceneSet` (ordered scenes for one video build) |
+| `video_contract.schema.json` | `VideoContract` (canvas, rational fps, encoding) |
 | `scene_render_contract.schema.json` | Phase 3 scene contract (not generated yet) |
 
 The committed copies are hand-maintained equivalents for the core public,
