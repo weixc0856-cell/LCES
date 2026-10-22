@@ -49,3 +49,7 @@ class UnsupportedVisualType(LCESError):
 
 class MediaError(LCESError):
     """A media file could not be probed, decoded, or extracted."""
+
+
+class ToolPermissionError(LCESError):
+    """A tool call exceeds the caller's access level."""

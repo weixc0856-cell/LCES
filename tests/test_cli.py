@@ -20,6 +20,17 @@ def test_help_lists_local_capable_commands(tmp_path, monkeypatch):
     assert "run" in result.output
 
 
+def test_mcp_serve_without_sdk_explains_the_extra(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import content_studio.mcp_server as mcp_server
+
+    monkeypatch.setattr(mcp_server, "mcp_available", lambda: False)
+
+    result = CliRunner().invoke(app, ["mcp-serve"])
+    assert result.exit_code == 1
+    assert "uv sync --extra mcp" in result.output
+
+
 def test_review_claims_records_a_decision(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     project = tmp_path / "project"

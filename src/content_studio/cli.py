@@ -618,6 +618,27 @@ def media_check(
     typer.echo("提示: 关键帧仅用于人工抽检；数值结果仍需单独核验。")
 
 
+@app.command("mcp-serve")
+@guarded
+def mcp_serve(
+    caller: str = typer.Option("mcp-client", help="写入工具调用日志的调用方名称"),
+    allow_write: bool = typer.Option(
+        False, "--allow-write", help="允许 run_validate（不包含发布/审批）"
+    ),
+) -> None:
+    """Serve permissioned LCES tools over MCP stdio (requires the `mcp` extra)."""
+
+    from content_studio.mcp_server import mcp_available, run_stdio
+
+    if not mcp_available():
+        raise ConfigurationError("MCP SDK 未安装；执行 `uv sync --extra mcp` 后重试")
+    typer.echo(
+        f"MCP stdio: caller={caller} allow_write={allow_write}",
+        err=True,
+    )
+    run_stdio(get_settings(), caller=caller, allow_write=allow_write)
+
+
 def _run_single(project_dir: Path, stage: str, provider: str | None):
     root, config = _project(project_dir)
     settings = get_settings()

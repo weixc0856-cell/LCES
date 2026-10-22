@@ -63,6 +63,8 @@ class Settings(BaseSettings):
 
     projects_dir: Path = Path("projects")
     database_path: Path = Path("var/lces.sqlite3")
+    # Append-only JSONL log for tool calls (CLI/MCP). Contains no secrets.
+    tool_log_path: Path = Path("var/tool_calls.jsonl")
     routing_file: Path | None = None
     log_level: str = "INFO"
 
