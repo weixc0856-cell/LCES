@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "FrameEntry": {
+      "additionalProperties": false,
+      "description": "One exported frame, with the evidence needed to re-check it.",
+      "properties": {
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "decodable": {
+          "default": true,
+          "title": "Decodable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "index",
+        "path",
+        "sha256",
+        "width",
+        "height"
+      ],
+      "title": "FrameEntry",
+      "type": "object"
+    },
+    "SceneFrameSpan": {
+      "additionalProperties": false,
+      "description": "Half-open frame range owned by one scene.",
+      "properties": {
+        "scene_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "start_frame": {
+          "minimum": 0,
+          "title": "Start Frame",
+          "type": "integer"
+        },
+        "end_frame": {
+          "exclusiveMinimum": 0,
+          "title": "End Frame",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scene_id",
+        "start_frame",
+        "end_frame"
+      ],
+      "title": "SceneFrameSpan",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Versioned evidence for a rendered frame sequence.\n\nThe manifest never replaces verification: every path is re-hashed and\nre-decoded by ``frame_manifest.verify_frame_manifest``.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "build_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "title": "Build Id",
+      "type": "string"
+    },
+    "asset_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "fps_num": {
+      "exclusiveMinimum": 0,
+      "title": "Fps Num",
+      "type": "integer"
+    },
+    "fps_den": {
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "title": "Fps Den",
+      "type": "integer"
+    },
+    "width": {
+      "exclusiveMinimum": 0,
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "exclusiveMinimum": 0,
+      "title": "Height",
+      "type": "integer"
+    },
+    "format": {
+      "const": "png",
+      "default": "png",
+      "title": "Format",
+      "type": "string"
+    },
+    "total_frames": {
+      "exclusiveMinimum": 0,
+      "title": "Total Frames",
+      "type": "integer"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/SceneFrameSpan"
+      },
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/FrameEntry"
+      },
+      "minItems": 1,
+      "title": "Frames",
+      "type": "array"
+    }
+  },
+  "required": [
+    "build_id",
+    "asset_id",
+    "fps_num",
+    "width",
+    "height",
+    "total_frames",
+    "scenes",
+    "frames"
+  ],
+  "title": "FrameManifest",
+  "type": "object"
+}

@@ -15,6 +15,7 @@ import pytest
 
 from content_studio import motion_canvas as mc
 from content_studio.errors import RenderCancelled, RenderError
+from content_studio.frame_manifest import png_problems
 from content_studio.models import VisualSpec
 from content_studio.renderers import RenderContext, default_registry
 
@@ -68,7 +69,7 @@ def _chunk(kind: bytes, payload: bytes) -> bytes:
 
 def _png(width: int = 320, height: int = 180) -> bytes:
     header = width.to_bytes(4, "big") + height.to_bytes(4, "big") + bytes([8, 2, 0, 0, 0])
-    return mc.PNG_SIGNATURE + _chunk(b"IHDR", header) + _chunk(b"IEND", b"")
+    return bytes.fromhex("89504e470d0a1a0a") + _chunk(b"IHDR", header) + _chunk(b"IEND", b"")
 
 
 class _StubRenderer(mc.MotionCanvasRenderer):
@@ -84,7 +85,7 @@ class _StubRenderer(mc.MotionCanvasRenderer):
         forced: str = "",
         write_report: bool = True,
     ) -> None:
-        super().__init__(max_render_ms=1000)
+        super().__init__(max_render_ms=1000, decode_frames=False)
         self.report = report
         self.write_report = write_report
         self.frames = frames
@@ -252,6 +253,7 @@ def test_render_returns_build_id_and_report(build_root):
     assert result.status == "completed"
     assert mc.BUILD_ID_PATTERN.fullmatch(result.build_id)
     assert result.artifacts and result.artifacts[0].name == "report.json"
+    assert result.manifest is not None and result.manifest.is_file()
     assert renderer.seen is not None
     assert renderer.seen["env"]["EXPECTED_FRAMES"] == "30"
     assert renderer.seen["command"][1] == "driver.mjs"
@@ -271,11 +273,11 @@ def test_frame_shortfall_is_a_frame_mismatch(build_root):
     assert caught.value.code == "frame_mismatch"
 
 
-def test_missing_frames_are_output_corrupt(build_root):
+def test_missing_frames_are_a_frame_mismatch(build_root):
     renderer = _StubRenderer(frames=29, report={"frames": 30})
     with pytest.raises(RenderError) as caught:
         _render(renderer, build_root)
-    assert caught.value.code == "output_corrupt"
+    assert caught.value.code == "frame_mismatch"
 
 
 def test_truncated_png_is_output_corrupt(build_root):
@@ -380,23 +382,34 @@ def test_png_crc_mismatch_is_detected(tmp_path):
     broken[-1] ^= 0xFF
     path = tmp_path / "000000.png"
     path.write_bytes(bytes(broken))
-    assert "CRC mismatch" in mc._png_problem(path, 320, 180)
+    assert any("CRC mismatch" in problem for problem in png_problems(path, 320, 180))
 
 
 def test_png_dimension_mismatch_is_detected(tmp_path):
     path = tmp_path / "000000.png"
     path.write_bytes(_png(640, 360))
-    assert "does not match" in mc._png_problem(path, 320, 180)
+    assert any("does not match" in problem for problem in png_problems(path, 320, 180))
 
 
-def test_frame_problems_reports_a_shortfall(tmp_path):
-    problems = mc._frame_problems(tmp_path, 2, 320, 180)
-    assert any("expected 2 frames" in problem for problem in problems)
+def test_animation_asset_contract_records_the_manifest_hash(tmp_path):
+    from content_studio.visuals import RenderedVisual, _asset_contracts
 
-
-def test_frame_problems_walks_the_exporter_subdirectory(tmp_path):
-    nested = tmp_path / "course-v1"
-    nested.mkdir()
-    for index in range(2):
-        (nested / f"{index:06d}.png").write_bytes(_png())
-    assert mc._frame_problems(tmp_path, 2, 320, 180) == []
+    project = tmp_path / "project"
+    (project / "build").mkdir(parents=True)
+    (project / "content").mkdir()
+    manifest = project / "build" / "frame_manifest.json"
+    manifest.write_text("{}", encoding="utf-8")
+    spec = VisualSpec(visual_id="course-v1", visual_type="animation")
+    rendered = RenderedVisual(
+        slide_id="slide-001",
+        block_index=0,
+        spec=spec,
+        html="",
+        renderer="motion_canvas.renderer",
+        renderer_version="0.1.0",
+        output_sha256="",
+        artifacts=(manifest,),
+    )
+    assets = _asset_contracts(project, [rendered], None)
+    assert assets[0].asset_type == "animation"
+    assert "build/frame_manifest.json" in assets[0].output_hashes

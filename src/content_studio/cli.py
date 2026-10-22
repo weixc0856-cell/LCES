@@ -24,6 +24,7 @@ from content_studio.models import (
     ContentOutline,
     EvidenceLedger,
     EvidenceRecord,
+    FrameManifest,
     ProjectConfig,
     PublicContent,
     QAReport,
@@ -637,6 +638,7 @@ def export_schemas(
         "visual_spec": VisualSpec,
         "visual_asset": VisualAsset,
         "scene_contract": SceneContract,
+        "frame_manifest": FrameManifest,
         "scene_set": SceneSet,
         "video_contract": VideoContract,
     }

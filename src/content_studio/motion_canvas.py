@@ -31,7 +31,6 @@ import subprocess
 import sys
 import threading
 import time
-import zlib
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -42,6 +41,11 @@ from content_studio.errors import (
     ERROR_CODES_PATH,
     RenderCancelled,
     RenderError,
+)
+from content_studio.frame_manifest import (
+    build_frame_manifest,
+    verify_frame_manifest,
+    write_frame_manifest,
 )
 from content_studio.models import SceneContract, SceneSet, VideoContract, VisualSpec
 from content_studio.paths import repository_root
@@ -68,8 +72,6 @@ MAX_HEIGHT = 4320
 
 BUILD_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
 HEX_COLOUR = re.compile(r"^#[0-9a-fA-F]{6}$")
-PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-_FRAME_NAME = re.compile(r"^\d{6}\.png$")
 
 
 @dataclass(frozen=True)
@@ -254,8 +256,11 @@ class MotionCanvasRenderer(Renderer):
     version = "0.1.0"
     visual_types = frozenset({"animation"})
 
-    def __init__(self, *, max_render_ms: int = DEFAULT_MAX_RENDER_MS) -> None:
+    def __init__(
+        self, *, max_render_ms: int = DEFAULT_MAX_RENDER_MS, decode_frames: bool = True
+    ) -> None:
         self.max_render_ms = max_render_ms
+        self.decode_frames = decode_frames
         self._lock = threading.Lock()
         self._cancel = threading.Event()
         self._process: subprocess.Popen[bytes] | None = None
@@ -434,9 +439,28 @@ class MotionCanvasRenderer(Renderer):
                     code="frame_mismatch",
                     stage="output",
                 )
-            problems = _frame_problems(frames_dir, plan.total_frames, video.width, video.height)
+            manifest = build_frame_manifest(
+                build_id=build_id,
+                asset_id=spec.visual_id,
+                plan=plan,
+                scene_ids=scenes.scene_ids,
+                frames_dir=frames_dir,
+                build_root=build_root,
+                width=video.width,
+                height=video.height,
+            )
+            manifest_path = write_frame_manifest(manifest, build_root / "frame_manifest.json")
+            # The manifest is evidence, not proof: re-hash and re-decode the
+            # files it lists before the build is called complete.
+            problems = verify_frame_manifest(
+                manifest,
+                build_root=build_root,
+                frames_dir=frames_dir,
+                plan=plan,
+                decode_frames=self.decode_frames,
+            )
             if problems:
-                raise RenderError("; ".join(problems), code="output_corrupt", stage="output")
+                raise RenderError("; ".join(problems), code="qa_failed", stage="qa")
 
             self._diagnostics.append(f"build {build_id}: completed")
             self._last = {
@@ -444,12 +468,14 @@ class MotionCanvasRenderer(Renderer):
                 "visual_id": spec.visual_id,
                 "frames": plan.total_frames,
                 "report": report_path,
+                "manifest": manifest_path,
             }
             return RenderResult(
                 status="completed",
                 html="",
                 build_id=build_id,
-                artifacts=(report_path,),
+                artifacts=(report_path, manifest_path),
+                manifest=manifest_path,
             )
         except BaseException as exc:
             self._diagnostics.append(f"build {build_id}: {exc.__class__.__name__}: {exc}")
@@ -514,8 +540,12 @@ class MotionCanvasRenderer(Renderer):
             _terminate(process)
 
     def collect_outputs(self, spec: VisualSpec, context: RenderContext) -> list[Path]:
-        report = self._last.get("report")
-        return [report] if isinstance(report, Path) and report.is_file() else []
+        artifacts: list[Path] = []
+        for key in ("report", "manifest"):
+            path = self._last.get(key)
+            if isinstance(path, Path) and path.is_file():
+                artifacts.append(path)
+        return artifacts
 
     def validate(
         self, spec: VisualSpec, html: str, context: RenderContext | None = None
@@ -782,56 +812,3 @@ def _terminate(process: subprocess.Popen[bytes]) -> None:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             pass
-
-
-def _frame_problems(frames_dir: Path, expected: int, width: int, height: int) -> list[str]:
-    # The image-sequence exporter writes into a project subdirectory, the same
-    # way the driver counts frames recursively. A top-level listing would
-    # report zero frames and fail a good build.
-    frames = sorted(path for path in frames_dir.rglob("*.png") if _FRAME_NAME.match(path.name))
-    if len(frames) != expected:
-        return [f"expected {expected} frames, found {len(frames)} in the build directory"]
-    problems: list[str] = []
-    for path in frames:
-        issue = _png_problem(path, width, height)
-        if issue:
-            problems.append(issue)
-        if len(problems) >= 5:
-            problems.append("further frame problems suppressed")
-            break
-    return problems
-
-
-def _png_problem(path: Path, width: int, height: int) -> str:
-    data = path.read_bytes()
-    if not data.startswith(PNG_SIGNATURE):
-        return f"{path.name}: not a PNG"
-    offset = 8
-    seen_header = False
-    seen_end = False
-    actual_width = actual_height = 0
-    while offset + 12 <= len(data):
-        length = int.from_bytes(data[offset : offset + 4], "big")
-        chunk_type = data[offset + 4 : offset + 8]
-        end = offset + 12 + length
-        if end > len(data):
-            return f"{path.name}: truncated at {chunk_type.decode('latin1', 'replace')}"
-        expected_crc = int.from_bytes(data[end - 4 : end], "big")
-        actual_crc = zlib.crc32(data[offset + 4 : end - 4]) & 0xFFFFFFFF
-        if expected_crc != actual_crc:
-            return f"{path.name}: CRC mismatch in {chunk_type.decode('latin1', 'replace')}"
-        if not seen_header and chunk_type != b"IHDR":
-            return f"{path.name}: does not start with IHDR"
-        if chunk_type == b"IHDR":
-            seen_header = True
-            actual_width = int.from_bytes(data[offset + 8 : offset + 12], "big")
-            actual_height = int.from_bytes(data[offset + 12 : offset + 16], "big")
-        if chunk_type == b"IEND":
-            seen_end = True
-            break
-        offset = end
-    if not seen_header or not seen_end:
-        return f"{path.name}: missing IHDR or IEND"
-    if (actual_width, actual_height) != (width, height):
-        return f"{path.name}: {actual_width}x{actual_height} does not match {width}x{height}"
-    return ""
