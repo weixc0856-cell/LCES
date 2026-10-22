@@ -541,6 +541,83 @@ class VideoContract(StrictModel):
         return self.fps_num / self.fps_den
 
 
+class FrameEntry(StrictModel):
+    """One exported frame, with the evidence needed to re-check it."""
+
+    index: int = Field(ge=0)
+    path: str
+    sha256: str = Field(pattern=_HASH)
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    decodable: bool = True
+
+    @field_validator("path")
+    @classmethod
+    def _frame_path(cls, value: str) -> str:
+        return _relative_path(value)
+
+
+class SceneFrameSpan(StrictModel):
+    """Half-open frame range owned by one scene."""
+
+    scene_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    start_frame: int = Field(ge=0)
+    end_frame: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> SceneFrameSpan:
+        if self.end_frame <= self.start_frame:
+            raise ValueError(f"scene '{self.scene_id}': end_frame must be greater than start_frame")
+        return self
+
+
+class FrameManifest(StrictModel):
+    """Versioned evidence for a rendered frame sequence.
+
+    The manifest never replaces verification: every path is re-hashed and
+    re-decoded by ``frame_manifest.verify_frame_manifest``.
+    """
+
+    schema_version: str = VISUAL_SCHEMA_VERSION
+    build_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    asset_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    fps_num: int = Field(gt=0)
+    fps_den: int = Field(default=1, gt=0)
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    format: Literal["png"] = "png"
+    total_frames: int = Field(gt=0)
+    scenes: list[SceneFrameSpan] = Field(min_length=1)
+    frames: list[FrameEntry] = Field(min_length=1)
+
+    @field_validator("schema_version")
+    @classmethod
+    def _manifest_schema_major(cls, value: str) -> str:
+        if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
+            raise ValueError(f"unsupported frame manifest schema_version '{value}'")
+        return value
+
+    @model_validator(mode="after")
+    def _complete(self) -> FrameManifest:
+        if len(self.frames) != self.total_frames:
+            raise ValueError(
+                f"manifest lists {len(self.frames)} frames but declares {self.total_frames}"
+            )
+        indices = [frame.index for frame in self.frames]
+        if indices != list(range(self.total_frames)):
+            raise ValueError("frame indices must be contiguous from 0")
+        start = 0
+        for span in self.scenes:
+            if span.start_frame != start:
+                raise ValueError(
+                    f"scene '{span.scene_id}' starts at {span.start_frame}, expected {start}"
+                )
+            start = span.end_frame
+        if start != self.total_frames:
+            raise ValueError(f"scene spans cover {start} frames, expected {self.total_frames}")
+        return self
+
+
 class PublicSlide(StrictModel):
     slide_id: str = Field(pattern=r"^slide-[0-9]{3,}$")
     title: str = Field(min_length=1)

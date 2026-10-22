@@ -29,6 +29,7 @@ which belongs to Phase 3).
 | `visual_asset.schema.json` | `VisualAsset` (rendered artifact provenance) |
 | `scene_contract.schema.json` | `SceneContract` (one timeline shot, integer ms) |
 | `scene_set.schema.json` | `SceneSet` (ordered scenes for one video build) |
+| `frame_manifest.schema.json` | `FrameManifest` (frame evidence for one build) |
 | `video_contract.schema.json` | `VideoContract` (canvas, rational fps, encoding) |
 | `scene_render_contract.schema.json` | Phase 3 scene contract (not generated yet) |
 

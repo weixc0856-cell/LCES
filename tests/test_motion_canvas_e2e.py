@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from content_studio import motion_canvas as mc
+from content_studio.frame_manifest import png_problems
 from content_studio.models import VisualSpec
 from content_studio.renderers import RenderContext
 
@@ -69,7 +70,8 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
     assert result.status == "completed"
     assert result.build_id
 
-    report = json.loads(result.artifacts[0].read_text(encoding="utf-8"))
+    report_path = next(path for path in result.artifacts if path.name == "report.json")
+    report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["finished"] is True
     assert report["terminal"] == "completed"
     assert report["error_code"] == ""
@@ -95,5 +97,5 @@ def test_production_config_renders_300_frames_at_1080p(tmp_path):
     )
     assert report["frames"] == 300
     frames = sorted(tmp_path.rglob("000000.png"))[0].parent
-    assert mc._png_problem(frames / "000000.png", 1920, 1080) == ""
-    assert mc._png_problem(frames / "000299.png", 1920, 1080) == ""
+    assert png_problems(frames / "000000.png", 1920, 1080) == []
+    assert png_problems(frames / "000299.png", 1920, 1080) == []
