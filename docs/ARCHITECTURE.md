@@ -88,9 +88,12 @@ figure block, `renderers.py` resolves the spec through a registry keyed by
 output hash per fragment.
 
 Unknown visual types raise `UnsupportedVisualType` and fail the build; they are
-never rendered as empty placeholders. The template still contains the previous
-inline branches so `use_registry=False` can reproduce the old output for parity
-tests. See `docs/CONTENT_CONTRACTS.md` for the version policy.
+never rendered as empty placeholders. Statistical charts are described as
+Vega-Lite documents and rendered to static SVG by `vl-convert` (no Node.js or
+network); custom SVG files are inlined only after XML and safety checks. The
+template still contains the previous inline branches so `use_registry=False`
+can reproduce the old output for parity tests. See
+`docs/CONTENT_CONTRACTS.md` for the version policy.
 
 ## Local/cloud split
 

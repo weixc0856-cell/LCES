@@ -153,6 +153,20 @@ uv run lces validate .\projects\<project>
 
 渲染检查默认启用；`LCES_BROWSER_QA=false` 可显式跳过（跳过记为 `NOT_RUN`，不代表通过）。未安装 Playwright 时同样记为 `NOT_RUN`。截图写入 `internal/qa/screenshots/`，基准图写入 `internal/qa/baselines/`；两者随项目目录一起被 git 忽略。基准图与当前截图不一致时记 `warn`，需人工确认后才能发布。
 
+### 图表渲染（Phase 3）
+
+统计图表用 Vega-Lite 规格描述，由 `vl-convert` 离线渲染为静态 SVG（不需要 Node.js）：
+
+```powershell
+uv sync --extra charts
+uv run lces render-spec .\spec.json --out .\build\visuals
+```
+
+- 视觉类型与渲染器：`table → html.table`、`figure_image → html.figure`、`custom_svg → svg.custom`、`data_chart → vega_lite.chart`
+- 自定义 SVG 必须是合法 XML，且拒绝 `<script>`、事件处理器、`<foreignObject>` 与外部链接
+- 内联 SVG 带 `role="img"`、`aria-label` 和 `max-width:100%`，窄视口不会撑破布局
+- 未安装 `vl-convert` 时 `data_chart` 明确报错，不会静默输出空图
+
 ## 仓库结构
 
 ```
@@ -163,7 +177,7 @@ src/content_studio/
 ├── research.py         主张、证据、研究简报
 ├── content.py          大纲、公开内容、口播稿、阅读版
 ├── rendering.py        Jinja2 公开 HTML（经渲染器注册表输出视觉块）
-├── renderers.py        渲染器接口与注册表（html.table / html.figure）
+├── renderers.py        渲染器接口与注册表（table / figure / custom SVG / Vega-Lite）
 ├── visuals.py          内容块 → 视觉规格 → 渲染清单
 ├── browser_qa.py       Playwright 渲染检查与截图基准
 ├── validation.py       Gate 1-4 自动检查
