@@ -275,8 +275,10 @@ def test_registry_maps_dependency_mismatch(monkeypatch):
     assert caught.value.stage == "environment"
 
 
-def test_animation_is_not_in_the_default_registry():
-    assert "animation" not in default_registry().known_types()
+def test_animation_is_in_the_default_registry():
+    registry = default_registry()
+    assert "animation" in registry.known_types()
+    assert registry.resolve("animation").name == mc.MotionCanvasRenderer.name
 
 
 # -- input ---------------------------------------------------------------
@@ -335,7 +337,10 @@ def _render(
     project: Path | None = None,
 ):
     spec = spec or _spec()
-    return renderer.render(spec, RenderContext(project_dir=project, output_dir=root))
+    return renderer.render(
+        spec,
+        RenderContext(project_dir=project, output_dir=root, publish=project is not None),
+    )
 
 
 def test_render_returns_build_id_and_report(build_root):
@@ -490,11 +495,11 @@ def test_every_failure_publishes_nothing(build_root, tmp_path, stub, expected_co
     would read as a successful publication.
     """
 
-    media = build_root / "media"
+    project = tmp_path / "project"
+    media = project / "build" / "media"
     media.mkdir(parents=True)
     sentinel = media / "course.mp4"
     sentinel.write_bytes(b"old-video")
-    project = tmp_path / "project"
     (project / "content").mkdir(parents=True)
 
     with pytest.raises(RenderError) as caught:
@@ -546,35 +551,53 @@ def test_png_dimension_mismatch_is_detected(tmp_path):
     assert any("does not match" in problem for problem in png_problems(path, 320, 180))
 
 
-def test_animation_asset_contract_records_the_manifest_hash(tmp_path):
+def test_animation_asset_contract_records_video_manifest_and_build_id(tmp_path):
     from content_studio.visuals import RenderedVisual, _asset_contracts
 
     project = tmp_path / "project"
-    (project / "build").mkdir(parents=True)
-    (project / "content").mkdir()
-    manifest = project / "build" / "frame_manifest.json"
+    (project / "content" / "scenes").mkdir(parents=True)
+    (project / "build" / "media").mkdir(parents=True)
+    (project / "internal" / "qa").mkdir(parents=True)
+    scene = project / "content" / "scenes" / "course.json"
+    scene.write_text("{}", encoding="utf-8")
+    video = project / "build" / "media" / "course.mp4"
+    video.write_bytes(b"video")
+    manifest = project / "internal" / "qa" / "frame_manifest.json"
     manifest.write_text("{}", encoding="utf-8")
-    spec = VisualSpec(visual_id="course-v1", visual_type="animation")
+    report = project / "internal" / "qa" / "encode_report.json"
+    report.write_text("{}", encoding="utf-8")
+    spec = VisualSpec(
+        visual_id="slide-001-block-01",
+        visual_type="animation",
+        data={"source_path": "content/scenes/course.json"},
+    )
     rendered = RenderedVisual(
         slide_id="slide-001",
-        block_index=0,
+        block_index=1,
         spec=spec,
         html="",
         renderer="motion_canvas.renderer",
         renderer_version="0.1.0",
         output_sha256="",
-        artifacts=(manifest,),
+        artifacts=(video, manifest, report, project / "build" / "ephemeral.log"),
+        build_id="build-001",
     )
     assets = _asset_contracts(project, [rendered], None)
     assert assets[0].asset_type == "animation"
-    assert "build/frame_manifest.json" in assets[0].output_hashes
+    assert assets[0].source == "content/scenes/course.json"
+    assert assets[0].build_id == "build-001"
+    assert set(assets[0].output_hashes) == {
+        "build/media/course.mp4",
+        "internal/qa/frame_manifest.json",
+        "internal/qa/encode_report.json",
+    }
 
 
 def test_publish_writes_the_video_and_qa_evidence(build_root, tmp_path):
-    media = build_root / "media"
+    project = tmp_path / "project"
+    media = project / "build" / "media"
     media.mkdir(parents=True)
     (media / "course.mp4").write_bytes(b"old-video")
-    project = tmp_path / "project"
     (project / "content").mkdir(parents=True)
 
     result = _render(_StubRenderer(), build_root, project=project)
@@ -586,11 +609,11 @@ def test_publish_writes_the_video_and_qa_evidence(build_root, tmp_path):
 
 
 def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):
-    media = build_root / "media"
+    project = tmp_path / "project"
+    media = project / "build" / "media"
     media.mkdir(parents=True)
     sentinel = media / "course.mp4"
     sentinel.write_bytes(b"old-video")
-    project = tmp_path / "project"
     (project / "content").mkdir(parents=True)
 
     def fail(*args, **kwargs):
@@ -605,11 +628,11 @@ def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):
 
 
 def test_video_mismatch_keeps_the_old_video(build_root, tmp_path, monkeypatch):
-    media = build_root / "media"
+    project = tmp_path / "project"
+    media = project / "build" / "media"
     media.mkdir(parents=True)
     sentinel = media / "course.mp4"
     sentinel.write_bytes(b"old-video")
-    project = tmp_path / "project"
     (project / "content").mkdir(parents=True)
 
     monkeypatch.setattr(

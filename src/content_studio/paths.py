@@ -9,6 +9,9 @@ from content_studio.errors import ConfigurationError
 
 PROJECT_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
 
+# Present while a public build is committing. `lces release` refuses it.
+BUILD_MARKER = ".build-in-progress"
+
 # Created by `lces init-project`. Permissions differ per directory: only
 # `release/` may leave the machine.
 PROJECT_SUBDIRS = (

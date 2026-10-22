@@ -418,8 +418,16 @@ class MotionCanvasRenderer(Renderer):
         if context.output_dir is None:
             raise _invalid("Motion Canvas needs an output directory")
         scenes, video, plan = self._parse(spec)
+        project_root = context.project_dir.resolve() if context.project_dir is not None else None
+        publish_root = project_root if context.publish else None
+        if publish_root is not None and video.output_path != "build/media/course.mp4":
+            raise _invalid(
+                "P2.1 publishes to build/media/course.mp4; "
+                f"video.output_path is '{video.output_path}'"
+            )
+        base_dir = publish_root / "build" if publish_root is not None else context.output_dir
         build_id = _build_id()
-        build_root = context.output_dir / "motion" / build_id
+        build_root = base_dir / "motion" / build_id
         if build_root.exists():
             raise _invalid(f"build directory already exists: {build_root.name}")
         project = motion_project_dir()
@@ -541,7 +549,12 @@ class MotionCanvasRenderer(Renderer):
             # Encode into a sibling staging directory, verify, then replace
             # atomically. Nothing touches the published path until every check
             # has passed, so a failed build cannot damage an older video.
-            media_dir = context.output_dir / "media"
+            if publish_root is not None:
+                media_dir = publish_root / "build" / "media"
+                final_video = publish_root / video.output_path
+            else:
+                media_dir = context.output_dir / "media"
+                final_video = media_dir / "course.mp4"
             staging_dir = media_dir / f".staging-{build_id}"
             staging_dir.mkdir(parents=True, exist_ok=True)
             staged_video = staging_dir / "course.mp4"
@@ -549,17 +562,17 @@ class MotionCanvasRenderer(Renderer):
             video_problems = verify_video_against_manifest(staged_video, manifest)
             if video_problems:
                 raise RenderError("; ".join(video_problems), code="qa_failed", stage="qa")
-            final_video = media_dir / "course.mp4"
             os.replace(staged_video, final_video)
             try:
                 staging_dir.rmdir()
             except OSError:
                 pass
-            if context.project_dir is not None:
-                qa_dir = context.project_dir / "internal" / "qa"
+            qa_paths: tuple[Path, ...] = ()
+            if project_root is not None:
+                qa_dir = project_root / "internal" / "qa"
                 qa_dir.mkdir(parents=True, exist_ok=True)
-                write_json(qa_dir / "frame_manifest.json", manifest)
-                write_json(
+                qa_manifest = write_json(qa_dir / "frame_manifest.json", manifest)
+                qa_report = write_json(
                     qa_dir / "encode_report.json",
                     encode_report(
                         manifest,
@@ -573,6 +586,7 @@ class MotionCanvasRenderer(Renderer):
                         manifest_sha256=sha256_file(manifest_path),
                     ),
                 )
+                qa_paths = (qa_manifest, qa_report)
 
             self._diagnostics.append(f"build {build_id}: completed")
             self._last = {
@@ -587,7 +601,7 @@ class MotionCanvasRenderer(Renderer):
                 status="completed",
                 html="",
                 build_id=build_id,
-                artifacts=(report_path, manifest_path, final_video),
+                artifacts=(report_path, manifest_path, final_video, *qa_paths),
                 manifest=manifest_path,
             )
         except BaseException as exc:

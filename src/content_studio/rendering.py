@@ -6,16 +6,21 @@ scripts are never accepted here, by construction.
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
 from content_studio.errors import RenderError
-from content_studio.models import ChartBlock, PublicContent, ReadingEdition
+from content_studio.models import AnimationBlock, ChartBlock, PublicContent, ReadingEdition
+from content_studio.paths import BUILD_MARKER
+from content_studio.renderers import RendererRegistry
+from content_studio.utils import utc_now_iso, write_json_atomic, write_text_atomic
 from content_studio.visuals import (
     RenderedVisual,
     render_content_visuals,
+    verify_build_assets,
     write_render_manifest,
 )
 
@@ -40,14 +45,22 @@ def _copy_charts(project_dir: Path, output_dir: Path) -> None:
 
 
 def _reject_registry_only_blocks(content: PublicContent) -> None:
-    """The legacy template path cannot produce rendered charts; say so."""
+    """The legacy template path cannot produce rendered visuals; say so."""
 
     for slide in content.slides:
         for block in slide.body:
-            if isinstance(block, ChartBlock):
+            if isinstance(block, (ChartBlock, AnimationBlock)):
                 raise RenderError(
-                    f"slide {slide.slide_id}: chart blocks require the renderer registry"
+                    f"slide {slide.slide_id}: {block.type} blocks require the renderer registry"
                 )
+
+
+def _video_src(project_dir: Path | None, page_path: Path, spec_visual: RenderedVisual) -> str:
+    output_path = str(spec_visual.spec.data.get("video", {}).get("output_path") or "")
+    if project_dir is None or not output_path:
+        return "media/course.mp4"
+    target = (project_dir / output_path).resolve()
+    return os.path.relpath(target, page_path.parent.resolve()).replace(os.sep, "/")
 
 
 def build_public_html(
@@ -57,32 +70,54 @@ def build_public_html(
     *,
     project_dir: Path | None = None,
     use_registry: bool = True,
+    registry: RendererRegistry | None = None,
 ) -> Path:
     data = content.model_dump(mode="json")
     rendered: list[RenderedVisual] = []
     if not use_registry:
         _reject_registry_only_blocks(content)
+    marker = project_dir / "build" / BUILD_MARKER if project_dir is not None else None
+    if marker is not None and use_registry:
+        # From here until the final asset check, build/ is not releasable.
+        write_json_atomic(marker, {"started_at": utc_now_iso()})
     if use_registry:
         rendered = render_content_visuals(
-            content, project_dir=project_dir, output_dir=output_path.parent
+            content,
+            project_dir=project_dir,
+            output_dir=output_path.parent,
+            registry=registry,
+            publish=True,
         )
         # The template receives a view model with rendered fragments attached;
         # the content model itself is never mutated.
-        by_position = {(item.slide_id, item.block_index): item.html for item in rendered}
+        by_position = {(item.slide_id, item.block_index): item for item in rendered}
         for slide_data, slide in zip(data["slides"], content.slides, strict=True):
             for index, block_data in enumerate(slide_data["body"]):
-                html = by_position.get((slide.slide_id, index))
-                if html is not None:
-                    block_data["visual_html"] = html
+                item = by_position.get((slide.slide_id, index))
+                if item is None:
+                    continue
+                if item.html:
+                    block_data["visual_html"] = item.html
+                if item.spec.visual_type == "animation":
+                    block_data["video_rendered"] = True
+                    block_data["video_src"] = _video_src(project_dir, output_path, item)
 
     rendered_html = _environment(template_dir).get_template("course.html.j2").render(content=data)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(rendered_html, encoding="utf-8")
+    write_text_atomic(output_path, rendered_html)
     if project_dir is not None:
         _copy_charts(project_dir, output_path.parent)
         if use_registry:
             # Written after the page exists so inline assets can hash it.
             write_render_manifest(project_dir, rendered, page_path=output_path)
+            problems = verify_build_assets(project_dir)
+            if problems:
+                raise RenderError(
+                    "build asset consistency failed: " + "; ".join(problems),
+                    code="qa_failed",
+                    stage="qa",
+                )
+            if marker is not None:
+                marker.unlink()
     return output_path
 
 

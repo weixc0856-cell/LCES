@@ -720,7 +720,7 @@ def render_scene(
     typer.echo(f"{spec.visual_id} -> build {result.build_id}")
     for artifact in result.artifacts:
         typer.echo(f"  产物: {artifact}")
-    typer.echo("提示: P1.1 只产出帧序列；编码与发布在 P1.3。")
+    typer.echo("提示: 此命令是独立渲染入口；生产构建请使用内容中的 animation 块与 `lces build`。")
 
 
 @app.command("review-claims")

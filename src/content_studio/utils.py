@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -53,6 +54,32 @@ def write_json(path: Path, data: Any, *, sort_keys: bool = False) -> Path:
         default=_json_default,
     )
     return write_text(path, text)
+
+
+def write_text_atomic(path: Path, text: str) -> Path:
+    """Write beside the target, then ``os.replace``; never expose half a file."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp")
+    payload = text if text.endswith("\n") else text + "\n"
+    temporary.write_text(payload, encoding="utf-8", newline="\n")
+    os.replace(temporary, path)
+    return path
+
+
+def write_json_atomic(path: Path, data: Any, *, sort_keys: bool = False) -> Path:
+    if isinstance(data, BaseModel):
+        payload: Any = data.model_dump(mode="json")
+    else:
+        payload = data
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=sort_keys,
+        default=_json_default,
+    )
+    return write_text_atomic(path, text)
 
 
 def read_json(path: Path) -> Any:

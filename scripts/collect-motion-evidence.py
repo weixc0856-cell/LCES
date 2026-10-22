@@ -65,9 +65,15 @@ def collect(root: Path, out: Path, *, keep_frames: bool, frames_out: Path | None
         copy_if_file(build / "driver.log", target / "driver.log")
         copy_if_file(build / "encode_report.json", target / "encode_report.json")
         # The adapter also copies its build evidence into the project's
-        # internal/qa directory; keep that copy as the Gate 4 input.
-        qa_dir = build.parent.parent / "project" / "internal" / "qa"
-        if qa_dir.is_dir():
+        # internal/qa directory; keep that copy as the Gate 4 input. The
+        # production test puts the build under <project>/build/motion/...,
+        # so find the project root instead of assuming one directory depth.
+        project_root = next(
+            (parent for parent in build.parents if (parent / "project.yaml").is_file()),
+            None,
+        )
+        qa_dir = project_root / "internal" / "qa" if project_root is not None else None
+        if qa_dir is not None and qa_dir.is_dir():
             copy_if_file(qa_dir / "encode_report.json", target / "qa-encode_report.json")
             copy_if_file(qa_dir / "frame_manifest.json", target / "qa-frame_manifest.json")
         frames = frame_files(build)

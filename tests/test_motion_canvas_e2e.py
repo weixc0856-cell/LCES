@@ -75,7 +75,7 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
     )
 
     result = renderer.render(
-        spec, RenderContext(output_dir=tmp_path, project_dir=tmp_path / "project")
+        spec, RenderContext(output_dir=tmp_path, project_dir=tmp_path / "project", publish=True)
     )
     assert result.status == "completed"
     assert result.build_id
@@ -98,7 +98,7 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
             "external requests were not blocked; the container was not offline"
         )
 
-    video = tmp_path / "media" / "course.mp4"
+    video = tmp_path / "project" / "build" / "media" / "course.mp4"
     assert video.is_file(), "the adapter must publish an encoded video"
     manifest_path = next(tmp_path.rglob("frame_manifest.json"))
     manifest = FrameManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
@@ -158,7 +158,7 @@ def test_cancel_mid_render_publishes_nothing(tmp_path):
     """The whole process group stops, and no publishable evidence is left."""
 
     renderer = _ready_renderer(max_render_ms=300_000)
-    media = tmp_path / "media"
+    media = tmp_path / "project" / "build" / "media"
     media.mkdir(parents=True)
     sentinel = media / "course.mp4"
     sentinel.write_bytes(b"old-video")
@@ -168,7 +168,10 @@ def test_cancel_mid_render_publishes_nothing(tmp_path):
 
     def run() -> None:
         try:
-            renderer.render(spec, RenderContext(output_dir=tmp_path))
+            renderer.render(
+                spec,
+                RenderContext(output_dir=tmp_path, project_dir=tmp_path / "project", publish=True),
+            )
         except BaseException as exc:  # asserted below
             errors.append(exc)
 
@@ -200,14 +203,16 @@ def test_timeout_stops_the_driver_and_publishes_nothing(tmp_path):
     """The adapter, not the driver, enforces the deadline."""
 
     renderer = _ready_renderer(max_render_ms=1_500)
-    media = tmp_path / "media"
+    media = tmp_path / "project" / "build" / "media"
     media.mkdir(parents=True)
     sentinel = media / "course.mp4"
     sentinel.write_bytes(b"old-video")
 
     spec = _spec(duration_ms=10_000, width=1920, height=1080)
     with pytest.raises(RenderError) as caught:
-        renderer.render(spec, RenderContext(output_dir=tmp_path))
+        renderer.render(
+            spec, RenderContext(output_dir=tmp_path, project_dir=tmp_path / "project", publish=True)
+        )
 
     assert caught.value.code == "render_timeout"
     assert caught.value.terminal == "failed"
