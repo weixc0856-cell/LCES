@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      keep_frames:
+        description: "Upload the production frame sequence (about 17 MB) for evidence checks"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -97,6 +103,28 @@ jobs:
               cp "$last" "motion-evidence/manifests/$build_id/last.png"
             fi
           done
+      - name: Stage production frames
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_frames }}
+        run: |
+          set -euo pipefail
+          for manifest in $(find /tmp/lces-p1-builds -name frame_manifest.json 2>/dev/null); do
+            if grep -q '"total_frames": 300' "$manifest"; then
+              build_dir=$(dirname "$manifest")
+              build_id=$(basename "$build_dir")
+              mkdir -p "p1-frames/$build_id"
+              cp "$manifest" "p1-frames/$build_id/"
+              cp "$build_dir/frames/report.json" "p1-frames/$build_id/" 2>/dev/null || true
+              cp "$build_dir/driver.log" "p1-frames/$build_id/" 2>/dev/null || true
+              cp -r "$build_dir/frames" "p1-frames/$build_id/frames"
+            fi
+          done
+      - name: Upload production frames
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_frames }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-canvas-p1-frames
+          path: p1-frames/
+          if-no-files-found: error
       - name: Collect failure diagnostics
         if: failure()
         run: |
