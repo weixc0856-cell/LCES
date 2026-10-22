@@ -105,46 +105,11 @@ jobs:
       - name: Collect frame manifests
         if: always()
         run: |
-          set -euo pipefail
-          mkdir -p motion-evidence/manifests /tmp/lces-p1-builds
-          for manifest in $(find /tmp/lces-p1-builds -name frame_manifest.json 2>/dev/null); do
-            build_dir=$(dirname "$manifest")
-            build_id=$(basename "$build_dir")
-            mkdir -p "motion-evidence/manifests/$build_id"
-            cp "$manifest" "motion-evidence/manifests/$build_id/"
-            cp "$build_dir/frames/report.json" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
-            cp "$build_dir/driver.log" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
-            media_root=$(dirname "$(dirname "$build_dir")")
-            cp "$media_root/media/course.mp4" "motion-evidence/manifests/$build_id/" 2>/dev/null || true
-            first=$(find "$build_dir/frames" -name '000000.png' 2>/dev/null | head -1)
-            if [ -n "$first" ]; then
-              cp "$first" "motion-evidence/manifests/$build_id/first.png"
-              last=$(find "$build_dir/frames" -name '*.png' 2>/dev/null | sort | tail -1)
-              cp "$last" "motion-evidence/manifests/$build_id/last.png"
-            fi
-          done
+          uv run python scripts/collect-motion-evidence.py             --root /tmp/lces-p1-builds --out motion-evidence
       - name: Stage production frames
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_frames }}
         run: |
-          set -euo pipefail
-          for manifest in $(find /tmp/lces-p1-builds -name frame_manifest.json 2>/dev/null); do
-            if grep -q '"total_frames": 300' "$manifest"; then
-              build_dir=$(dirname "$manifest")
-              build_id=$(basename "$build_dir")
-              mkdir -p "p1-frames/$build_id"
-              cp "$manifest" "p1-frames/$build_id/"
-              cp "$build_dir/frames/report.json" "p1-frames/$build_id/" 2>/dev/null || true
-              cp "$build_dir/driver.log" "p1-frames/$build_id/" 2>/dev/null || true
-              cp -r "$build_dir/frames" "p1-frames/$build_id/frames"
-            fi
-          done
-      - name: Upload production frames
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_frames }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: motion-canvas-p1-frames
-          path: p1-frames/
-          if-no-files-found: error
+          uv run python scripts/collect-motion-evidence.py             --root /tmp/lces-p1-builds --out motion-evidence             --keep-frames --frames-out p1-frames
       - name: Collect failure diagnostics
         if: failure()
         run: |

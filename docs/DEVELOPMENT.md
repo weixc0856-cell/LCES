@@ -21,6 +21,25 @@ uv run ruff format .
 uv run mypy src
 ```
 
+## Local-first verification
+
+Run these before pushing. GitHub Actions is the final clean-environment gate,
+not the development loop:
+
+```bash
+./scripts/ci-local.sh fast     # ruff, format, mypy, pytest (any OS)
+./scripts/ci-local.sh render   # Linux/WSL2: Node contract + real renders + encode + Gate 4
+./scripts/ci-local.sh full     # fast + render + browser QA
+```
+
+- The script reuses the exact commands from `.github/workflows/ci.yml`; it never
+  installs anything and never skips a gate.
+- `render` and `full` require Linux (WSL2), Node **24.22.1** (the Motion Canvas
+  gate), `motion/node_modules` (`npm ci`), the Playwright Chromium for 1.64.0,
+  and FFmpeg/ffprobe.
+- A missing tool stops the script with the command to run. Do not lower the
+  version gates to make a local run pass.
+
 ## Dependency policy
 
 - Runtime dependencies: `uv add <package>` then commit `pyproject.toml` + `uv.lock`.
