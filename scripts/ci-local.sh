@@ -3,7 +3,8 @@
 #
 #   ./scripts/ci-local.sh fast     # ruff, format, mypy, pytest (any OS)
 #   ./scripts/ci-local.sh render   # Linux/WSL: Node contract + real render/encode/Gate 4
-#   ./scripts/ci-local.sh full     # fast + render + browser QA
+#   ./scripts/ci-local.sh offline  # Docker: build once, render with `--network none`
+#   ./scripts/ci-local.sh full     # fast + render + offline + browser QA
 #
 # The commands are the same ones the GitHub workflows run. This script never
 # installs anything: missing tools stop it with the exact command to run.
@@ -20,11 +21,12 @@ note() { printf '\n==> %s\n' "$*"; }
 
 usage() {
   cat <<'USAGE'
-usage: ./scripts/ci-local.sh [fast|render|full]
+usage: ./scripts/ci-local.sh [fast|render|offline|full]
 
-  fast    ruff check, ruff format --check, mypy, pytest (no browser)
-  render  Linux/WSL only: Node contract suite, real renders, encode, Gate 4
-  full    fast + render + browser QA (needs the browser extra)
+  fast     ruff check, ruff format --check, mypy, pytest (no browser)
+  render   Linux/WSL only: Node contract suite, real renders, encode, Gate 4
+  offline  Docker only: build the pinned image, then render with --network none
+  full     fast + render + offline + browser QA (needs the browser extra)
 USAGE
 }
 
@@ -65,6 +67,11 @@ require_ffmpeg() {
     || die "ffmpeg and ffprobe are required"
 }
 
+require_docker() {
+  command -v docker >/dev/null 2>&1 || die "docker is not installed"
+  docker info >/dev/null 2>&1 || die "the Docker daemon is not reachable"
+}
+
 fast() {
   require_uv
   note "lint, format, types (CI test job)"
@@ -89,9 +96,23 @@ render() {
   LCES_MC_E2E=1 uv run pytest -m motion -v --basetemp=var/ci-local/pytest
 }
 
+offline() {
+  require_docker
+  mkdir -p var/ci-offline
+  note "build the offline image (network allowed here only)"
+  docker build -f motion/offline.Dockerfile -t lces-motion-offline .
+  docker image inspect lces-motion-offline --format '{{.Id}}' | tee var/ci-offline/image-id.txt
+  note "render, encode, Gate 4 and negative controls (--network none)"
+  docker run --rm --network none --memory=2048m --memory-swap=2048m \
+    -v "$ROOT/var/ci-offline:/evidence" \
+    -e LCES_OFFLINE_EVIDENCE=/evidence \
+    lces-motion-offline
+}
+
 full() {
   fast
   render
+  offline
   note "browser QA dependencies"
   uv run --extra browser python -c "import playwright" >/dev/null 2>&1 \
     || die "Python Playwright is missing; run: uv sync --extra browser"
@@ -108,6 +129,7 @@ PY
 case "$MODE" in
   fast) fast ;;
   render) render ;;
+  offline) offline ;;
   full) full ;;
   -h | --help | help) usage ;;
   *) usage; exit 2 ;;

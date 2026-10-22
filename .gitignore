@@ -28,3 +28,4 @@ projects/*/
 !projects/example-course/
 .DS_Store
 Thumbs.db
+offline-evidence/

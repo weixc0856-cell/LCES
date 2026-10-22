@@ -1,0 +1,21 @@
+# The offline P1 image builds from the repository root. Keep the context
+# small, and never let a host virtualenv or node_modules leak into the image.
+.git
+.github
+.claude
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+*.py[cod]
+node_modules
+motion/node_modules
+var
+offline-evidence
+projects
+spike
+evals
+docs
+.env
+.env.*
