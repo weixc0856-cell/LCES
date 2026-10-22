@@ -63,6 +63,42 @@ def fake_llama_server():
         thread.join(timeout=2)
 
 
+class _KeyedLlamaHandler(_FakeLlamaHandler):
+    """Mirrors llama-server started with --api-key: every request needs the key."""
+
+    def do_GET(self):
+        if self.headers.get("Authorization") != "Bearer secret-token":
+            self._send({"error": {"message": "Invalid API Key"}}, 401)
+            return
+        super().do_GET()
+
+
+@pytest.fixture
+def keyed_llama_server():
+    server = HTTPServer(("127.0.0.1", 0), _KeyedLlamaHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/v1"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_local_provider_uses_key_for_discovery_and_probe(keyed_llama_server):
+    provider = LocalLlamaProvider(
+        base_url=keyed_llama_server, api_key="secret-token", timeout=5, discover_model=True
+    )
+    try:
+        assert provider.model == "qwen-test"
+        info = provider.probe()
+        assert info["health"] == {"status": "ok"}
+        assert info["models"] == ["qwen-test"]
+    finally:
+        provider.close()
+
+
 def test_local_provider_roundtrip(fake_llama_server):
     provider = LocalLlamaProvider(base_url=fake_llama_server, timeout=5, discover_model=True)
     assert provider.model == "qwen-test"
@@ -98,6 +134,25 @@ def test_local_provider_probe_reports_unreachable():
     assert info["reachable"] is False
     assert info["models"] == []
     assert info["error"]
+
+
+def test_local_provider_ignores_proxy_environment(fake_llama_server, monkeypatch):
+    """Loopback traffic must never go through a proxy picked up from the environment."""
+
+    for name in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
+        monkeypatch.setenv(name, "http://127.0.0.1:9")
+    provider = LocalLlamaProvider(base_url=fake_llama_server, timeout=5)
+    try:
+        assert provider.model == "qwen-test"
+    finally:
+        provider.close()
 
 
 def test_factory_builds_local_without_network():

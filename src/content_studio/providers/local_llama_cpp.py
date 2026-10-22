@@ -38,6 +38,10 @@ class LocalLlamaProvider(OpenAICompatibleProvider):
             max_retries=max_retries,
             require_api_key=False,
             native_json_mode=json_mode,
+            # Never route loopback traffic through a system/registry proxy:
+            # on Windows httpx's trust_env picks up the OS proxy, which answers
+            # 127.0.0.1 requests with 502 and hides the real llama-server state.
+            trust_env=False,
         )
         if not model and discover_model:
             self.model = self.discover_model()
@@ -48,7 +52,9 @@ class LocalLlamaProvider(OpenAICompatibleProvider):
 
     def list_models(self, timeout: float = 5.0) -> list[str]:
         try:
-            response = self._client.get(f"{self.base_url}/models", timeout=timeout)
+            response = self._client.get(
+                f"{self.base_url}/models", headers=self._headers(), timeout=timeout
+            )
             response.raise_for_status()
             data = response.json()
         except (httpx.HTTPError, ValueError):
@@ -78,7 +84,9 @@ class LocalLlamaProvider(OpenAICompatibleProvider):
             "error": "",
         }
         try:
-            response = self._client.get(f"{self.root_url}/health", timeout=5.0)
+            response = self._client.get(
+                f"{self.root_url}/health", headers=self._headers(), timeout=5.0
+            )
             result["health"] = response.json() if response.content else response.status_code
             result["reachable"] = response.status_code < 500
         except (httpx.HTTPError, ValueError) as exc:

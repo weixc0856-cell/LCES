@@ -32,6 +32,7 @@ class OpenAICompatibleProvider(ModelProvider):
         max_retries: int = 3,
         require_api_key: bool = True,
         native_json_mode: bool | None = None,
+        trust_env: bool = True,
     ) -> None:
         if require_api_key and not api_key:
             raise ConfigurationError(f"missing API key for provider '{self.name}'; set it in .env")
@@ -46,6 +47,7 @@ class OpenAICompatibleProvider(ModelProvider):
         self._client = httpx.Client(
             timeout=timeout,
             follow_redirects=True,
+            trust_env=trust_env,
             headers={"User-Agent": "LCES/0.2 (+local)"},
         )
 
