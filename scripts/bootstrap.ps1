@@ -1,5 +1,9 @@
 # LCES bootstrap (Windows PowerShell)
 # Rebuilds the project-local .venv with Python 3.13 and runs the baseline checks.
+# Pass -BrowserQA to also install Playwright + Chromium for Gate 3 browser checks.
+param(
+    [switch]$BrowserQA
+)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -21,7 +25,14 @@ if (Test-Path ".venv\pyvenv.cfg") {
     }
 }
 
-uv sync
+if ($BrowserQA) {
+    uv sync --extra browser
+    Write-Host "-- Installing Chromium for Playwright"
+    uv run playwright install chromium
+}
+else {
+    uv sync
+}
 
 if (-not (Test-Path ".git")) {
     git init -b main | Out-Null

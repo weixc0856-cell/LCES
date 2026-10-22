@@ -26,3 +26,20 @@ jobs:
         run: uv run mypy src
       - name: Tests
         run: uv run pytest
+
+  browser-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.13
+      - name: Sync dependencies (locked, browser extra)
+        run: uv sync --locked --extra browser
+      - name: Install Chromium
+        run: uv run playwright install --with-deps chromium
+      - name: Browser QA tests
+        run: uv run pytest tests/test_browser_qa.py
