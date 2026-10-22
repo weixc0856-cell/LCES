@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from content_studio import __version__
 from content_studio.errors import ConfigurationError, LCESError
+from content_studio.eval import build_report, load_tasks, run_tasks, write_report
 from content_studio.evidence import review_claim
 from content_studio.ingestion import ingest_project
 from content_studio.media import extract_frames, probe_media
@@ -42,7 +43,7 @@ from content_studio.paths import (
     template_dir,
 )
 from content_studio.providers.base import GenerationRequest, Message
-from content_studio.providers.factory import LOCAL_NAMES
+from content_studio.providers.factory import LOCAL_NAMES, build_provider
 from content_studio.providers.local_llama_cpp import LocalLlamaProvider
 from content_studio.release import (
     approve as approve_release,
@@ -55,6 +56,7 @@ from content_studio.release import (
 from content_studio.renderers import RenderContext, default_registry
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
+from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
 from content_studio.utils import write_json
 
 app = typer.Typer(no_args_is_help=True, help="Local Content Engineering Studio (LCES)")
@@ -437,6 +439,81 @@ def models(
         )
         if probe and key:
             typer.echo("  云端连通性未自动探测，避免产生计费调用。")
+
+
+@app.command("eval")
+@guarded
+def evaluate(
+    provider: str | None = typer.Option(None, help="local | deepseek | anthropic"),
+    set_path: Path = typer.Option(
+        Path("evals/basic.jsonl"), "--set", exists=True, dir_okay=False, help="固定基准集"
+    ),
+    out: Path = typer.Option(Path("var/evals"), "--out", help="评测报告目录"),
+    limit: int | None = typer.Option(None, min=1, help="只跑前 N 项"),
+) -> None:
+    """Run the fixed benchmark set against one provider and record the result."""
+
+    settings = get_settings()
+    tasks = load_tasks(set_path)
+    if limit:
+        tasks = tasks[:limit]
+    model_provider = build_provider(settings, provider)
+    typer.echo(
+        f"基准: {len(tasks)} 项 | provider={model_provider.name} model={model_provider.model}"
+    )
+    try:
+        results = run_tasks(tasks, model_provider)
+    finally:
+        close = getattr(model_provider, "close", None)
+        if callable(close):
+            close()
+
+    report = build_report(model_provider, results)
+    path = write_report(report, out)
+    for result in results:
+        status = "PASS" if result.passed else "FAIL"
+        detail = "; ".join(result.failures) if result.failures else result.error
+        typer.echo(f"{status} {result.task_id:<18} {result.latency_ms:>7}ms  {detail}"[:170])
+    typer.echo(report.summary())
+    typer.echo(f"报告: {path}")
+
+
+@app.command()
+@guarded
+def usage(
+    project: str | None = typer.Option(None, help="只统计某个项目"),
+    pricing: Path | None = typer.Option(
+        None, "--pricing", exists=True, dir_okay=False, help="价格表（见 config/pricing.yaml）"
+    ),
+) -> None:
+    """Report token usage, failures, time, and estimated cost from stage records."""
+
+    settings = get_settings()
+    rows = collect_usage(TaskStore(settings.database_path), project)
+    if not rows:
+        typer.echo("暂无阶段用量记录。")
+        return
+
+    pricing_path = pricing or settings.pricing_file
+    policy = load_pricing(pricing_path) if pricing_path else None
+    if policy is not None:
+        apply_pricing(rows, policy)
+
+    typer.echo(
+        f"{'PROVIDER':<10}{'MODEL':<28}{'CALLS':>6}{'IN':>9}{'OUT':>9}"
+        f"{'FAIL':>6}{'SECONDS':>9}  COST"
+    )
+    for row in rows:
+        cost = f"{row.cost:.4f}" if row.cost is not None else row.cost_note
+        typer.echo(
+            f"{row.provider:<10}{row.model:<28}{row.calls:>6}{row.input_tokens:>9}"
+            f"{row.output_tokens:>9}{row.failures:>6}{row.duration_seconds:>9.1f}  {cost}"
+        )
+    if policy is not None:
+        total, excluded = total_cost(rows)
+        typer.echo(f"已计价合计: {total:.4f} {policy.currency}")
+        if excluded:
+            typer.echo("未纳入计价: " + ", ".join(excluded))
 
 
 @app.command()

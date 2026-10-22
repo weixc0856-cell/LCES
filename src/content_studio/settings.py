@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     database_path: Path = Path("var/lces.sqlite3")
     # Append-only JSONL log for tool calls (CLI/MCP). Contains no secrets.
     tool_log_path: Path = Path("var/tool_calls.jsonl")
+    # Optional price table for `lces usage`; absent means costs are not reported.
+    pricing_file: Path | None = None
     routing_file: Path | None = None
     log_level: str = "INFO"
 

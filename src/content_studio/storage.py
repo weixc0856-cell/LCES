@@ -178,6 +178,23 @@ class TaskStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def usage_rows(self, project_id: str | None = None) -> list[dict[str, Any]]:
+        """Stage runs with their usage JSON, optionally for one project."""
+
+        query = (
+            "SELECT r.provider, r.model, r.status, r.usage_json,"
+            " r.started_at, r.finished_at"
+            " FROM stage_runs r JOIN tasks t ON t.id = r.task_id"
+        )
+        params: tuple[Any, ...] = ()
+        if project_id:
+            query += " WHERE t.project_id = ?"
+            params = (project_id,)
+        query += " ORDER BY r.id"
+        with closing(self._connect()) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
     # --- events --------------------------------------------------------
     def log_event(self, task_id: int | None, level: str, message: str) -> None:
         with closing(self._connect()) as conn, conn:

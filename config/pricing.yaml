@@ -1,0 +1,21 @@
+# Price table for `lces usage --pricing config/pricing.yaml`.
+#
+# Prices are user-maintained and are NOT authoritative; check the provider's
+# current list price before relying on them. Amounts are per 1,000,000 tokens
+# in the currency below.
+#
+# Providers listed under `unmetered_providers` are reported as 未核算 (not
+# costed), never as zero cost. Local inference has real costs (power, hardware
+# depreciation) that this table cannot measure.
+
+currency: USD
+unmetered_providers:
+  - local
+
+models:
+  deepseek-chat:
+    input: 0.27
+    output: 1.10
+  claude-sonnet-4-5:
+    input: 3.00
+    output: 15.00
