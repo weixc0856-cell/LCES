@@ -289,8 +289,8 @@ def test_valid_spec_has_no_problems():
 
 
 def test_unknown_scene_type_is_rejected():
-    problems = mc.MotionCanvasRenderer().validate_input(_spec(scene_type="flow"))
-    assert any("scene_type 'title'" in problem for problem in problems)
+    problems = mc.MotionCanvasRenderer().validate_input(_spec(scene_type="walkthrough"))
+    assert any("unsupported scene_type 'walkthrough'" in problem for problem in problems)
 
 
 def test_scene_ids_must_match_the_video_contract():
@@ -643,3 +643,158 @@ def test_video_mismatch_keeps_the_old_video(build_root, tmp_path, monkeypatch):
     assert caught.value.code == "qa_failed"
     assert sentinel.read_bytes() == b"old-video"
     assert not (project / "internal" / "qa" / "frame_manifest.json").exists()
+
+
+# -- P2.2 flow / compare templates ---------------------------------------
+
+
+def _flow_data(**overrides) -> dict:
+    data = {
+        "title": "请求处理流程",
+        "subtitle": "从网关到存储",
+        "direction": "lr",
+        "nodes": [
+            {"id": "gateway", "label": "网关", "kind": "start"},
+            {"id": "auth", "label": "鉴权", "kind": "step"},
+            {"id": "store", "label": "存储", "kind": "end"},
+        ],
+        "edges": [
+            {"from": "gateway", "to": "auth"},
+            {"from": "auth", "to": "store", "label": "写入"},
+        ],
+    }
+    data.update(overrides)
+    return data
+
+
+def _compare_data(**overrides) -> dict:
+    data = {
+        "title": "两种方案",
+        "subtitle": "吞吐与复杂度",
+        "left": {"title": "方案 A", "items": ["实现简单", "吞吐稳定"]},
+        "right": {"title": "方案 B", "items": ["扩展性好", "运维复杂"]},
+    }
+    data.update(overrides)
+    return data
+
+
+def _flow_spec(**overrides) -> VisualSpec:
+    return _spec(width=1920, height=1080, scene_type="flow", scene_data=_flow_data(**overrides))
+
+
+def _compare_spec(**overrides) -> VisualSpec:
+    return _spec(
+        width=1920,
+        height=1080,
+        scene_type="compare",
+        scene_data=_compare_data(**overrides),
+    )
+
+
+def test_valid_flow_has_no_problems():
+    assert mc.MotionCanvasRenderer().validate_input(_flow_spec()) == []
+
+
+def test_valid_compare_has_no_problems():
+    assert mc.MotionCanvasRenderer().validate_input(_compare_spec()) == []
+
+
+def test_flow_rejects_unknown_data_fields():
+    data = _flow_data()
+    data["layout"] = "auto"
+    problems = mc.MotionCanvasRenderer().validate_input(
+        _spec(width=1920, height=1080, scene_type="flow", scene_data=data)
+    )
+    assert any("unknown data field" in problem and "layout" in problem for problem in problems)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"direction": "diagonal"},
+        {"nodes": [{"id": "only", "label": "单节点"}]},
+        {"nodes": [{"id": "a", "label": "A"}, {"id": "a", "label": "B"}]},
+        {"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "x" * 41}]},
+        {"edges": []},
+        {"edges": [{"from": "gateway", "to": "missing"}]},
+        {"edges": [{"from": "gateway", "to": "gateway"}]},
+        {
+            "edges": [
+                {"from": "gateway", "to": "auth"},
+                {"from": "gateway", "to": "auth"},
+            ]
+        },
+    ],
+)
+def test_flow_rejects_invalid_structure(overrides):
+    problems = mc.MotionCanvasRenderer().validate_input(_flow_spec(**overrides))
+    assert problems
+
+
+def test_flow_rejects_a_canvas_that_cannot_fit_the_nodes():
+    spec = _spec(width=320, height=180, scene_type="flow", scene_data=_flow_data())
+    problems = mc.MotionCanvasRenderer().validate_input(spec)
+    assert any("canvas" in problem for problem in problems)
+
+
+def test_compare_rejects_invalid_panels():
+    for overrides in (
+        {"left": {"title": "A", "items": []}},
+        {"right": {"title": "B", "items": ["x" * 121]}},
+        {"left": {"title": "A", "items": ["x"], "icon": "star"}},
+    ):
+        problems = mc.MotionCanvasRenderer().validate_input(_compare_spec(**overrides))
+        assert problems, overrides
+
+
+def test_compare_rejects_a_canvas_too_small_for_two_panels():
+    spec = _spec(width=200, height=120, scene_type="compare", scene_data=_compare_data())
+    problems = mc.MotionCanvasRenderer().validate_input(spec)
+    assert any("canvas" in problem for problem in problems)
+
+
+def _source_for(spec: VisualSpec) -> str:
+    renderer = mc.MotionCanvasRenderer()
+    scenes, video, plan = renderer._parse(spec)
+    return mc._scene_source(scenes.scenes[0], plan, width=video.width, height=video.height)
+
+
+def test_flow_source_is_a_fixed_template_with_json_data():
+    source = _source_for(_flow_spec())
+    assert source.count("import ") == 2
+    assert "const NODES = [" in source
+    assert "const EDGES = [" in source
+    assert "eval(" not in source
+    assert "new Function" not in source
+    assert "import(" not in source
+    assert "makeScene2D" in source
+
+
+def test_compare_source_is_a_fixed_template_with_json_data():
+    source = _source_for(_compare_spec())
+    assert source.count("import ") == 2
+    assert "const PANELS = [" in source
+    assert "textWrap" in source
+    assert "eval(" not in source
+    assert "new Function" not in source
+
+
+def test_flow_labels_cannot_inject_code():
+    malicious = 'x"; process.exit(1); //`${evil}`\n</script>'
+    source = _source_for(
+        _flow_spec(
+            nodes=[{"id": "a", "label": "A"}, {"id": "b", "label": malicious}],
+            edges=[{"from": "a", "to": "b"}],
+        )
+    )
+    assert '\\"; process.exit(1); //' in source
+    assert "\n" in source
+    assert "`${evil}`" not in source.split("const NODES")[0]
+    assert source.count("const NODES = [") == 1
+
+
+def test_compare_items_cannot_inject_code():
+    malicious = 'x"; eval("bad"); //'
+    source = _source_for(_compare_spec(right={"title": "B", "items": [malicious]}))
+    assert '\\"; eval(\\"bad\\"); //' in source.replace("\\\\", "\\")
+    assert "const PANELS = [" in source
