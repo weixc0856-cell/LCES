@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 308 passed, 6 skipped (Graphviz and five Linux-only Motion Canvas tests) |
+| `pytest -q` | 315 passed, 6 skipped (Graphviz and five Linux-only Motion Canvas tests) |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |

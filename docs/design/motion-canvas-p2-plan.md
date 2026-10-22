@@ -122,6 +122,10 @@ HTML。视频 `max-width:100%`，不自动播放。`use_registry=False` 时遇�
    - 有动画时 HTML 含预期 `video_src`，无动画时不出现视频元素。
 4. 按固定顺序 `os.replace`：HTML → specs/manifest → `visual_assets.json`。
 5. 全部成功后删除 `build/.build-in-progress`；任一步失败保留标记。
+6. 成功的**非动画**构建会删除残留的 `build/media/course.mp4`：发布装配按文件名
+   复制媒体，不能留下新内容未引用的旧视频。
+7. 标记只能由一次**成功且通过校验**的构建清除；失败后重试会重写标记并在成功时
+   清除。进程在视频发布后崩溃时标记保留，release 仍被阻断（测试模拟）。
 
 `lces release` / `build_release()` 在标记存在时拒绝，并说明先重新运行
 `lces build`。因此失败构建可以留下诊断产物，但**不能**被装配成发布包；
@@ -150,11 +154,11 @@ HTML。视频 `max-width:100%`，不自动播放。`use_registry=False` 时遇�
 | ID | 验收项 | 通过条件 | 状态 |
 |---|---|---|---|
 | P2-GATE-01 | Registry 发现 | `default_registry().known_types()` 含 `animation`；解析到 `motion_canvas.renderer`；显式 renderer 不匹配失败 | PASS（本机单元） |
-| P2-GATE-02 | 生产入口 | `lces build`（或 `_stage_build`）对含动画块的 content 调用真实 renderer，产出 `build/media/course.mp4`；不是只测试 `render-scene` | NOT_RUN |
-| P2-GATE-03 | 资产关联 | `visual_assets.json` 的视频、FrameManifest、编码记录路径与哈希一致；`build_id` 与清单一致；视频可解码 | NOT_RUN（本地 stub 已覆盖字段；真实视频待 CI） |
+| P2-GATE-02 | 生产入口 | `lces build`（或 `_stage_build`）对含动画块的 content 调用真实 renderer，产出 `build/media/course.mp4`；不是只测试 `render-scene` | PASS（run `39793174903`：`test_lces_build_renders_animation_end_to_end` 7.9 s；artifact 含视频、清单、编码记录、`visual_assets.json`） |
+| P2-GATE-03 | 资产关联 | `visual_assets.json` 的视频、FrameManifest、编码记录路径与哈希一致；`build_id` 与清单一致；视频可解码 | PASS（run `39793174903`：独立复核 artifact，30 帧 640×360 30/1 1.0 s；三个文件哈希、`build_id` 与编码记录全部一致） |
 | P2-GATE-04 | 失败传播 | 缺 Node/FFmpeg、非法场景、渲染失败、编码失败、清单不一致均使构建失败；无回退、无资产记录 | NOT_RUN（非法场景/渲染失败/编码失败的本机用例通过；真实环境待 CI） |
 | P2-GATE-05 | 原子性与旧资产 | 失败后旧 `build/media/course.mp4` 哈希不变；标记存在时 `release` 拒绝；成功构建清除标记 | PASS（本机：P1 staging + 标记/发布拒绝用例） |
-| P2-GATE-06 | 向后兼容 | 非动画构建/模板输出不变；`use_registry=False` 仍拒绝 registry-only 块；现有测试全绿 | PASS（308 passed, 6 skipped） |
+| P2-GATE-06 | 向后兼容 | 非动画构建/模板输出不变；`use_registry=False` 仍拒绝 registry-only 块；现有测试全绿 | PASS（315 passed, 6 skipped） |
 | P2-GATE-07 | CI 证据 | `test` job 与 Linux `motion-canvas-p1` job 跑新增测试并上传 JUnit/资产证据 | NOT_RUN |
 
 `BLOCKED` 只用于“已定义、可执行、但当前环境不满足”；本地 Windows 的真实
@@ -197,12 +201,15 @@ HTML。视频 `max-width:100%`，不自动播放。`use_registry=False` 时遇�
 
 本机验证：
 
-- `uv run pytest` → **308 passed, 6 skipped**（跳过的是 Graphviz、四个 Linux
+- `uv run pytest` → **315 passed, 6 skipped**（跳过的是 Graphviz、四个 Linux
   真实渲染用例和一个真实生产入口用例）。
 - `ruff check .`、`ruff format --check .`、`mypy src` 全部通过。
 - `tests/test_production_animation.py` 用 stub renderer 覆盖生产装配、
   资产合同、标记、发布拒绝与失败路径；`tests/test_motion_canvas_production.py`
   是唯一的真实 `lces build` 用例，只能在 Linux + 固定工具链的 CI 中执行。
 
-因此 P2-GATE-02/03/04/07 仍为 `NOT_RUN`；在 CI 产出真实生产入口证据之前
-不得记为 `PASS`。
+首次 CI（run `39793174903`，commit `875629c`）五个 job 全绿；production
+用例 7.9 s，artifact 已独立复核（见 P2-GATE-02/03）。随后补充了残留标记重试、
+发布后崩溃、校验失败保留标记、视频篡改检测和真实 CLI 非法场景用例，并在
+非动画成功构建时清理残留视频；这些改动需要再做一次 CI 才能把 P2-GATE-04/05/07
+记为 PASS。

@@ -90,6 +90,16 @@ def build_public_html(
         )
         # The template receives a view model with rendered fragments attached;
         # the content model itself is never mutated.
+        if project_dir is not None and not any(
+            item.spec.visual_type == "animation" for item in rendered
+        ):
+            # A previous animation build may have left a video that the new
+            # content does not reference. Release copies media by name, so a
+            # stale course.mp4 must not survive a successful non-animation
+            # build (the marker alone would not stop it once this build commits).
+            stale_video = project_dir / "build" / "media" / "course.mp4"
+            if stale_video.is_file():
+                stale_video.unlink()
         by_position = {(item.slide_id, item.block_index): item for item in rendered}
         for slide_data, slide in zip(data["slides"], content.slides, strict=True):
             for index, block_data in enumerate(slide_data["body"]):

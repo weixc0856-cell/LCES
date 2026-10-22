@@ -358,3 +358,165 @@ def test_gate3_reports_an_incomplete_build(tmp_path):
     assert _build_committed_check(project).status == "pass"
     (project / "build" / BUILD_MARKER).write_text("{}", encoding="utf-8")
     assert _build_committed_check(project).status == "fail"
+
+
+def _text_content() -> PublicContent:
+    return PublicContent(
+        project_id="p21-demo",
+        title="P2.1",
+        slides=[
+            PublicSlide(
+                slide_id="slide-001",
+                title="第一节",
+                body=[ParagraphBlock(text="只有正文")],
+            )
+        ],
+    )
+
+
+def test_non_animation_build_removes_a_stale_video(tmp_path):
+    project = _project(tmp_path)
+    stale = project / "build" / "media" / "course.mp4"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"stale-video")
+
+    build_public_html(
+        _text_content(),
+        template_dir(),
+        project / "build" / "slides" / "index.html",
+        project_dir=project,
+    )
+
+    assert not stale.exists()
+    assert not (project / "build" / BUILD_MARKER).exists()
+    assert "<video" not in (project / "build" / "slides" / "index.html").read_text(encoding="utf-8")
+
+
+def test_successful_build_clears_a_stale_marker(tmp_path):
+    project = _project(tmp_path)
+    marker = project / "build" / BUILD_MARKER
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("{}", encoding="utf-8")
+
+    build_public_html(
+        _content(),
+        template_dir(),
+        project / "build" / "slides" / "index.html",
+        project_dir=project,
+        registry=_registry(),
+    )
+
+    assert not marker.exists()
+    assert verify_build_assets(project) == []
+
+
+def test_retry_after_failure_clears_the_marker(tmp_path):
+    project = _project(tmp_path)
+    output = project / "build" / "slides" / "index.html"
+    with pytest.raises(RenderError):
+        build_public_html(
+            _content(),
+            template_dir(),
+            output,
+            project_dir=project,
+            registry=_registry(_StubAnimationRenderer(fail=True)),
+        )
+    assert (project / "build" / BUILD_MARKER).is_file()
+
+    build_public_html(
+        _content(),
+        template_dir(),
+        output,
+        project_dir=project,
+        registry=_registry(),
+    )
+    assert not (project / "build" / BUILD_MARKER).exists()
+    assert verify_build_assets(project) == []
+
+
+class _CrashAfterPublish(_StubAnimationRenderer):
+    """The process dies after the video/QA files are already on disk."""
+
+    def render(self, spec, context):
+        super().render(spec, context)
+        raise RenderError("process died after publish", code="render_failed", stage="render")
+
+
+def test_crash_after_publish_keeps_marker_and_blocks_release(tmp_path):
+    project = _project(tmp_path)
+    with pytest.raises(RenderError):
+        build_public_html(
+            _content(),
+            template_dir(),
+            project / "build" / "slides" / "index.html",
+            project_dir=project,
+            registry=_registry(_CrashAfterPublish()),
+        )
+
+    assert (project / "build" / BUILD_MARKER).is_file()
+    config = ProjectConfig(project_id="p21-demo", title="P2.1")
+    with pytest.raises(ValidationFailure, match="build is incomplete"):
+        build_release(project, config, "v1")
+
+
+def test_verification_failure_keeps_the_marker(tmp_path, monkeypatch):
+    import content_studio.rendering as rendering
+
+    project = _project(tmp_path)
+    monkeypatch.setattr(rendering, "verify_build_assets", lambda _project: ["tampered"])
+    with pytest.raises(RenderError, match="asset consistency"):
+        build_public_html(
+            _content(),
+            template_dir(),
+            project / "build" / "slides" / "index.html",
+            project_dir=project,
+            registry=_registry(),
+        )
+
+    assert (project / "build" / BUILD_MARKER).is_file()
+    assert (project / "internal" / "qa" / "visual_assets.json").is_file()
+
+
+def test_tampered_video_is_detected(tmp_path):
+    project = _project(tmp_path)
+    build_public_html(
+        _content(),
+        template_dir(),
+        project / "build" / "slides" / "index.html",
+        project_dir=project,
+        registry=_registry(),
+    )
+    (project / "build" / "media" / "course.mp4").write_bytes(b"tampered")
+    problems = verify_build_assets(project)
+    assert any("hash mismatch" in problem for problem in problems)
+
+
+def test_lces_build_rejects_an_invalid_scene_before_rendering(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from content_studio.cli import app
+
+    project = _project(tmp_path, payload=_scene_payload(output_path="build/other.mp4"))
+    (project / "project.yaml").write_text("project_id: p21-demo\ntitle: P2.1\n", encoding="utf-8")
+    (project / "content" / "public_content.json").write_text(
+        json.dumps(_content().model_dump(mode="json"), ensure_ascii=False), encoding="utf-8"
+    )
+    (project / "content" / "reading_edition.json").write_text(
+        json.dumps(
+            {
+                "project_id": "p21-demo",
+                "title": "P2.1",
+                "abstract": "x",
+                "sections": [{"slide_id": "slide-001", "title": "第一节", "paragraphs": ["正文"]}],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(app, ["build", str(project)])
+
+    assert result.exit_code != 0
+    assert not (project / "build" / "media" / "course.mp4").exists()
+    assert (project / "build" / BUILD_MARKER).is_file()
