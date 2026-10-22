@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 176 passed, 1 skipped (Graphviz not installed) |
+| `pytest -q` | 294 passed, 5 skipped (Graphviz and four Linux-only Motion Canvas E2E tests) |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -88,6 +88,16 @@ is considered passing because the code exists.
 - Graphviz: `tests/test_graphviz.py` covers the pinned install hint, version
   parsing, unsafe input, render failures, timeouts, and unsafe output; the real
   `dot` test is skipped when Graphviz is absent (run in the CI `graphviz` job).
+- Motion Canvas P1: `tests/test_timeline.py` covers integer frame boundaries;
+  `tests/test_motion_canvas.py` covers input/platform/version/lockfile gates and
+  a fault matrix where every failure leaves the old video and QA evidence
+  untouched; `tests/test_frame_manifest.py` covers manifest hashes, PNG
+  structure, scene spans, path containment and decode; `tests/test_encode.py`
+  and `tests/test_video_qa.py` cover explicit FFmpeg parameters, staging and
+  video/manifest agreement; `tests/test_release_video.py` runs Gate 4 against a
+  real encoded video; `tests/test_motion_canvas_e2e.py` performs real renders,
+  cancellation and timeout on Linux. `tests/test_offline_evidence.py` checks
+  the verifier used by the `--network none` job.
 
 ## Manual checks that automation cannot replace
 
@@ -101,8 +111,15 @@ is considered passing because the code exists.
 
 ## Known NOT_RUN items
 
-Font fallback, media decode, subtitle timing, and audio/video synchronization
-are not implemented. They must remain `NOT_RUN` in QA reports. Browser page
-load, JavaScript errors, resource loads, viewport overflow, and screenshot
-baselines are covered by Gate 3 when the `browser` extra is installed; without
-it those checks are reported `NOT_RUN`, never `PASS`.
+Font fallback, OCR, anti-bot handling, scientific review, audio/video
+synchronization, and pixel-level visual diff are not implemented. They must
+remain `NOT_RUN` in QA reports.
+Media decode, audio-stream presence, subtitle timing, and Motion Canvas
+frame/video QA **are** implemented and must not be reported as `NOT_RUN` when
+FFmpeg is available; without FFmpeg the media checks are `NOT_RUN`, never
+`PASS`. Browser page load, JavaScript errors, resource loads, viewport
+overflow, and screenshot baselines are covered by Gate 3 when the `browser`
+extra is installed; without it those checks are reported `NOT_RUN`, never
+`PASS`. Motion Canvas blank-frame/visual acceptance (MC-04), cross-environment
+byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
+`NOT_RUN`.

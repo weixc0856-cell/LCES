@@ -2,7 +2,10 @@
 
 本地优先、模型无关、证据驱动的 AI 课程与内容生产工程。
 
-本仓库当前对应 PRD V2.0 的 **Phase 0 工程基线 + Phase 1 最小端到端课程流水线**。它已经能把本地资料或网页处理成来源台账、证据台账、研究简报、课程大纲、公开内容、独立口播稿、研究阅读版、公开 HTML、QA 报告和发布包；它**尚未**实现浏览器逐帧渲染、视频、字幕、Playwright 视觉回归和 Web 界面。
+本仓库当前对应 PRD V2.0 的 **Phase 0 工程基线 + Phase 1 最小端到端课程流水线**，并在
+Linux 范围内完成 Motion Canvas P1：`title` 单场景的逐帧渲染、FrameManifest、
+FFmpeg 编码、Gate 4 独立核对、故障注入与断网验收。它**尚未**实现多场景动画、
+字幕生成、Playwright 像素级视觉回归和 Web 界面。
 
 > 工程状态以 `docs/IMPLEMENTATION_STATUS.md` 为准。自动化测试通过并不代表科学结论正确；`NOT_RUN` 不等于 `PASS`。
 
@@ -12,7 +15,9 @@
 - [uv](https://docs.astral.sh/uv/)
 - Git
 - 可选：llama.cpp `llama-server`（本地模型，默认 `http://127.0.0.1:8080/v1`）
-- 可选：FFmpeg、Playwright（Phase 3 媒体阶段再安装）
+- 可选：Playwright（浏览器 QA；Motion Canvas P1 需要 Playwright 1.64.0 + Chromium）
+- 可选：FFmpeg 6+（媒体检查、Motion Canvas 编码）
+- 可选：Node **24.22.1** 与 Docker（Motion Canvas P1 渲染与断网门禁；Windows 原生不支持）
 
 虚拟环境必须位于项目目录内：`.venv/`。不要用系统 Python 安装业务依赖。
 
@@ -122,7 +127,7 @@ git remote -v        # origin -> git@github.com:weixc0856-cell/LCES.git
 git push -u origin main
 ```
 
-推送需要本机已配置 GitHub SSH key。当前两个提交（`0e367ba`、`56c2cfb`）已在本地 `main` 分支；若远端仓库尚未创建，请先在 GitHub 建空仓库再推送。
+推送需要本机已配置 GitHub SSH key。若远端仓库尚未创建，请先在 GitHub 建空仓库再推送。
 
 ## 联调里程碑（Windows）
 
@@ -215,7 +220,7 @@ uv run lces render-spec .\spec.json --out .\build\visuals
 - 自定义 SVG 必须是合法 XML，且拒绝 `<script>`、事件处理器、`<foreignObject>` 与外部链接
 - Mermaid 运行时随仓库交付（`vendor/mermaid/`，12.2.0，MIT，sha256 校验），渲染在 `offline=True` 的 Chromium 中完成；拒绝 `%%{init}%%` 与 `click` 指令
 - Graphviz 是外部系统依赖：`LCES_DOT_BIN` 或 PATH 中的 `dot`（>= 2.40）。缺失时明确报环境错误，不会静默换渲染器；CI 已用 **2.43.0** 完成真实渲染验收（14/14），本机固定版本 16.1.0 待安装：`winget install --id Graphviz.Graphviz -e --version 16.1.0`
-- `lces doctor` 会报告 Mermaid 运行时与 Graphviz 的可用状态
+- `lces doctor` 会报告 Mermaid 运行时、Graphviz 与 Motion Canvas 的可用状态
 - 内联 SVG 带 `role="img"`、`aria-label` 和 `max-width:100%`，窄视口不会撑破布局
 - 未安装 `vl-convert` 时 `data_chart` 明确报错，不会静默输出空图
 - 渲染器接口含 `validate_input` / `check_environment` / `estimate_resources` / `collect_outputs`；环境或参数不合格在渲染前失败，失败详情写入 `registry.diagnostics()`
@@ -256,9 +261,20 @@ uv run lces export-schemas    # 生成 16 个 JSON Schema
 
 ## 尚未实现
 
-真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、SVG/Canvas 场景引擎、视频与动画生成（当前仅做解码与字幕检查）、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
+真实网页抓取的登录/反爬处理、OCR、自动证据核验、多模型路由、缓存与增量构建、研究阅读版之外的系列课程、像素级视觉 diff（当前为截图基准比对）、通用 SVG/Canvas 场景引擎、多场景与字幕生成、本地 Web 界面。详见 `docs/IMPLEMENTATION_STATUS.md`。
 
-Motion Canvas 目前只完成 **P0 可行性实验**（判定 **GO，仅 Linux**）：实验工程在 `spike/motion-canvas/`，由 `.github/workflows/motion-canvas-p0.yml` 手动触发；CI 与 Windows 主机诊断均通过 11/11 契约测试。P1 运行范围限定 Linux（本地使用 WSL2 Ubuntu 24.04，Node/Chromium/FFmpeg 由使用者维护，LCES 不自动安装），Windows 原生由入口显式拒绝，需新的 P0 才能纳入。**未接入 `renderers/` 生产路径**。记录见 `docs/design/motion-canvas-spike.md` 与 `docs/design/motion-canvas-windows-validation.md`。
+Motion Canvas 已完成 **P1.1-P1.3（Linux）**：`title` 模板的逐帧渲染、FrameManifest、
+真实编码与原子发布、Gate 4 独立核对，以及取消/超时回归。P1.4 的故障矩阵与
+断网门禁（`motion-canvas-offline`，`docker --network none` + 网络负控制）已实现，
+CI 断网证据仍待运行；本机 Docker 构建被网络策略阻断（见
+`docs/design/motion-canvas-p1-plan.md` §4.3）。P1 仍**不在**
+`default_registry()` 生产路径中，只能通过 `lces render-scene` 和显式注册表调用；
+Windows 原生仍由入口显式拒绝，需要新的 P0 才能纳入。P1 的运行范围与验收记录见
+`docs/design/motion-canvas-p1-plan.md`，设计与边界见 `docs/design/MOTION_CANVAS.md`。
+
+```powershell
+./scripts/ci-local.sh offline   # Docker，构建后以 --network none 跑真实渲染与负控制
+```
 
 ## 安全与版权
 

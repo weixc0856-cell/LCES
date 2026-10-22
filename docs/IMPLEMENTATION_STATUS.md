@@ -1,7 +1,9 @@
 # Implementation Status
 
 Updated through the roadmap phases (0-6), continuous evaluation/cost work,
-PRD 2 modules 1-2, and the Mermaid/Graphviz renderers — package version 0.11.0.
+PRD 2 modules 1-2, the Mermaid/Graphviz renderers, and Motion Canvas P1
+(adapter, FrameManifest, encoding/publish, fault injection and offline
+acceptance) — package version 0.11.0.
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -38,9 +40,10 @@ by a working code path.
 | Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
 | Mermaid diagrams | Implemented | Vendored runtime 12.2.0 (MIT, sha256-verified), offline Chromium, strict config, rejects init/click directives |
 | Motion Canvas P0 (experiment) | GO, Linux-only | `spike/motion-canvas`; offline render, negative control, cancel/timeout, UI contract tests 11/11 (CI + Windows host diagnostic); P1 admitted for Linux (WSL2 local), Windows native out of scope; not in production |
-| Motion Canvas P1.3 (encoding/publish) | Partial | `encode.py` + `video_qa.py`: explicit libx264 parameters, staging encode, decoded-frame/fps/dimension/duration checks, atomic `os.replace`; failure keeps the previous `course.mp4`; Gate 4 re-reads the video, manifest and encode report. CI evidence pending |
-| Motion Canvas P1.2 (FrameManifest) | Partial | `frame_manifest.py` + `FrameEntry/SceneFrameSpan/FrameManifest`; build from exported frames, independent verify (re-hash, PNG structure, scene spans, path containment, FFmpeg decode); manifest recorded in `VisualAsset.output_hashes`; linked from the adapter build result; 300/300 hashes, 300/300 PNGs and full-sequence decode verified from CI artifact run `39767972300` with `scripts/verify-frame-manifest.py` |
-| Motion Canvas P1.1 (adapter) | Partial | `motion_canvas.py` + `motion/`; `Renderer` hooks, `RenderResult`, `SceneSet`/`SceneContract.data`, MC-01 `timeline.py`, shared error table, platform/version gates, cancellation and timeout; explicit registry and `lces render-scene` only, **not** in `default_registry`; real Linux render PASS in CI run `39762458701` (30/30 frames, TAP 13/13); P1.2-P1.4 gates pending — see `docs/design/motion-canvas-p1-plan.md` |
+| Motion Canvas P1.1 (adapter) | Implemented (P1, Linux) | `motion_canvas.py` + `motion/`; `Renderer` hooks, `RenderResult`, `SceneSet`/`SceneContract.data`, MC-01 `timeline.py`, shared error table, platform/version/lockfile gates, cancellation and timeout, explicit registry and `lces render-scene`; deliberately **not** in `default_registry`; real Linux render PASS in CI run `39762458701` (30/30 frames, TAP 13/13) |
+| Motion Canvas P1.2 (FrameManifest) | Implemented | `frame_manifest.py` + `FrameEntry/SceneFrameSpan/FrameManifest`; build from exported frames, independent verify (re-hash, PNG structure, scene spans, path containment, FFmpeg decode); manifest recorded in `VisualAsset.output_hashes`; linked from the adapter build result; 300/300 hashes, 300/300 PNGs and full-sequence decode verified from CI artifact run `39767972300` with `scripts/verify-frame-manifest.py` |
+| Motion Canvas P1.3 (encoding/publish) | Implemented | `encode.py` + `video_qa.py`: explicit libx264 parameters, staging encode, decoded-frame/fps/dimension/duration checks, atomic `os.replace`; failure keeps the previous `course.mp4`; Gate 4 re-reads the video, manifest and encode report. CI run `39777983672`: 9 tests, 0 failures; both artifact videos independently match their manifests (30/640×360/1 s and 300/1920×1080/10 s) |
+| Motion Canvas P1.4 (faults/offline) | Partial | Lockfile gate (`dependency_mismatch`), fault matrix covering all 13 shared codes, real cancel/timeout E2E, and the `motion-canvas-offline` job (image built with network, render/encode/Gate 4 with `--network none`, negative controls must fail, request audit checked independently). Unit/matrix tests pass locally; the real cancel/timeout run and the offline CI artifact are still `NOT_RUN` — local Docker is blocked by the host network policy (see `docs/design/motion-canvas-p1-plan.md` §4.3) |
 | Graphviz graphs | Implemented (environment-gated) | `graphviz.dot` via `LCES_DOT_BIN`/PATH (>= 2.40); CI acceptance on Graphviz 2.43.0 with real `dot` rendering (14/14 tests); Windows 16.1.0 install still pending |
 | Renderer environment diagnostics | Implemented | `lces doctor` reports Mermaid runtime and Graphviz availability |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |
@@ -68,11 +71,10 @@ by a working code path.
 | Local model evaluation suite | Implemented | `evals/basic.jsonl` (8 task types) + `lces eval`; mechanical checks, JSON reports in `var/evals/` |
 | Playwright browser QA | Implemented | Optional `browser` extra; checks page load, JS errors, resources, overflow at 1280/1920/2560/3840/mobile viewports |
 | Visual regression | Partial | Screenshot baselines compared byte-for-byte; differences are `warn` for human review, no pixel-diff tooling yet |
-| SVG/Canvas scene engine, frame export | Not implemented | `scene_render_contract` schema only |
-| Video/animation generation (Manim/Remotion) | Not implemented | FFmpeg is used for inspection only |
-| FFmpeg video, subtitles, media checks | Not implemented | Phase 3 |
+| SVG/Canvas scene engine, frame export | Partial | Generic engine not implemented; Motion Canvas P1 exports PNG frames for the `title` template only |
+| Video/animation generation (Manim/Remotion) | Partial | Motion Canvas P1 produces a real encoded video for one `title` scene on Linux; Manim/Remotion are not integrated |
 | Local web interface | Not implemented | Phase 6 |
-| CI workflow | Implemented | `test`, `browser-qa`, and `graphviz` jobs all green (run `39740736404`); Graphviz evidence uploaded as an artifact. Manual `motion-canvas-p0` workflow green (run `39752667833`) |
+| CI workflow | Implemented | `test`, `browser-qa`, `graphviz`, `motion-canvas-p1` (real renders/encode/Gate 4) and `motion-canvas-offline` (network-none render + negative controls); earlier runs green (`39740736404`, `39777983672`); manual `motion-canvas-p0` workflow green (`39752667833`) |
 
 ## Verification status
 
@@ -82,10 +84,10 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 177 passed, 1 skipped (local real Graphviz test) |
+| `pytest -q` | 294 passed, 5 skipped (Graphviz and four Linux-only Motion Canvas E2E tests) |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | no issues in 33 source files |
+| `mypy src` | no issues in 38 source files |
 | `lces run` (local `Qwen3.5-4B`, arXiv 1706.03762) | all 6 stages completed; browser QA established 10 baselines; Gate 3 passed |
 | `lces run --only build` through the registry | table rendered by `html.table` 1.0.0; manifest hash recorded; screenshots still match baseline |
 | `lces render-spec` (unknown `visual_type`) | exits 1 with `UnsupportedVisualType`; no placeholder output |
@@ -106,6 +108,8 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | CI Graphviz evidence | `dot - graphviz version 2.43.0`; 14 tests, 0 failures; artifact `graphviz-evidence` uploaded |
 | Motion Canvas P0 CI (manual) | run `39752667833`: `--network none` 300 frames, contract tests 11/11, negative controls exit 1, cancel/timeout pass; evidence artifact uploaded |
 | Motion Canvas contract tests (Windows host) | `contract.test.mjs` 11/11 in ~61 s; driver render 300 frames in 5.45 s (network available; not an offline proof) |
+| Motion Canvas P1.3 CI (run `39777983672`) | `motion-canvas-p1` job green: JUnit 9 tests / 0 failures / 0 skipped / 20.7 s; smoke and production builds both encoded. Downloaded artifact re-checked independently: 30 frames 640×360 30/1 1.000 s and 300 frames 1920×1080 30/1 10.000 s, `verify_video_against_manifest` returned 0 problems; Gate 4 real-video accept/reject tests passed |
+| Motion Canvas P1.4 local checks | `uv run pytest` → 294 passed, 5 skipped; `ruff check .`, `ruff format --check .`, `mypy src` pass. Docker build for the offline job blocked locally at apt (`deb.debian.org` → `198.18.1.108`), same host policy as P0; no local offline claim |
 | Graphviz renderer | stubbed path covers syntax error, timeout, unsafe output; real `dot` test passes in CI (2.43.0), skipped locally until 16.1.0 is installed |
 | Mermaid renderer | flowchart + sequence render offline; invalid syntax, malicious labels, init directives, and a 1 ms timeout all fail explicitly |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial; no media in v1) |

@@ -138,8 +138,27 @@ def fake_encoding(monkeypatch):
 def build_root(tmp_path, monkeypatch) -> Path:
     template = tmp_path / "motion-template"
     (template / "src" / "scenes").mkdir(parents=True)
-    (template / "node_modules").mkdir()
+    (template / "node_modules" / "@motion-canvas" / "core").mkdir(parents=True)
     (template / "src" / "project.meta").write_text("{}", encoding="utf-8")
+    # A minimal, consistent package tree so the lockfile gate sees an
+    # ``npm ci`` result; individual tests break it on purpose.
+    declared = {"dependencies": {"@motion-canvas/core": "3.17.2"}, "devDependencies": {}}
+    (template / "package.json").write_text(json.dumps(declared), encoding="utf-8")
+    (template / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "lockfileVersion": 3,
+                "packages": {
+                    "": declared,
+                    "node_modules/@motion-canvas/core": {"version": "3.17.2"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (template / "node_modules" / "@motion-canvas" / "core" / "package.json").write_text(
+        json.dumps({"version": "3.17.2"}), encoding="utf-8"
+    )
 
     def fake_materialise(template_path, build, scene, plan, video):
         work = build / "project"
@@ -200,6 +219,60 @@ def test_environment_failures_map_to_environment_unavailable(monkeypatch):
 def test_node_override_must_exist(monkeypatch):
     monkeypatch.setenv("LCES_NODE_BIN", "/nonexistent/node")
     assert mc.node_binary() is None
+
+
+def test_dependency_problems_accept_a_clean_tree(build_root):
+    assert mc.dependency_problems(mc.motion_project_dir()) == []
+
+
+def test_dependency_problems_detect_a_rewritten_tree(build_root):
+    installed = mc.motion_project_dir() / "node_modules" / "@motion-canvas" / "core"
+    (installed / "package.json").write_text(json.dumps({"version": "3.17.1"}), encoding="utf-8")
+    problems = mc.dependency_problems(mc.motion_project_dir())
+    assert any("@motion-canvas/core" in problem and "3.17.1" in problem for problem in problems)
+
+
+def test_dependency_problems_detect_an_unpinned_dependency(build_root):
+    template = mc.motion_project_dir()
+    package = json.loads((template / "package.json").read_text(encoding="utf-8"))
+    package["dependencies"]["left-pad"] = "1.3.0"
+    (template / "package.json").write_text(json.dumps(package), encoding="utf-8")
+    (template / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "lockfileVersion": 3,
+                "packages": {
+                    "": package,
+                    "node_modules/@motion-canvas/core": {"version": "3.17.2"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    problems = mc.dependency_problems(template)
+    assert any("left-pad" in problem and "not pinned" in problem for problem in problems)
+
+
+def test_registry_maps_dependency_mismatch(monkeypatch):
+    monkeypatch.setattr(mc.sys, "platform", "linux")
+    monkeypatch.setattr(
+        mc,
+        "environment_report",
+        lambda: [
+            mc.DependencyStatus(
+                "dependencies",
+                "package-lock.json tree",
+                "1 issue",
+                False,
+                "run npm ci",
+                code="dependency_mismatch",
+            )
+        ],
+    )
+    with pytest.raises(RenderError) as caught:
+        mc.motion_canvas_registry().render(_spec())
+    assert caught.value.code == "dependency_mismatch"
+    assert caught.value.stage == "environment"
 
 
 def test_animation_is_not_in_the_default_registry():
@@ -369,6 +442,52 @@ def test_build_directory_is_inside_the_project(build_root):
     result = _render(renderer, build_root)
     report = result.artifacts[0].resolve()
     assert build_root.resolve() in report.parents
+
+
+def test_dependency_mismatch_blocks_before_any_output(build_root):
+    installed = mc.motion_project_dir() / "node_modules" / "@motion-canvas" / "core"
+    (installed / "package.json").write_text(json.dumps({"version": "3.17.1"}), encoding="utf-8")
+    with pytest.raises(RenderError) as caught:
+        _render(_StubRenderer(), build_root)
+    assert caught.value.code == "dependency_mismatch"
+    assert not build_root.exists()
+
+
+@pytest.mark.parametrize(
+    ("stub", "expected_code"),
+    [
+        ({"frames": 29, "report": {"frames": 30}}, "frame_mismatch"),
+        ({"png": _png()[:20]}, "output_corrupt"),
+        ({"write_report": False}, "output_missing"),
+        ({"returncode": 5}, "render_failed"),
+        ({"forced": "render_timeout"}, "render_timeout"),
+        ({"forced": "cancelled", "returncode": 130}, "cancelled"),
+    ],
+)
+def test_every_failure_publishes_nothing(build_root, tmp_path, stub, expected_code):
+    """Fault matrix: one terminal state, no published video, no QA evidence.
+
+    The old video is a sentinel: a failed build must not replace it, and a
+    failed build must not leave the manifest/encode evidence that Gate 4
+    would read as a successful publication.
+    """
+
+    media = build_root / "media"
+    media.mkdir(parents=True)
+    sentinel = media / "course.mp4"
+    sentinel.write_bytes(b"old-video")
+    project = tmp_path / "project"
+    (project / "content").mkdir(parents=True)
+
+    with pytest.raises(RenderError) as caught:
+        _render(_StubRenderer(**stub), build_root, project=project)
+
+    assert caught.value.code == expected_code
+    assert caught.value.terminal in {"failed", "cancelled"}
+    assert sentinel.read_bytes() == b"old-video"
+    assert sorted(path.name for path in media.glob("*.mp4")) == ["course.mp4"]
+    assert not (project / "internal" / "qa" / "frame_manifest.json").exists()
+    assert not (project / "internal" / "qa" / "encode_report.json").exists()
 
 
 # -- generated scene -----------------------------------------------------

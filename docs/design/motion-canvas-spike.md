@@ -153,6 +153,9 @@ CI run `39752667833` 在 `docker run --network none` 中完成真实渲染：
 `var/spike/evidence/docker-build-failure.txt`；CI 正常网络下构建成功。
 证据 artifact：`motion-canvas-p0-evidence`（run `39752667833`）。
 
+> P0 的断网结论不能自动继承到 P1。P1.4 已在 P1 适配器上重新执行断网渲染、
+> 编码与负控制，见 `docs/design/motion-canvas-p1-plan.md` §4.2。
+
 ## 8. 证据路径
 
 - CI artifact：`motion-canvas-p0-evidence`（run `39752667833`）

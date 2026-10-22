@@ -75,6 +75,7 @@ MAX_HEIGHT = 4320
 
 BUILD_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
 HEX_COLOUR = re.compile(r"^#[0-9a-fA-F]{6}$")
+LOCKFILE_NAME = "package-lock.json"
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,9 @@ class DependencyStatus:
     actual: str
     ok: bool = True
     hint: str = ""
+    # Failure code for this specific dependency; the generic default is used
+    # when the check is only "tool missing or wrong version".
+    code: str = "environment_unavailable"
 
     def message(self) -> str:
         actual = self.actual or "missing"
@@ -118,6 +122,55 @@ def _package_version(path: Path) -> str:
         return ""
     version = payload.get("version")
     return version if isinstance(version, str) else ""
+
+
+def dependency_problems(project: Path) -> list[str]:
+    """Compare the installed tree with the pinned lockfile.
+
+    ``npm ci`` is the only admitted install path. ``npm install`` can silently
+    upgrade a direct dependency (or rewrite the tree) while ``package.json``
+    still looks correct, which would make a render irreproducible. Only the
+    declared direct dependencies are compared here; ``npm ci`` removes
+    transitive packages that are not in the lockfile, and the installed
+    versions of direct dependencies are enough to detect a rewritten tree.
+    """
+
+    try:
+        declared = json.loads((project / "package.json").read_text(encoding="utf-8"))
+        locked = json.loads((project / LOCKFILE_NAME).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"cannot read package.json/{LOCKFILE_NAME} in motion/: {exc.__class__.__name__}"]
+    packages = locked.get("packages")
+    if not isinstance(packages, dict):
+        return [f"{LOCKFILE_NAME} has no 'packages' map; regenerate it with npm"]
+    root = packages.get("")
+    if not isinstance(root, dict):
+        return [f"{LOCKFILE_NAME} has no root package entry; regenerate it with npm"]
+
+    problems: list[str] = []
+    for section in ("dependencies", "devDependencies"):
+        wanted = declared.get(section) or {}
+        pinned = root.get(section) or {}
+        if not isinstance(wanted, dict):
+            problems.append(f"package.json {section} is not an object")
+            continue
+        if wanted != pinned:
+            problems.append(
+                f"package.json {section} does not match {LOCKFILE_NAME}; "
+                "run npm install and commit the lockfile"
+            )
+        for name in sorted(wanted):
+            entry = packages.get(f"node_modules/{name}")
+            version = entry.get("version") if isinstance(entry, dict) else None
+            if not isinstance(version, str):
+                problems.append(f"{name} is not pinned in {LOCKFILE_NAME}")
+                continue
+            installed = _package_version(project / "node_modules" / name / "package.json")
+            if installed != version:
+                problems.append(
+                    f"{name}: installed {installed or 'missing'}, lockfile pins {version}"
+                )
+    return problems
 
 
 def _version_tuple(version: str) -> tuple[int, ...]:
@@ -175,6 +228,7 @@ def environment_report() -> list[DependencyStatus]:
     chromium = _chromium_problem(node, project)
 
     platform_ok = sys.platform in SUPPORTED_PLATFORMS
+    dependency_issues = dependency_problems(project)
     return [
         DependencyStatus(
             name="platform",
@@ -182,6 +236,7 @@ def environment_report() -> list[DependencyStatus]:
             actual=sys.platform,
             ok=platform_ok,
             hint="P1 is Linux-only; Windows support requires a new P0 and re-admission",
+            code="unsupported_platform",
         ),
         DependencyStatus(
             name="node",
@@ -217,6 +272,14 @@ def environment_report() -> list[DependencyStatus]:
             actual="" if chromium else "installed",
             ok=not chromium,
             hint=chromium,
+        ),
+        DependencyStatus(
+            name="dependencies",
+            expected=f"{LOCKFILE_NAME} tree from npm ci",
+            actual="consistent" if not dependency_issues else f"{len(dependency_issues)} issue(s)",
+            ok=not dependency_issues,
+            hint="; ".join(dependency_issues[:3]) if dependency_issues else "",
+            code="dependency_mismatch",
         ),
         DependencyStatus(
             name="ffmpeg",
@@ -258,16 +321,21 @@ class MotionCanvasRenderer(Renderer):
         self._process: subprocess.Popen[bytes] | None = None
         self._diagnostics: list[str] = []
         self._last: dict[str, Any] = {}
+        self._environment_code = "environment_unavailable"
 
     # -- environment -----------------------------------------------------
 
     def check_environment(self) -> list[str]:
-        return [item.message() for item in environment_report() if not item.ok]
+        problems = [item for item in environment_report() if not item.ok]
+        self._environment_code = next(
+            (item.code for item in problems if item.code), "environment_unavailable"
+        )
+        return [item.message() for item in problems]
 
     def environment_error_code(self) -> str:
         if sys.platform not in SUPPORTED_PLATFORMS:
             return "unsupported_platform"
-        return "environment_unavailable"
+        return self._environment_code
 
     def estimate_resources(self, spec: VisualSpec) -> ResourceEstimate:
         try:
@@ -359,6 +427,15 @@ class MotionCanvasRenderer(Renderer):
             raise RenderError(
                 "motion/node_modules is missing; run `npm ci` in motion/",
                 code="environment_unavailable",
+                stage="environment",
+            )
+        dependency_issues = dependency_problems(project)
+        if dependency_issues:
+            raise RenderError(
+                "installed dependencies do not match the pinned lockfile: "
+                + "; ".join(dependency_issues[:3])
+                + "; run `npm ci` in motion/",
+                code="dependency_mismatch",
                 stage="environment",
             )
 

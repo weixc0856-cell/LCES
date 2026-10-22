@@ -29,7 +29,8 @@ not the development loop:
 ```bash
 ./scripts/ci-local.sh fast     # ruff, format, mypy, pytest (any OS)
 ./scripts/ci-local.sh render   # Linux/WSL2: Node contract + real renders + encode + Gate 4
-./scripts/ci-local.sh full     # fast + render + browser QA
+./scripts/ci-local.sh offline  # Docker: build once, run renders with --network none
+./scripts/ci-local.sh full     # fast + render + offline + browser QA
 ```
 
 - The script reuses the exact commands from `.github/workflows/ci.yml`; it never
@@ -37,6 +38,10 @@ not the development loop:
 - `render` and `full` require Linux (WSL2), Node **24.22.1** (the Motion Canvas
   gate), `motion/node_modules` (`npm ci`), the Playwright Chromium for 1.64.0,
   and FFmpeg/ffprobe.
+- `offline` (and the offline stage of `full`) need a Docker daemon running Linux
+  containers. The image is built with network access; the render, encode, Gate 4
+  and negative controls then run with `--network none`. A missing tool or a
+  reachable network fails the gate.
 - A missing tool stops the script with the command to run. Do not lower the
   version gates to make a local run pass.
 

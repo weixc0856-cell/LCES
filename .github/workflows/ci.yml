@@ -123,6 +123,38 @@ jobs:
           path: motion-evidence/
           if-no-files-found: error
 
+  motion-canvas-offline:
+    # P1.4: build the image with network, then render, encode and run Gate 4
+    # with `--network none`. Negative controls must fail in the same container;
+    # a missing tool or a reachable network fails the job instead of skipping.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the offline image
+        run: docker build -f motion/offline.Dockerfile -t lces-motion-offline .
+      - name: Record image identity and inputs
+        run: |
+          set -o pipefail
+          mkdir -p offline-evidence
+          docker image inspect lces-motion-offline --format '{{.Id}}' \
+            | tee offline-evidence/image-id.txt
+          sha256sum motion/package-lock.json uv.lock motion/offline.Dockerfile \
+            | tee offline-evidence/input-hashes.txt
+      - name: Offline render and negative controls
+        run: |
+          docker run --rm --network none --memory=2048m --memory-swap=2048m \
+            -v "$PWD/offline-evidence:/evidence" \
+            -e LCES_OFFLINE_EVIDENCE=/evidence \
+            lces-motion-offline
+      - name: Upload offline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-canvas-offline-evidence
+          path: offline-evidence/
+          if-no-files-found: error
+
   graphviz:
     runs-on: ubuntu-latest
     steps:
