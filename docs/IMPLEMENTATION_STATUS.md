@@ -1,7 +1,8 @@
 # Implementation Status
 
-Updated through the roadmap phases (0-6) plus the continuous evaluation, cost,
-and routing work (package version 0.9.0).
+Updated through the roadmap phases (0-6), the continuous evaluation/cost work,
+and PRD 2 modules 1-2 (asset contracts and renderer interface) — package
+version 0.10.0.
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -33,6 +34,9 @@ by a working code path.
 | Public HTML build | Implemented | Jinja2, autoescaping, offline inline CSS; table and figure blocks render through the registry |
 | Visual spec contract | Implemented | `VisualSpec` with `schema_version` 1.x, generated JSON Schema, renderer/validation fields |
 | Renderer registry | Implemented | `renderers.py`; unknown types fail the build; renderer name/version/`output_sha256` recorded in `internal/qa/render_manifest.json` |
+| Renderer interface (PRD 2) | Implemented | `validate_input`, `check_environment`, `estimate_resources`, `cancel`, `collect_outputs`, `validate`, `get_diagnostics`; ordered checks with recorded diagnostics |
+| Visual asset contract | Implemented | `VisualAsset` with workspace-relative paths, hashes, QA results; `internal/qa/visual_assets.json` per build |
+| Scene / video contracts | Implemented | Integer-ms scenes, rational fps, audio/subtitle/encoding fields, provenance and build hash; schemas exported |
 | Legacy render comparison | Implemented | `use_registry=False` keeps the template-only path; a parity test compares both outputs |
 | Chart rendering (Vega-Lite) | Implemented | `data_chart` renders static SVG through `vl-convert`; optional `charts` extra; no Node.js or network |
 | Custom SVG rendering | Implemented | `custom_svg` inlines XML-valid SVG after blocking scripts, handlers, `foreignObject`, and external references |
@@ -72,7 +76,7 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 133 passed |
+| `pytest -q` | 149 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | no issues in 33 source files |
@@ -89,6 +93,8 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | `lces eval --provider local` (8 tasks) | 7/8 passed, average latency 23.2 s; `explain-001` failed for omitting `softmax`; report kept in `var/evals/` |
 | `lces usage --pricing config/pricing.yaml` | local: 4 calls, 12,777 in / 4,808 out tokens, reported as 未核算 (not zero) |
 | Stage fallback routing | local `ProviderError` retried with `mock`; `stage_runs` records one fail then one pass |
+| `lces run --only build` (asset contract) | `visual_assets.json`: `slide-003-block-01`, `table`, `html.table 1.0.0`, source + output sha256, status `rendered` |
+| `lces export-schemas` | 16 schemas, including `visual_asset`, `scene_contract`, `video_contract` |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
 
 These results validate the implemented checks only. They do not prove

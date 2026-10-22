@@ -215,6 +215,8 @@ uv run lces render-spec .\spec.json --out .\build\visuals
 - 自定义 SVG 必须是合法 XML，且拒绝 `<script>`、事件处理器、`<foreignObject>` 与外部链接
 - 内联 SVG 带 `role="img"`、`aria-label` 和 `max-width:100%`，窄视口不会撑破布局
 - 未安装 `vl-convert` 时 `data_chart` 明确报错，不会静默输出空图
+- 渲染器接口含 `validate_input` / `check_environment` / `estimate_resources` / `collect_outputs`；环境或参数不合格在渲染前失败，失败详情写入 `registry.diagnostics()`
+- 每次构建写出 `internal/qa/visual_assets.json`：资产 ID、渲染器版本、源哈希、输出哈希、QA 状态都可追溯；资产/镜头/视频契约见 `schemas/` 与 `docs/CONTENT_CONTRACTS.md`
 
 ## 仓库结构
 
@@ -243,7 +245,11 @@ src/content_studio/
 └── settings.py         环境配置
 ```
 
-`skills/` 保存五大 Skill 规范；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成（含 `visual_spec.schema.json`）；`templates/public_html/` 只渲染公开模型。内容与视觉规格的边界、渲染器规则与版本策略见 `docs/CONTENT_CONTRACTS.md`。
+```powershell
+uv run lces export-schemas    # 生成 16 个 JSON Schema
+```
+
+`skills/` 保存五大 Skill 规范；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成（含 `visual_spec`、`visual_asset`、`scene_contract`、`video_contract`）；`templates/public_html/` 只渲染公开模型。内容与视觉规格的边界、渲染器规则与版本策略见 `docs/CONTENT_CONTRACTS.md`。
 
 ## 尚未实现
 

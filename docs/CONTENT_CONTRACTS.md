@@ -8,6 +8,53 @@ Phase 2 separates three things that used to live in one HTML template:
 3. **Renderers** — `renderers.py` turn a spec into an artifact and own their
    escaping, validation, and version.
 
+## Asset, scene, and video contracts (PRD 2 module 1)
+
+Three additional contracts describe rendered artifacts and video builds. JSON
+Schemas are exported by `lces export-schemas`.
+
+**`VisualAsset`** records one visual artifact: `asset_id`, `asset_type`,
+`source`, `renderer` + `renderer_version`, `parameters`, `dependencies`,
+`evidence_refs`, `output_paths`, `status`, `qa_results`, `source_hash`,
+`output_hashes`, `created_at`, `build_id`. All path fields are validated as
+workspace-relative: absolute paths, drive letters, and `..` are rejected.
+
+After each public build, `internal/qa/visual_assets.json` contains one asset
+per rendered fragment. Inline fragments hash the built page that embeds them;
+chart assets list their SVG artifact instead.
+
+**`SceneContract`** describes one shot: `scene_id`, `scene_type`,
+`duration_ms` (integer milliseconds, never float seconds), `renderer`, source
+asset refs, narration/subtitle refs, transitions, camera config, evidence refs,
+quality profile, and `fallback_policy` (`fail` / `skip` / `placeholder`).
+
+**`VideoContract`** describes a video build: canvas size, rational frame rate
+(`fps_num`/`fps_den`, so 30000/1001 is exact), colour space and pixel format,
+scene order, narration/audio refs, subtitle language and format, audio sample
+rate and channels, codec and preset, renderer version, output path, QA report
+ref, provenance/licence, build parameters and hash.
+
+Unknown enum values, unsupported schema majors, empty scene lists, and
+non-positive durations fail validation before any renderer runs.
+
+## Renderer interface (PRD 2 module 2)
+
+Each renderer implements, beyond `render`/`validate`:
+
+| Hook | Purpose |
+|---|---|
+| `validate_input(spec)` | Reject bad parameters before rendering starts |
+| `check_environment()` | Report missing tools or versions (`vl-convert`, FFmpeg, …) |
+| `estimate_resources(spec)` | Rough CPU seconds / memory, with a note |
+| `cancel()` | Best-effort cancellation hook |
+| `collect_outputs(spec, context)` | Artifact paths produced by the render |
+| `get_diagnostics()` | Last recorded failure context |
+
+The registry enforces order: registered type → explicit renderer match →
+environment → input validation → render → output validation. Any failure is
+appended to `registry.diagnostics()` with the visual id, stage, and renderer.
+The registry never substitutes another renderer silently.
+
 ## Schema versions
 
 `VisualSpec.schema_version` defaults to `1.0` (`VISUAL_SCHEMA_VERSION` in

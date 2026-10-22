@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 133 passed |
+| `pytest -q` | 149 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -24,6 +24,8 @@ is considered passing because the code exists.
 | `lces eval --provider local` | 7/8 on the fixed 8-task set; report written to `var/evals/` |
 | `lces usage --pricing config/pricing.yaml` | token/failure/time figures from `stage_runs`; local marked 未核算 |
 | fallback routing | provider error retries once with the configured fallback; both attempts recorded |
+| `lces export-schemas` | 16 schemas, including asset/scene/video contracts |
+| `lces run --only build` | `internal/qa/visual_assets.json` records renderer version, source/output hashes, and QA status |
 
 ## Environment
 
@@ -74,6 +76,10 @@ is considered passing because the code exists.
   contents; `tests/test_usage.py` covers aggregation, pricing, and the
   not-costed rules; `tests/test_routing.py` and `tests/test_pipeline.py` cover
   fallback parsing and the retry path.
+- Asset/scene/video contracts: `tests/test_contracts.py` covers path safety,
+  hashes, durations, rational fps, and enum validation; `tests/test_renderers.py`
+  covers environment/input gating, diagnostics, resource estimates, and the
+  asset manifest.
 
 ## Manual checks that automation cannot replace
 
