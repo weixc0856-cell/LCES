@@ -1,0 +1,123 @@
+name: Motion Canvas P0
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_frames:
+        description: "Expected frame count for the 10 s / 30 fps sample"
+        required: true
+        default: "300"
+
+permissions:
+  contents: read
+
+jobs:
+  p0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_FRAMES: ${{ inputs.expected_frames }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build offline render image
+        run: docker build -t lces-mc-p0 spike/motion-canvas
+
+      - name: Record reproducible inputs
+        run: |
+          set -o pipefail
+          mkdir -p evidence
+          docker image inspect lces-mc-p0 --format '{{.Id}}' | tee evidence/image-id.txt
+          sha256sum spike/motion-canvas/package-lock.json \
+            spike/motion-canvas/Dockerfile \
+            spike/motion-canvas/driver.mjs | tee evidence/input-hashes.txt
+          docker run --rm --entrypoint node lces-mc-p0 --version | tee evidence/node-version.txt
+          docker run --rm --entrypoint npm lces-mc-p0 --version | tee evidence/npm-version.txt
+          docker run --rm --entrypoint npx lces-mc-p0 playwright --version | tee evidence/playwright-version.txt
+          ffmpeg -version | head -1 | tee evidence/ffmpeg-version.txt
+
+      - name: Offline render (network none)
+        run: |
+          set -o pipefail
+          mkdir -p evidence/render
+          docker run --rm --network none --memory=768m --memory-swap=768m \
+            -e MODE=render -e EXPECTED_FRAMES="${EXPECTED_FRAMES}" \
+            -v "$PWD/evidence/render:/app/output" \
+            lces-mc-p0 | tee evidence/render/driver.log
+
+      - name: Validate frames and output report
+        run: |
+          set -o pipefail
+          count=$(find evidence/render -name '*.png' | wc -l | tr -d ' ')
+          echo "frame_count=$count" | tee evidence/frame-count.txt
+          test "$count" -eq "$EXPECTED_FRAMES"
+          first=$(find evidence/render -name '*.png' | sort | head -1)
+          ffprobe -v error -show_entries stream=width,height,codec_name \
+            -of default=nw=1 "$first" | tee evidence/frame-info.txt
+          frame_dir=$(dirname "$first")
+          ffmpeg -v error -framerate 30 -i "$frame_dir/%06d.png" -f null - \
+            2>&1 | tee evidence/decode.log
+          python3 - <<'PY'
+          import json
+          report = json.load(open("evidence/render/report.json"))
+          assert report["finished"] is True, report
+          assert report["frames"] == report["expected_frames"], report
+          print("render:", report["frames"], "frames;",
+                "external attempts:", len(report["external_requests"]),
+                "failures:", report["request_failures"])
+          PY
+
+      - name: Network negative control
+        run: |
+          set +e
+          docker run --rm --network none --entrypoint node lces-mc-p0 \
+            -e "fetch('https://registry.npmjs.org',{signal:AbortSignal.timeout(5000)}).then(()=>process.exit(0)).catch(()=>process.exit(1))"
+          fetch_exit=$?
+          docker run --rm --network none --entrypoint sh lces-mc-p0 \
+            -c "mkdir -p /tmp/neg && cd /tmp/neg && npm install left-pad --no-audit --no-fund"
+          npm_exit=$?
+          set -e
+          echo "fetch_exit=$fetch_exit npm_exit=$npm_exit" | tee evidence/negative-control.txt
+          test "$fetch_exit" -ne 0
+          test "$npm_exit" -ne 0
+
+      - name: Cancellation isolation
+        run: |
+          set -o pipefail
+          mkdir -p evidence/cancel
+          docker run --rm --network none --memory=768m \
+            -e MODE=cancel -e EXPECTED_FRAMES="${EXPECTED_FRAMES}" \
+            -e CANCEL_AFTER_MS=1200 \
+            -v "$PWD/evidence/cancel:/app/output" \
+            lces-mc-p0 | tee evidence/cancel/driver.log
+          python3 - <<'PY'
+          import json
+          report = json.load(open("evidence/cancel/report.json"))
+          assert report["cancelled"] is True, report
+          assert 0 < report["frames"] < report["expected_frames"], report
+          print("cancel:", report["frames"], "of", report["expected_frames"])
+          PY
+          test ! -f evidence/cancel/final.mp4
+
+      - name: Timeout handling
+        run: |
+          set -o pipefail
+          mkdir -p evidence/timeout
+          docker run --rm --network none --memory=768m \
+            -e MODE=timeout -e TIMEOUT_MS=1000 \
+            -v "$PWD/evidence/timeout:/app/output" \
+            lces-mc-p0 | tee evidence/timeout/driver.log
+          python3 - <<'PY'
+          import json
+          report = json.load(open("evidence/timeout/report.json"))
+          assert report["timed_out"] is True and report["frames"] > 0, report
+          print("timeout:", report["frames"], "partial frames")
+          PY
+
+      - name: Upload P0 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-canvas-p0-evidence
+          path: evidence/
+          if-no-files-found: error

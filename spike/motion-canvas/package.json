@@ -1,0 +1,24 @@
+{
+  "name": "lces-motion-canvas-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "LCES P0 spike: Motion Canvas feasibility, not a production project",
+  "scripts": {
+    "start": "vite",
+    "serve": "vite",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "@motion-canvas/2d": "3.17.2",
+    "@motion-canvas/core": "3.17.2"
+  },
+  "devDependencies": {
+    "@motion-canvas/ui": "3.17.2",
+    "@motion-canvas/vite-plugin": "3.17.2",
+    "typescript": "5.9.3",
+    "vite": "4.5.14"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true
+  }
+}
