@@ -52,6 +52,23 @@ def ffmpeg_path() -> str | None:
     return shutil.which("ffmpeg")
 
 
+def ffmpeg_version() -> str:
+    """Version string of the system FFmpeg, or ``""`` when unavailable."""
+
+    binary = ffmpeg_path()
+    if binary is None:
+        return ""
+    try:
+        completed = subprocess.run(
+            [binary, "-version"], capture_output=True, text=True, timeout=10, check=False
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    output = completed.stdout or completed.stderr or ""
+    match = re.search(r"ffmpeg version (\d+\.\d+(?:\.\d+)?)", output)
+    return match.group(1) if match else ""
+
+
 def tool_status() -> tuple[bool, str]:
     tools = {"ffprobe": ffprobe_path(), "ffmpeg": ffmpeg_path()}
     missing = [name for name, found in tools.items() if not found]

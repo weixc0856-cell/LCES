@@ -227,6 +227,7 @@ def build_release(
         manifest=manifest,
         approval_required=config.release_requires_human_approval,
         approval_present=approval is not None,
+        project_dir=project_dir,
     )
     failures = [item for item in checks if item.status == "fail" and item.blocking]
     if failures:
@@ -278,6 +279,7 @@ def verify_release(
         manifest=manifest,
         approval_required=True,
         approval_present=approval is not None,
+        project_dir=project_dir,
     )
     errors = [f"{item.check_id}: {item.message}" for item in checks if item.status == "fail"]
     return manifest, errors

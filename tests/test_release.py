@@ -4,17 +4,21 @@ from pathlib import Path
 import pytest
 
 from content_studio.errors import ConfigurationError, ValidationFailure
+from content_studio.media import MediaInfo
 from content_studio.models import (
     CheckResult,
+    FrameEntry,
+    FrameManifest,
     ParagraphBlock,
     ProjectConfig,
     PublicContent,
     PublicSlide,
     QAReport,
+    SceneFrameSpan,
 )
 from content_studio.paths import ensure_project_layout
 from content_studio.release import approve, build_release, verify_release
-from content_studio.utils import write_json, write_text
+from content_studio.utils import sha256_file, write_json, write_text
 from content_studio.validation import run_release_checks
 
 GATES = ("gate_1_research", "gate_2_content", "gate_3_engineering", "gate_4_release")
@@ -131,3 +135,124 @@ def test_rebuild_same_version_requires_force(tmp_path):
     build_release(root, config, "v1")
     with pytest.raises(ConfigurationError):
         build_release(root, config, "v1")
+
+
+def _frame_manifest() -> FrameManifest:
+    return FrameManifest(
+        build_id="build-gate-001",
+        asset_id="course-v1",
+        fps_num=30,
+        width=320,
+        height=180,
+        total_frames=3,
+        scenes=[SceneFrameSpan(scene_id="scene-001", start_frame=0, end_frame=3)],
+        frames=[
+            FrameEntry(
+                index=index,
+                path=f"frames/project/{index:06d}.png",
+                sha256="a" * 64,
+                width=320,
+                height=180,
+            )
+            for index in range(3)
+        ],
+    )
+
+
+def _gate4_setup(tmp_path):
+    release = tmp_path / "release"
+    (release / "media").mkdir(parents=True)
+    video = release / "media" / "course.mp4"
+    video.write_bytes(b"video-bytes")
+    project = tmp_path / "project"
+    (project / "internal" / "qa").mkdir(parents=True)
+    write_json(project / "internal" / "qa" / "frame_manifest.json", _frame_manifest())
+    return release, video, project
+
+
+def _fake_media(monkeypatch):
+    monkeypatch.setattr("content_studio.validation.tool_status", lambda: (True, ""))
+    monkeypatch.setattr(
+        "content_studio.validation.probe_media",
+        lambda path: MediaInfo(
+            path=str(path),
+            duration_seconds=0.1,
+            width=320,
+            height=180,
+            video_codec="h264",
+            audio_codec="",
+            size_bytes=5,
+        ),
+    )
+
+
+def test_gate4_detects_video_manifest_mismatch(tmp_path, monkeypatch):
+    release, _video, project = _gate4_setup(tmp_path)
+    _fake_media(monkeypatch)
+    monkeypatch.setattr(
+        "content_studio.validation.verify_video_against_manifest",
+        lambda video, manifest: ["video decodes 2 frames, manifest has 3"],
+    )
+    checks = run_release_checks(
+        release,
+        manifest=None,
+        approval_required=False,
+        approval_present=False,
+        project_dir=project,
+    )
+    assert any(
+        item.check_id == "video_matches_manifest" and item.status == "fail" for item in checks
+    )
+
+
+def test_gate4_accepts_matching_video_and_hash(tmp_path, monkeypatch):
+    release, video, project = _gate4_setup(tmp_path)
+    _fake_media(monkeypatch)
+    monkeypatch.setattr(
+        "content_studio.validation.verify_video_against_manifest",
+        lambda video_path, manifest: [],
+    )
+    write_json(
+        project / "internal" / "qa" / "encode_report.json",
+        {"video_sha256": sha256_file(video)},
+    )
+    checks = run_release_checks(
+        release,
+        manifest=None,
+        approval_required=False,
+        approval_present=False,
+        project_dir=project,
+    )
+    statuses = {
+        item.check_id: item.status
+        for item in checks
+        if item.check_id in {"video_matches_manifest", "video_hash_matches_encode_report"}
+    }
+    assert statuses == {
+        "video_matches_manifest": "pass",
+        "video_hash_matches_encode_report": "pass",
+    }
+
+
+def test_gate4_detects_a_stale_encode_report(tmp_path, monkeypatch):
+    release, _video, project = _gate4_setup(tmp_path)
+    _fake_media(monkeypatch)
+    monkeypatch.setattr(
+        "content_studio.validation.verify_video_against_manifest",
+        lambda video_path, manifest: [],
+    )
+    write_json(
+        project / "internal" / "qa" / "encode_report.json",
+        {"video_sha256": "b" * 64},
+    )
+    checks = run_release_checks(
+        release,
+        manifest=None,
+        approval_required=False,
+        approval_present=False,
+        project_dir=project,
+    )
+    assert any(
+        item.check_id == "video_hash_matches_encode_report" and item.status == "fail"
+        for item in checks
+    )

@@ -36,6 +36,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
+from content_studio.encode import build_encode_command, encode_frames, encode_report
 from content_studio.errors import (
     ERROR_CODES,
     ERROR_CODES_PATH,
@@ -47,6 +48,7 @@ from content_studio.frame_manifest import (
     verify_frame_manifest,
     write_frame_manifest,
 )
+from content_studio.media import ffmpeg_path, ffmpeg_version
 from content_studio.models import SceneContract, SceneSet, VideoContract, VisualSpec
 from content_studio.paths import repository_root
 from content_studio.renderers import (
@@ -57,7 +59,8 @@ from content_studio.renderers import (
     ResourceEstimate,
 )
 from content_studio.timeline import TimelinePlan, plan_from_scenes
-from content_studio.utils import write_json
+from content_studio.utils import sha256_file, write_json
+from content_studio.video_qa import verify_video_against_manifest
 
 NODE_VERSION = "24.22.1"
 MOTION_CANVAS_VERSION = "3.17.2"
@@ -117,17 +120,6 @@ def _package_version(path: Path) -> str:
     return version if isinstance(version, str) else ""
 
 
-def _ffmpeg_version(binary: str | None) -> str:
-    if binary is None:
-        return ""
-    try:
-        output = _run_probe([binary, "-version"])
-    except (OSError, subprocess.TimeoutExpired):
-        return ""
-    match = re.search(r"ffmpeg version (\d+\.\d+(?:\.\d+)?)", output)
-    return match.group(1) if match else ""
-
-
 def _version_tuple(version: str) -> tuple[int, ...]:
     parts: list[int] = []
     for piece in version.split("."):
@@ -179,8 +171,7 @@ def environment_report() -> list[DependencyStatus]:
         project / "node_modules" / "@motion-canvas" / "core" / "package.json"
     )
     playwright_version = _package_version(project / "node_modules" / "playwright" / "package.json")
-    ffmpeg = shutil.which("ffmpeg")
-    ffmpeg_version = _ffmpeg_version(ffmpeg)
+    ffmpeg_version_value = ffmpeg_version()
     chromium = _chromium_problem(node, project)
 
     platform_ok = sys.platform in SUPPORTED_PLATFORMS
@@ -230,8 +221,9 @@ def environment_report() -> list[DependencyStatus]:
         DependencyStatus(
             name="ffmpeg",
             expected=f">= {MIN_FFMPEG[0]}.{MIN_FFMPEG[1]}",
-            actual=ffmpeg_version,
-            ok=bool(ffmpeg_version) and _version_tuple(ffmpeg_version)[:2] >= MIN_FFMPEG,
+            actual=ffmpeg_version_value,
+            ok=bool(ffmpeg_version_value)
+            and _version_tuple(ffmpeg_version_value)[:2] >= MIN_FFMPEG,
             hint="install FFmpeg 6 or newer; the exact build is recorded per render",
         ),
     ]
@@ -462,6 +454,45 @@ class MotionCanvasRenderer(Renderer):
             if problems:
                 raise RenderError("; ".join(problems), code="qa_failed", stage="qa")
 
+            if self._cancel.is_set():
+                raise RenderCancelled(f"build {build_id} was cancelled")
+
+            # Encode into a sibling staging directory, verify, then replace
+            # atomically. Nothing touches the published path until every check
+            # has passed, so a failed build cannot damage an older video.
+            media_dir = context.output_dir / "media"
+            staging_dir = media_dir / f".staging-{build_id}"
+            staging_dir.mkdir(parents=True, exist_ok=True)
+            staged_video = staging_dir / "course.mp4"
+            encode_frames(manifest, build_root=build_root, output=staged_video)
+            video_problems = verify_video_against_manifest(staged_video, manifest)
+            if video_problems:
+                raise RenderError("; ".join(video_problems), code="qa_failed", stage="qa")
+            final_video = media_dir / "course.mp4"
+            os.replace(staged_video, final_video)
+            try:
+                staging_dir.rmdir()
+            except OSError:
+                pass
+            if context.project_dir is not None:
+                qa_dir = context.project_dir / "internal" / "qa"
+                qa_dir.mkdir(parents=True, exist_ok=True)
+                write_json(qa_dir / "frame_manifest.json", manifest)
+                write_json(
+                    qa_dir / "encode_report.json",
+                    encode_report(
+                        manifest,
+                        output=final_video,
+                        command=build_encode_command(
+                            manifest,
+                            build_root=build_root,
+                            output=staged_video,
+                            ffmpeg_bin=ffmpeg_path() or "ffmpeg",
+                        ),
+                        manifest_sha256=sha256_file(manifest_path),
+                    ),
+                )
+
             self._diagnostics.append(f"build {build_id}: completed")
             self._last = {
                 "build_id": build_id,
@@ -469,12 +500,13 @@ class MotionCanvasRenderer(Renderer):
                 "frames": plan.total_frames,
                 "report": report_path,
                 "manifest": manifest_path,
+                "video": final_video,
             }
             return RenderResult(
                 status="completed",
                 html="",
                 build_id=build_id,
-                artifacts=(report_path, manifest_path),
+                artifacts=(report_path, manifest_path, final_video),
                 manifest=manifest_path,
             )
         except BaseException as exc:
@@ -541,7 +573,7 @@ class MotionCanvasRenderer(Renderer):
 
     def collect_outputs(self, spec: VisualSpec, context: RenderContext) -> list[Path]:
         artifacts: list[Path] = []
-        for key in ("report", "manifest"):
+        for key in ("report", "manifest", "video"):
             path = self._last.get(key)
             if isinstance(path, Path) and path.is_file():
                 artifacts.append(path)

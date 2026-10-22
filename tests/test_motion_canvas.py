@@ -121,6 +121,19 @@ class _StubRenderer(mc.MotionCanvasRenderer):
         return self.forced, self.returncode
 
 
+@pytest.fixture(autouse=True)
+def fake_encoding(monkeypatch):
+    """Keep unit tests off FFmpeg; publish tests override this per case."""
+
+    def fake_encode(manifest, *, build_root, output, **kwargs):
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"fake-mp4")
+        return output
+
+    monkeypatch.setattr(mc, "encode_frames", fake_encode)
+    monkeypatch.setattr(mc, "verify_video_against_manifest", lambda video, manifest: [])
+
+
 @pytest.fixture
 def build_root(tmp_path, monkeypatch) -> Path:
     template = tmp_path / "motion-template"
@@ -242,9 +255,14 @@ def test_scene_payload_cannot_carry_assets_in_p1():
 # -- render --------------------------------------------------------------
 
 
-def _render(renderer: mc.MotionCanvasRenderer, root: Path, spec: VisualSpec | None = None):
+def _render(
+    renderer: mc.MotionCanvasRenderer,
+    root: Path,
+    spec: VisualSpec | None = None,
+    project: Path | None = None,
+):
     spec = spec or _spec()
-    return renderer.render(spec, RenderContext(output_dir=root))
+    return renderer.render(spec, RenderContext(project_dir=project, output_dir=root))
 
 
 def test_render_returns_build_id_and_report(build_root):
@@ -413,3 +431,55 @@ def test_animation_asset_contract_records_the_manifest_hash(tmp_path):
     assets = _asset_contracts(project, [rendered], None)
     assert assets[0].asset_type == "animation"
     assert "build/frame_manifest.json" in assets[0].output_hashes
+
+
+def test_publish_writes_the_video_and_qa_evidence(build_root, tmp_path):
+    media = build_root / "media"
+    media.mkdir(parents=True)
+    (media / "course.mp4").write_bytes(b"old-video")
+    project = tmp_path / "project"
+    (project / "content").mkdir(parents=True)
+
+    result = _render(_StubRenderer(), build_root, project=project)
+
+    assert (media / "course.mp4").read_bytes() == b"fake-mp4"
+    assert (project / "internal" / "qa" / "frame_manifest.json").is_file()
+    assert (project / "internal" / "qa" / "encode_report.json").is_file()
+    assert media / "course.mp4" in result.artifacts
+
+
+def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):
+    media = build_root / "media"
+    media.mkdir(parents=True)
+    sentinel = media / "course.mp4"
+    sentinel.write_bytes(b"old-video")
+    project = tmp_path / "project"
+    (project / "content").mkdir(parents=True)
+
+    def fail(*args, **kwargs):
+        raise RenderError("ffmpeg exploded", code="encode_failed", stage="encode")
+
+    monkeypatch.setattr(mc, "encode_frames", fail)
+    with pytest.raises(RenderError) as caught:
+        _render(_StubRenderer(), build_root, project=project)
+    assert caught.value.code == "encode_failed"
+    assert sentinel.read_bytes() == b"old-video"
+    assert not (project / "internal" / "qa" / "frame_manifest.json").exists()
+
+
+def test_video_mismatch_keeps_the_old_video(build_root, tmp_path, monkeypatch):
+    media = build_root / "media"
+    media.mkdir(parents=True)
+    sentinel = media / "course.mp4"
+    sentinel.write_bytes(b"old-video")
+    project = tmp_path / "project"
+    (project / "content").mkdir(parents=True)
+
+    monkeypatch.setattr(
+        mc, "verify_video_against_manifest", lambda video, manifest: ["frames differ"]
+    )
+    with pytest.raises(RenderError) as caught:
+        _render(_StubRenderer(), build_root, project=project)
+    assert caught.value.code == "qa_failed"
+    assert sentinel.read_bytes() == b"old-video"
+    assert not (project / "internal" / "qa" / "frame_manifest.json").exists()

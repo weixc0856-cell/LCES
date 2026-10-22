@@ -12,7 +12,8 @@
 **当前状态（2026-10-22）**：P1.1 已在 Linux CI 通过真实渲染
 （run `39762458701`，commit `c9d31af`）；P1.2 已实现并通过 CI，FrameManifest
 的 300 帧哈希、PNG 结构与整段解码已用独立脚本全量核验（run `39767972300`，
-commit `cdce036`）；P1.3–P1.4 尚未开始。
+commit `cdce036`）；P1.3 已实现（编码、视频/清单一致性、原子发布、Gate 4），
+正在等待本阶段 CI 证据；P1.4 尚未开始。
 
 **两种渲染配置**（不得混用）：
 
@@ -129,6 +130,27 @@ class Renderer:
 | P1.3 | FFmpeg 编码、ffprobe、解码、时长/帧数一致、原子替换 | 通过全部校验才替换；失败时旧文件哈希不变 |
 | P1.4 | 故障注入与持续集成 | 每个故障都有结构化错误、唯一终态、不可发布；PR 跑真实渲染 |
 
+### 3.1 P1.3 验收契约（2026-10-23 冻结，先于实现）
+
+不变量：
+
+1. **清单与视频一致**：解码后的实际帧数、有理数帧率、分辨率与时长都必须
+   与 FrameManifest 一致；时长容差为 1 帧，且不能只比较容器自报的单一
+   `duration` 字段。
+2. **失败不破坏旧资产**：正式路径预置哨兵 `course.mp4` 时，编码失败、
+   视频校验失败、取消或超时后，哨兵 SHA-256 必须保持不变。
+3. **未验证产物不可发布**：编码只写入 `build/media/.staging-<build_id>/`；
+   只有帧清单、视频一致性与解码全部通过后才 `os.replace` 到正式路径。
+4. **Gate 4 独立**：发布门禁重新读取 release 中的视频，以及
+   `internal/qa/frame_manifest.json` 与 `encode_report.json`，自行比较
+   帧数、帧率、分辨率、时长与视频哈希，不信任编码器或清单的自报结果。
+5. **编码参数显式**：`-framerate {fps_num}/{fps_den}`、`-start_number 0`、
+   libx264、`yuv420p`、`+faststart`；FFmpeg 版本、完整 argv 与产物哈希写入
+   `encode_report.json`。
+
+阶段边界：断网与负控制、完整故障注入矩阵、取消/超时的端到端回归留在 P1.4。
+P1.3 只验证上述不变量及其确定性失败用例。
+
 ## 4. P1-GATE 验收表
 
 本机环境：Windows 11 Pro 10.0.26300；Python 3.13（项目 `.venv`）；
@@ -151,7 +173,8 @@ Motion Canvas 可用。
 | P1-GATE-09 | Node 契约套件 | `cd motion && node --test --test-reporter=tap contract.test.mjs` | TAP **13 tests / 13 pass / 0 fail**（34.4 s） | 同上 artifact `contract-tests.tap` | PASS |
 | P1-GATE-10 | CI 必过真实渲染 | `.github/workflows/ci.yml` `motion-canvas-p1` | run `39762458701` 四个 job 全部 success；缺依赖不会 skip | GitHub Actions run | PASS |
 | P1-GATE-11 | FrameManifest（P1.2） | `uv run python scripts/verify-frame-manifest.py <frames-artifact>` | 清单 `total_frames=300`、`build_id=build-20261022-111018-a735cb` 与构建目录及 driver report 一致；场景覆盖 `0–300`；**300/300 帧 SHA-256 与实际文件一致**；**300/300 帧 PNG 结构/尺寸通过**；`ffmpeg` 整段解码 exit 0；清单 sha256 `b5af5ac4…60d` | CI run `39767972300` artifact `motion-canvas-p1-frames`（8.6 MB 压缩 / 17 MB 解压） | PASS |
-| P1-GATE-12 | 编码与原子发布（P1.3） | — | 未实现 | — | NOT_RUN |
+| P1-GATE-12 | 编码与原子发布（P1.3） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py -v` | 已实现：`build/media/.staging-<build_id>/` 编码 → 视频/清单一致性 → `os.replace`；失败保留旧 `course.mp4`（单元测试） | 等待 CI | NOT_RUN |
+| P1-GATE-15 | Gate 4 独立核对（P1.3） | `uv run pytest tests/test_release.py -k gate4` | 已实现：重读 release 视频与 `internal/qa/{frame_manifest,encode_report}.json`，比较帧数/帧率/尺寸/时长/哈希 | 等待 CI | NOT_RUN |
 | P1-GATE-13 | 故障注入（P1.4） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-14 | 生产配置渲染（1920×1080 / 300 帧） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py::test_production_config_renders_300_frames_at_1080p -v` | JUnit 2 tests / 0 failures / 19.1 s（生产用例 11.9 s）；driver 报告 `frames=300`、`terminal=completed`、5.87 s；帧目录 300 个 PNG（`000000`–`000299`） | CI run `39765444261` artifact `motion-canvas-p1-evidence` | PASS |
 
@@ -192,6 +215,11 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 - `tests/test_frame_manifest.py`。
 - `scripts/verify-frame-manifest.py`：独立于项目校验器的清单复核脚本，
   用于对 CI artifact 做全量哈希、PNG 结构、场景覆盖与解码检查。
+- `src/content_studio/encode.py`：显式参数的 libx264 编码、编码证据。
+- `src/content_studio/video_qa.py`：解码帧数、有理数帧率、尺寸、时长容差
+  与整段解码校验。
+- `tests/test_encode.py`、`tests/test_video_qa.py`；`tests/test_release.py`
+  增加 Gate 4 用例；E2E 断言真实 MP4 与清单一致。
 
 修改：
 
@@ -213,7 +241,7 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 
 1. **本地 WSL 仍未执行**：本机是 Windows，P1 在入口拒绝；WSL 的 Node 22.22.2
    不满足 24.22.1。P1 的真实执行环境是 CI 的 Linux runner，本地不降低门禁。
-2. **P1.3–P1.4 未实现**：编码与原子发布、故障注入。
+2. **P1.4 未实现**：断网与负控制、完整故障注入矩阵、取消/超时端到端回归。
 3. **离线隔离尚未由操作系统证明**：本次渲染记录了 6 个外部请求
    （fonts.googleapis/gstatic、unpkg highlight.js、npm registry），
    本次网络可用、请求成功。P0 的 `--network none` 证据不能自动继承到 P1；
@@ -244,7 +272,14 @@ P1-GATE-08/09/10 不是一次通过的，两次失败都保留如下：
 8. **清单路径以构建目录为根。** 导出器会把帧放在 `frames/<project>/`
    子目录，清单记录 `frames/project/000000.png`；`verify` 用同一根解析，
    避免路径两套解释。
-9. **外部字体与编辑器自检请求仍会发生。** 它们不阻断渲染（P0 断网时也成功
+9. **编码只写 staging，正式路径只做 `os.replace`。** staging 目录位于
+   `build/media/.staging-<build_id>/`（同一文件系统），失败时保留但带
+   `.staging-` 前缀，不进入发布；旧 `course.mp4` 只有在帧清单、视频一致性
+   与解码全部通过后才会被替换。
+10. **Gate 4 在缺少清单时只 warn。** 兼容还没有视频清单的旧项目；一旦
+   存在 `internal/qa/frame_manifest.json`，视频不一致或编码记录哈希不符
+   就是阻断性失败。
+11. **外部字体与编辑器自检请求仍会发生。** 它们不阻断渲染（P0 断网时也成功
    产出 300 帧），但属于 P1.4 的离线证据范围，不能因为本次 CI 通过而记为
    离线已验收。
 
