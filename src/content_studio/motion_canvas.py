@@ -788,9 +788,7 @@ def _frame_problems(frames_dir: Path, expected: int, width: int, height: int) ->
     # The image-sequence exporter writes into a project subdirectory, the same
     # way the driver counts frames recursively. A top-level listing would
     # report zero frames and fail a good build.
-    frames = sorted(
-        path for path in frames_dir.rglob("*.png") if _FRAME_NAME.match(path.name)
-    )
+    frames = sorted(path for path in frames_dir.rglob("*.png") if _FRAME_NAME.match(path.name))
     if len(frames) != expected:
         return [f"expected {expected} frames, found {len(frames)} in the build directory"]
     problems: list[str] = []
