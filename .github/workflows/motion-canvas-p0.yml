@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Build offline render image
         run: docker build -t lces-mc-p0 spike/motion-canvas
 
@@ -34,7 +37,7 @@ jobs:
           docker run --rm --entrypoint node lces-mc-p0 --version | tee evidence/node-version.txt
           docker run --rm --entrypoint npm lces-mc-p0 --version | tee evidence/npm-version.txt
           docker run --rm --entrypoint npx lces-mc-p0 playwright --version | tee evidence/playwright-version.txt
-          ffmpeg -version | head -1 | tee evidence/ffmpeg-version.txt
+          ffmpeg -version | sed -n '1p' | tee evidence/ffmpeg-version.txt
 
       - name: Offline render (network none)
         run: |
