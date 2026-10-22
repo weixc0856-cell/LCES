@@ -140,7 +140,7 @@ Motion Canvas 可用。
 | P1-GATE-11 | FrameManifest（P1.2） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-12 | 编码与原子发布（P1.3） | — | 未实现 | — | NOT_RUN |
 | P1-GATE-13 | 故障注入（P1.4） | — | 未实现 | — | NOT_RUN |
-| P1-GATE-14 | 生产配置渲染（1920×1080 / 300 帧） | `test_motion_canvas_e2e.py::test_production_config_renders_300_frames_at_1080p` | 已加入 CI，等待运行 | — | NOT_RUN |
+| P1-GATE-14 | 生产配置渲染（1920×1080 / 300 帧） | `LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py::test_production_config_renders_300_frames_at_1080p -v` | JUnit 2 tests / 0 failures / 19.1 s（生产用例 11.9 s）；driver 报告 `frames=300`、`terminal=completed`、5.87 s；帧目录 300 个 PNG（`000000`–`000299`） | CI run `39765444261` artifact `motion-canvas-p1-evidence` | PASS |
 
 `BLOCKED` 的含义是：验收本身已定义、可执行，但当前环境不满足；
 它不是通过，也不是失败。
