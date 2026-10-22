@@ -39,10 +39,24 @@ jobs:
         run: uv python install 3.13
       - name: Install Graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz
+      - name: Record Graphviz version
+        run: dot -V 2>&1 | tee graphviz-version.txt
       - name: Sync dependencies (locked)
         run: uv sync --locked
+      - name: Record LCES environment
+        run: uv run lces doctor | tee graphviz-doctor.txt
       - name: Graphviz adapter tests
-        run: uv run pytest tests/test_graphviz.py
+        run: uv run pytest tests/test_graphviz.py -v --junitxml=graphviz-report.xml
+      - name: Upload Graphviz evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphviz-evidence
+          path: |
+            graphviz-version.txt
+            graphviz-doctor.txt
+            graphviz-report.xml
+          if-no-files-found: error
 
   browser-qa:
     runs-on: ubuntu-latest
