@@ -24,7 +24,9 @@ def utc_now_iso() -> str:
 
 def write_text(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+    # Always LF: `.gitattributes` normalises to LF, and Windows' default
+    # newline translation would make generated files look modified.
+    path.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8", newline="\n")
     return path
 
 
