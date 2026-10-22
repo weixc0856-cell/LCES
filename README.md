@@ -278,8 +278,9 @@ FrameManifest、编码记录与 `build_id`。`build/.build-in-progress` 标记�
 `lces release` 拒绝发布。真实 `lces build` 已由 CI run `39796759273` 验收；
 接口细节见 `docs/CONTENT_CONTRACTS.md` 与 `docs/design/motion-canvas-p2-plan.md`。
 
-Motion Canvas 仍只支持 Linux；P2.2 的实现与本地测试已完成，真实渲染与生产入口
-证据待 CI。P2.3（路径/子进程隔离与供应链）和 P2.4（P2 全量验收）尚未开始。Windows 原生仍由入口显式拒绝，
+Motion Canvas 仍只支持 Linux；P2.2 已由 CI run `39807639618` 验收（真实 flow/compare 渲染与
+生产入口；run `39808284124` 恢复并确认 main 全绿）。P2.3（路径/子进程隔离与供应链）
+和 P2.4（P2 全量验收）尚未开始。Windows 原生仍由入口显式拒绝，
 需要新的 P0 才能纳入。P1 的运行范围与验收记录见
 `docs/design/motion-canvas-p1-plan.md`，设计与边界见
 `docs/design/MOTION_CANVAS.md`。
