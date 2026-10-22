@@ -16,6 +16,7 @@ end-to-end path; it does not attempt a general agent platform.
 | Research | `research.py` | Claims, evidence ledger, research brief, unknown/conflict tracking; model-reported review states are reset |
 | Evidence review | `evidence.py` | Canonical review states, named-reviewer rule, `lces review-claims` |
 | Media checks | `media.py` | ffprobe metadata, FFmpeg frame sampling, SRT/VTT timing; used by Gate 4 |
+| Tool layer / MCP | `tools.py`, `mcp_server.py` | Pydantic-validated tools with read/write access, JSONL audit log, optional stdio server |
 | Content | `content.py` | Outline, public content, speaker script, reading edition |
 | Rendering | `rendering.py` + `templates/` | Public HTML from public-only models |
 | Providers | `providers/` | Provider-neutral interface; DeepSeek, Anthropic, local llama.cpp, Mock |

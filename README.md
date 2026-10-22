@@ -165,6 +165,18 @@ uv run lces media-check .\build\media\course.mp4 --frames 4
 
 关键帧写入 `var/media-frames/`，仅供人工查看——能解码不代表内容正确。LCES 目前不做视频**生成**（Manim/Remotion/ParaView 未接入），边界与追溯要求见 `docs/MEDIA.md`。
 
+### MCP 工具接口（Phase 6）
+
+核心功能不依赖 MCP；需要跨客户端调用时再启用：
+
+```powershell
+uv sync --extra mcp
+uv run lces mcp-serve --caller "my-client"                 # 只读工具
+uv run lces mcp-serve --caller "my-client" --allow-write   # 额外允许 run_validate
+```
+
+只暴露 `project_status`、`task_status`、`qa_report`、`release_manifest`，以及授权后的 `run_validate`。**没有发布、审批、删除或命令执行工具**；`run_validate` 只重跑 Gate 1-3，不能绕过门禁。每次调用写入 `var/tool_calls.jsonl`（调用方、工具、权限、参数摘要、结果、耗时，不含密钥或文件内容）。详见 `docs/MCP.md`。
+
 ### 浏览器 QA（Phase 1）
 
 ```powershell
@@ -199,6 +211,8 @@ src/content_studio/
 ├── research.py         主张、证据、研究简报
 ├── evidence.py         核验状态与人工主张复核
 ├── media.py            FFmpeg 探测、关键帧抽取、字幕时间轴检查
+├── tools.py            权限化工具层（校验、授权、JSONL 调用日志）
+├── mcp_server.py       可选 MCP stdio 绑定（复用 tools）
 ├── content.py          大纲、公开内容、口播稿、阅读版
 ├── rendering.py        Jinja2 公开 HTML（经渲染器注册表输出视觉块）
 ├── renderers.py        渲染器接口与注册表（table / figure / custom SVG / Vega-Lite）

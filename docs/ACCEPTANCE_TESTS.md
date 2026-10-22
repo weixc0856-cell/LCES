@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 104 passed |
+| `pytest -q` | 117 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -20,6 +20,7 @@ is considered passing because the code exists.
 | `lces validate` (Gate 1) | model-set `verified` without reviewer treated as unverified |
 | `lces review-claims` | writes reviewer/time; rejects unknown status and empty reviewer |
 | `lces media-check` | probes duration/resolution/codecs and samples keyframes (FFmpeg required) |
+| `lces mcp-serve` | read-only tool list by default; `--allow-write` adds `run_validate`; no release tool |
 
 ## Environment
 
@@ -45,7 +46,7 @@ is considered passing because the code exists.
 | MVP-11 | Traceability: input hashes, provider/model, QA | registry, trace JSON, manifest | Code ready |
 | MVP-12 | Failed tasks retain state and can resume | SQLite stage runs, `--from-stage` | Code ready |
 
-## Phase 1-4 automated evidence
+## Phase 1-6 automated evidence
 
 - Browser QA: `tests/test_browser_qa.py` covers page load, JavaScript errors,
   horizontal overflow, baseline creation/comparison, and the `not_run`
@@ -63,6 +64,9 @@ is considered passing because the code exists.
 - Media: `tests/test_media.py` generates a real clip with FFmpeg and covers
   probing, corrupt files, frame extraction, SRT/VTT timing, and Gate 4
   verdicts (skipped when FFmpeg is absent).
+- Tools/MCP: `tests/test_tools.py` covers input validation, permission denial,
+  JSONL logging, and the MCP tool list; `tests/test_cli.py` covers the missing
+  SDK message.
 
 ## Manual checks that automation cannot replace
 

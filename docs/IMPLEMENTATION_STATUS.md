@@ -1,8 +1,8 @@
 # Implementation Status
 
-Updated for the Phase 0 baseline, Phase 1 browser QA, Phase 2 renderer registry,
-Phase 3 chart/SVG backends, Phase 4 evidence governance, and Phase 5 media
-checks (package version 0.7.0).
+Updated for Phases 0-6: baseline, browser QA, renderer registry, chart/SVG
+backends, evidence governance, media checks, and the permissioned MCP tool
+layer (package version 0.8.0).
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
@@ -13,7 +13,7 @@ by a working code path.
 |---|---|---|
 | Python 3.13 pin / project `.venv` | Implemented | `.python-version`, `requires-python`, `scripts/bootstrap.*`, VS Code interpreter path |
 | Dependency groups + lock workflow | Implemented | `dev` group installed by `uv sync`; regenerate `uv.lock` locally after changes |
-| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`, `media-check`) | Implemented | |
+| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`, `media-check`, `mcp-serve`) | Implemented | |
 | Unified Pydantic contracts | Implemented | `models.py`; JSON Schema export command |
 | SQLite task/stage/asset/approval records | Implemented | `storage.py`; state machine values from PRD |
 | DeepSeek adapter (OpenAI-compatible) | Implemented | `httpx`, timeout, bounded retry, usage extraction |
@@ -48,6 +48,8 @@ by a working code path.
 | Gate 4 release checks | Partial | Allowlist/markers/secrets/hashes/approval; media decode, audio presence, and subtitle timing when media is present |
 | Media probing and frame sampling | Implemented | `media.py` + `lces media-check`; ffprobe metadata, FFmpeg frame extraction for review |
 | Subtitle timing checks | Implemented | SRT/VTT cues must be ordered, non-inverted, and inside the video duration |
+| Tool layer | Implemented | `tools.py`: Pydantic input validation, read/write access, JSONL call log |
+| MCP stdio server | Implemented | Optional `mcp` extra; thin wrappers over `invoke_tool`; no release/approve/delete tool |
 | Release staging + manifest + ZIP | Implemented | ZIP built only from `release/` tree |
 | Human approval recording | Implemented | File + SQLite; not a web UI |
 | Failure recovery | Partial | Stage-scoped rerun with task records; no automatic retry queue |
@@ -69,10 +71,10 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | Command | Result |
 |---|---|
 | `uv sync --extra browser` | 45 packages resolved; Playwright 1.64 + Chromium headless shell installed |
-| `pytest -q` | 104 passed |
+| `pytest -q` | 117 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | no issues in 29 source files |
+| `mypy src` | no issues in 31 source files |
 | `lces run` (local `Qwen3.5-4B`, arXiv 1706.03762) | all 6 stages completed; browser QA established 10 baselines; Gate 3 passed |
 | `lces run --only build` through the registry | table rendered by `html.table` 1.0.0; manifest hash recorded; screenshots still match baseline |
 | `lces render-spec` (unknown `visual_type`) | exits 1 with `UnsupportedVisualType`; no placeholder output |
@@ -81,6 +83,8 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | `lces review-claims` | rejects unknown status and empty reviewer; records reviewer + `reviewed_at` in `claims.json` |
 | `lces media-check` (2 s test clip) | 640x360, 2.00 s, mpeg4 + aac; three keyframes written |
 | Gate 4 media checks | corrupt video fails; valid video plus in-range subtitles passes; no media reports `NOT_RUN` |
+| `lces mcp-serve` (MCP SDK absent) | exits 1 and names `uv sync --extra mcp` |
+| MCP server smoke | lists `project_status`, `task_status`, `qa_report`, `release_manifest`; `run_validate` only with `--allow-write`; no release tool |
 | `lces approve` / `release` / `release-check` | v1 assembled and verified (Gate 4 partial, media decode `NOT_RUN`) |
 
 These results validate the implemented checks only. They do not prove
