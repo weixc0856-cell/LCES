@@ -138,10 +138,22 @@ git push -u origin main
 
 `lces validate` 只对真正实现的检查给出 PASS。当前包含：
 
-- Gate 1：来源台账、证据引用可解析、关键主张有支持证据、未核验证据告警；科学审查为 `NOT_RUN`。
+- Gate 1：来源台账、证据引用可解析、关键主张有支持证据、核验状态可解析；被证据否定的关键主张直接阻断，未核验项告警；科学审查为 `NOT_RUN`。详见 `docs/EVIDENCE_GOVERNANCE.md`。
 - Gate 2：公开模型校验、讲稿独立与章节映射、公开文本无内部标记、引用存在、mock 内容禁止发布、时长偏差告警。
 - Gate 3：HTML 构建、UTF-8、内部标记、图表文件存在、外部资源告警；安装浏览器依赖后还会用 Chromium 实际渲染，检查页面加载、JavaScript 错误、资源加载、桌面/16:9/2K/4K/移动视口横向溢出，并保存基准截图（见下节）。
 - Gate 4：白名单、内部标记、密钥模式、清单哈希、人工审批；媒体解码为 `NOT_RUN`。
+
+### 证据核验（Phase 4）
+
+模型不能给自己核验。研究阶段会把模型返回的核验状态重置为 `pending` / `unverified` 并清空审核人；没有署名审核人的 `supported` 也会按 `pending` 处理。人工复核后用：
+
+```powershell
+uv run lces review-claims .\projects\<project> --claim claim-001 `
+    --status supported --by "你的名字" --note "对照原文 Abstract"
+uv run lces validate .\projects\<project>
+```
+
+`contradicted` 会直接阻断发布；`pending` / `partially_supported` / `insufficient_evidence` 只告警。状态词表与门禁清单见 `docs/EVIDENCE_GOVERNANCE.md`。
 
 ### 浏览器 QA（Phase 1）
 
@@ -175,6 +187,7 @@ src/content_studio/
 ├── orchestrator.py     阶段编排与任务状态
 ├── ingestion.py        本地/URL/PDF/DOCX/HTML 采集
 ├── research.py         主张、证据、研究简报
+├── evidence.py         核验状态与人工主张复核
 ├── content.py          大纲、公开内容、口播稿、阅读版
 ├── rendering.py        Jinja2 公开 HTML（经渲染器注册表输出视觉块）
 ├── renderers.py        渲染器接口与注册表（table / figure / custom SVG / Vega-Lite）

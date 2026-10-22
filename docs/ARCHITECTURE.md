@@ -13,7 +13,8 @@ end-to-end path; it does not attempt a general agent platform.
 | CLI | `cli.py` | Commands, exit codes, human-readable gate output |
 | Orchestration | `orchestrator.py` | Stage selection, status transitions, failure recording |
 | Ingestion | `ingestion.py` | Local/URL/PDF/DOCX/HTML/Markdown acquisition, hashing, snapshots |
-| Research | `research.py` | Claims, evidence ledger, research brief, unknown/conflict tracking |
+| Research | `research.py` | Claims, evidence ledger, research brief, unknown/conflict tracking; model-reported review states are reset |
+| Evidence review | `evidence.py` | Canonical review states, named-reviewer rule, `lces review-claims` |
 | Content | `content.py` | Outline, public content, speaker script, reading edition |
 | Rendering | `rendering.py` + `templates/` | Public HTML from public-only models |
 | Providers | `providers/` | Provider-neutral interface; DeepSeek, Anthropic, local llama.cpp, Mock |

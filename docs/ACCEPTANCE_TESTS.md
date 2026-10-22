@@ -7,7 +7,7 @@ is considered passing because the code exists.
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 80 passed |
+| `pytest -q` | 92 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | passed (27 source files) |
@@ -17,6 +17,8 @@ is considered passing because the code exists.
 | `lces validate` (real project) | Gate 3 pass; 10 browser screenshots/baselines |
 | `lces render-spec` (unknown type) | exits 1 with `UnsupportedVisualType` |
 | `lces render-spec` (Vega-Lite chart) | static SVG rendered offline; Chromium check 0 errors/0 overflow |
+| `lces validate` (Gate 1) | model-set `verified` without reviewer treated as unverified |
+| `lces review-claims` | writes reviewer/time; rejects unknown status and empty reviewer |
 
 ## Environment
 
@@ -42,7 +44,7 @@ is considered passing because the code exists.
 | MVP-11 | Traceability: input hashes, provider/model, QA | registry, trace JSON, manifest | Code ready |
 | MVP-12 | Failed tasks retain state and can resume | SQLite stage runs, `--from-stage` | Code ready |
 
-## Phase 1-3 automated evidence
+## Phase 1-4 automated evidence
 
 - Browser QA: `tests/test_browser_qa.py` covers page load, JavaScript errors,
   horizontal overflow, baseline creation/comparison, and the `not_run`
@@ -53,6 +55,10 @@ is considered passing because the code exists.
 - Chart/SVG backends: the same file covers Vega-Lite SVG output, invalid Vega
   specs, custom-SVG safety checks (script/remote/path traversal), and the
   responsive inline-SVG attributes.
+- Evidence governance: `tests/test_evidence.py` covers status mapping,
+  anonymous-status demotion, generation-time reset, contradicted-claim
+  blocking, pending warnings, and broken claims files; `tests/test_cli.py`
+  covers `review-claims`.
 
 ## Manual checks that automation cannot replace
 
