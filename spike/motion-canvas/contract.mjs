@@ -22,12 +22,15 @@ export function classifyState(labels) {
   const lowered = labels.map(label => String(label).trim().toLowerCase());
   const render = lowered.includes('render');
   const abort = lowered.includes('abort');
-  if (render === abort) {
+  if (render && abort) {
     throw new ContractError(
       CODES.driverProtocolMismatch,
-      `ambiguous render controls: render=${render} abort=${abort}`,
+      'ambiguous render controls: render=true abort=true',
     );
   }
+  // A momentary absence happens while the editor swaps the controls; it is a
+  // non-terminal state, never idle/rendering and never a success signal.
+  if (!render && !abort) return 'transition';
   return abort ? 'rendering' : 'idle';
 }
 

@@ -167,7 +167,12 @@ test('ambiguous controls are not guessed', async () => {
       assert.equal(error.code, CODES.driverProtocolMismatch);
       return true;
     });
-    assert.throws(() => classifyState([]), error => error.code === CODES.driverProtocolMismatch);
+    // Missing controls are a non-terminal transition, never a success state.
+    assert.equal(classifyState([]), 'transition');
+    assert.equal(
+      isRenderComplete({state: 'transition', frames: 300, expected: 300, stableSamples: 5}),
+      false,
+    );
   } finally {
     await page.close();
   }

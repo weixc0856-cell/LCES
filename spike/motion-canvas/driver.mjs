@@ -92,6 +92,16 @@ try {
     return {kind, abort: kind === 'rendering', render: kind === 'idle'};
   };
 
+  const waitForIdle = async (timeoutMs = 15000) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const state = await readState();
+      if (state.kind === 'idle') return state;
+      await page.waitForTimeout(100);
+    }
+    throw new Error('editor did not return to idle');
+  };
+
   const started = Date.now();
   await page.getByRole('button', {name: 'Render', exact: true}).first().click();
 
@@ -102,8 +112,7 @@ try {
     if (during.abort) {
       await page.getByRole('button', {name: 'Abort', exact: true}).first().click();
     }
-    await page.waitForTimeout(1500);
-    const after = await readState();
+    const after = await waitForIdle();
     frames = countFrames(out);
     cancelled = during.abort && after.render && frames > 0 && frames < expected;
     elapsed = (Date.now() - started) / 1000;
@@ -114,7 +123,7 @@ try {
     timedOut = during.abort;
     if (during.abort) {
       await page.getByRole('button', {name: 'Abort', exact: true}).first().click();
-      await page.waitForTimeout(1500);
+      await waitForIdle();
     }
     frames = countFrames(out);
     elapsed = (Date.now() - started) / 1000;

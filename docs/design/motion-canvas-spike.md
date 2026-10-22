@@ -89,7 +89,9 @@ CI 环境（run `39742834259`，Ubuntu runner）：
   被误判为未完成。判定必须大小写不敏感，并在协议测试中锁定。
 - **建议契约**：rendering = `Abort` 存在于 DOM 且帧数增长；
   completed = `Abort` 消失 + `RENDER` 存在 + 帧数连续 2 次不变 + 帧数等于
-  MC-01 计算值。任一信号缺失或选择器不匹配 → `driver_protocol_mismatch`。
+  MC-01 计算值。两个控件同时存在 → `driver_protocol_mismatch`；
+  两者都缺失 → 显式 `transition`（非终态，绝不视为完成）。
+  任一信号缺失或选择器不匹配 → `driver_protocol_mismatch`。
 
 ## 5. 时间轴与帧数（P0-2/P0-4）
 
