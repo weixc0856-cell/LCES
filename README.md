@@ -162,7 +162,10 @@ src/content_studio/
 ├── ingestion.py        本地/URL/PDF/DOCX/HTML 采集
 ├── research.py         主张、证据、研究简报
 ├── content.py          大纲、公开内容、口播稿、阅读版
-├── rendering.py        Jinja2 公开 HTML
+├── rendering.py        Jinja2 公开 HTML（经渲染器注册表输出视觉块）
+├── renderers.py        渲染器接口与注册表（html.table / html.figure）
+├── visuals.py          内容块 → 视觉规格 → 渲染清单
+├── browser_qa.py       Playwright 渲染检查与截图基准
 ├── validation.py       Gate 1-4 自动检查
 ├── release.py          审批、发布目录、ZIP
 ├── providers/          DeepSeek / Anthropic / Mock 适配器
@@ -171,7 +174,7 @@ src/content_studio/
 └── settings.py         环境配置
 ```
 
-`skills/` 保存五大 Skill 规范；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成；`templates/public_html/` 只渲染公开模型。
+`skills/` 保存五大 Skill 规范；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成（含 `visual_spec.schema.json`）；`templates/public_html/` 只渲染公开模型。内容与视觉规格的边界、渲染器规则与版本策略见 `docs/CONTENT_CONTRACTS.md`。
 
 ## 尚未实现
 

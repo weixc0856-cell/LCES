@@ -74,9 +74,23 @@ parses fenced/prose-wrapped JSON, validates with Pydantic, and makes one repair
 attempt. Adapters own transport, auth, timeouts, retries, and usage extraction.
 
 The local adapter targets llama.cpp `llama-server` (OpenAI-compatible `/v1`),
-discovers the loaded model from `/v1/models`, and needs no API key. Model
-routing is opt-in and stage-scoped; deterministic stages never construct a
-model provider.
+discovers the loaded model from `/v1/models`, supports an optional `--api-key`,
+and never sends loopback traffic through the OS proxy. Model routing is opt-in
+and stage-scoped; deterministic stages never construct a model provider.
+
+## Content and visual contracts
+
+Content models describe what a course says. Visual output goes through a
+separate contract: `visuals.py` derives a `VisualSpec` for each table and
+figure block, `renderers.py` resolves the spec through a registry keyed by
+`visual_type`, and the renderer owns escaping plus its own validation. A
+`render_manifest.json` records renderer name, version, schema version, and
+output hash per fragment.
+
+Unknown visual types raise `UnsupportedVisualType` and fail the build; they are
+never rendered as empty placeholders. The template still contains the previous
+inline branches so `use_registry=False` can reproduce the old output for parity
+tests. See `docs/CONTENT_CONTRACTS.md` for the version policy.
 
 ## Local/cloud split
 

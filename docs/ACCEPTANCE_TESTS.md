@@ -3,20 +3,19 @@
 Execute after `uv sync`. Each item is checked against real command output; none
 is considered passing because the code exists.
 
-## Authoring environment results (Linux, Python 3.13.15)
+## Authoring environment results (Windows 11, Python 3.13.12)
 
 | Command | Result |
 |---|---|
-| `pytest -q` | 51 passed |
+| `pytest -q` | 75 passed |
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
-| `mypy src` | passed |
+| `mypy src` | passed (27 source files) |
 | `lces run` (mock, temp project) | 6/6 stages; `NEEDS_REVISION`; release refused |
 | `lces run --routing` (mock routing) | stage providers recorded as mock/none |
 | `lces models` (no server) | reports unreachable without crashing |
-
-The Windows `.venv` in this checkout is still Python 3.14.3; rebuild it before
-repeating these checks locally.
+| `lces validate` (real project) | Gate 3 pass; 10 browser screenshots/baselines |
+| `lces render-spec` (unknown type) | exits 1 with `UnsupportedVisualType` |
 
 ## Environment
 
@@ -41,6 +40,15 @@ repeating these checks locally.
 | MVP-10 | Failed gates block release | `test_release_is_blocked_when_qa_fails` | Code ready |
 | MVP-11 | Traceability: input hashes, provider/model, QA | registry, trace JSON, manifest | Code ready |
 | MVP-12 | Failed tasks retain state and can resume | SQLite stage runs, `--from-stage` | Code ready |
+
+## Phase 1-2 automated evidence
+
+- Browser QA: `tests/test_browser_qa.py` covers page load, JavaScript errors,
+  horizontal overflow, baseline creation/comparison, and the `not_run`
+  fallback when Playwright is absent.
+- Content/visual contracts: `tests/test_renderers.py` covers registry dispatch,
+  unknown visual types, invalid table data, missing figure assets, escaping,
+  render-manifest provenance, and legacy-versus-registry output parity.
 
 ## Manual checks that automation cannot replace
 
