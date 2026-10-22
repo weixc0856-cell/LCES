@@ -23,6 +23,7 @@ from content_studio.models import (
     CheckResult,
     Claim,
     EvidenceLedger,
+    FrameManifest,
     ProjectConfig,
     QAReport,
     ReleaseManifest,
@@ -30,6 +31,7 @@ from content_studio.models import (
 from content_studio.paths import PUBLIC_BUILD_ALLOWLIST
 from content_studio.research import load_evidence_ledger, load_research_brief
 from content_studio.utils import sha256_file, write_json
+from content_studio.video_qa import verify_video_against_manifest
 
 PUBLIC_MARKERS = (
     "TODO",
@@ -622,6 +624,7 @@ def run_release_checks(
     manifest: ReleaseManifest | None,
     approval_required: bool,
     approval_present: bool,
+    project_dir: Path | None = None,
 ) -> list[CheckResult]:
     checks: list[CheckResult] = []
     if not release_root.is_dir():
@@ -733,11 +736,11 @@ def run_release_checks(
             )
         )
 
-    checks.extend(_media_checks(release_root))
+    checks.extend(_media_checks(release_root, project_dir=project_dir))
     return checks
 
 
-def _media_checks(release_root: Path) -> list[CheckResult]:
+def _media_checks(release_root: Path, *, project_dir: Path | None = None) -> list[CheckResult]:
     """Gate 4 media checks: decode, audio presence, subtitle timing."""
 
     media_dir = release_root / "media"
@@ -793,4 +796,63 @@ def _media_checks(release_root: Path) -> list[CheckResult]:
                 "; ".join(problems) if problems else f"{subtitle.name} 字幕时间轴有效",
             )
         )
+    if project_dir is not None and video.is_file():
+        checks.extend(_manifest_video_checks(video, project_dir))
+    return checks
+
+
+def _manifest_video_checks(video: Path, project_dir: Path) -> list[CheckResult]:
+    """Gate 4 re-reads the manifest and the video; it never trusts a flag."""
+
+    qa_dir = project_dir / "internal" / "qa"
+    manifest_path = qa_dir / "frame_manifest.json"
+    if not manifest_path.is_file():
+        return [
+            _check(
+                "gate_4_release",
+                "video_matches_manifest",
+                "warn",
+                "视频存在但没有 FrameManifest，无法独立核对",
+                blocking=False,
+            )
+        ]
+    try:
+        frame_manifest = FrameManifest.model_validate_json(
+            manifest_path.read_text(encoding="utf-8")
+        )
+    except ValueError as exc:
+        return [
+            _check(
+                "gate_4_release",
+                "video_matches_manifest",
+                "fail",
+                f"FrameManifest 无法解析: {exc}",
+            )
+        ]
+    problems = verify_video_against_manifest(video, frame_manifest)
+    checks = [
+        _check(
+            "gate_4_release",
+            "video_matches_manifest",
+            "fail" if problems else "pass",
+            "; ".join(problems) if problems else "视频与 FrameManifest 一致",
+        )
+    ]
+    report_path = qa_dir / "encode_report.json"
+    if report_path.is_file():
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except ValueError:
+            report = {}
+        expected = report.get("video_sha256") if isinstance(report, dict) else None
+        if isinstance(expected, str) and expected:
+            actual = sha256_file(video)
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "video_hash_matches_encode_report",
+                    "pass" if expected == actual else "fail",
+                    "视频哈希与编码记录一致" if expected == actual else "视频哈希与编码记录不一致",
+                )
+            )
     return checks

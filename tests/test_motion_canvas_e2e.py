@@ -21,8 +21,9 @@ import pytest
 
 from content_studio import motion_canvas as mc
 from content_studio.frame_manifest import png_problems
-from content_studio.models import VisualSpec
+from content_studio.models import FrameManifest, VisualSpec
 from content_studio.renderers import RenderContext
+from content_studio.video_qa import verify_video_against_manifest
 
 pytestmark = pytest.mark.motion
 
@@ -79,6 +80,12 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
     # what the driver observed. P0 saw failed external attempts even with no
     # network, so an empty list is not a valid assertion here.
     assert isinstance(report["external_requests"], list)
+
+    video = tmp_path / "media" / "course.mp4"
+    assert video.is_file(), "the adapter must publish an encoded video"
+    manifest_path = next(tmp_path.rglob("frame_manifest.json"))
+    manifest = FrameManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+    assert verify_video_against_manifest(video, manifest) == []
     return report
 
 
