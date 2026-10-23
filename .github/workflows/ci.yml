@@ -14,6 +14,10 @@ on:
         description: "Render the same scene twice and record the P2.4-C reproducibility report"
         type: boolean
         default: false
+      materials:
+        description: "Render the P3-A representative material set"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -109,6 +113,13 @@ jobs:
           LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py tests/test_motion_canvas_templates.py tests/test_motion_canvas_production.py tests/test_encode.py tests/test_release_video.py -v
           --basetemp=/tmp/lces-p1-builds
           --junitxml=motion-evidence/e2e-report.xml
+      - name: Representative materials (real renders)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.materials }}
+        run: >-
+          LCES_MC_MATERIALS=1 LCES_MATERIALS_OUT=motion-evidence/materials.json
+          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_materials.py -v
+          --basetemp=/tmp/lces-materials
+          --junitxml=motion-evidence/materials-report.xml
       - name: Reproducibility measurement (two renders)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.reproducibility }}
         run: >-

@@ -160,3 +160,9 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   `tests/test_motion_materials.py` checks the hashes, contract validity,
   expected frame counts and template coverage, so an accidental input change
   fails before any render runs.
+
+- Motion Canvas material renders (P3-A): `tests/test_motion_canvas_materials.py`
+  validates every frozen material through the adapter on all platforms and,
+  with `LCES_MC_MATERIALS=1`, renders the set on Linux, checking frames,
+  resolution, fps, decode and visual QA and emitting a per-material report.
+  CI exposes it through the manual `materials` input.

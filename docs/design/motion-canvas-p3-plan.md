@@ -101,3 +101,19 @@
 - PR：smoke + 素材契约校验（低成本）；
 - 手动触发：representative 渲染（每模板真实素材）；
 - 手动或独立 job：stress 与 recovery（高成本，不进每个 PR）。
+
+## 9. P3-A 第二步：渲染回归（本机；实测 job 待触发）
+
+- `tests/test_motion_canvas_materials.py`：
+  - 参数化地对每份素材调用适配器的 `validate_input`（所有平台、低成本）；
+  - `LCES_MC_MATERIALS=1` 时在 Linux 真实渲染全部素材，核对帧数、分辨率、
+    帧率、视频解码、`visual_qa` 状态，并写出逐素材报告（耗时、字节数、视觉指标）
+    到 `LCES_MATERIALS_OUT`；
+  - 失败信息包含素材 id 与阶段，避免只报“渲染失败”。
+- CI：`workflow_dispatch` 新增 `materials` 输入；p1 job 在该输入为真时运行
+  素材渲染，报告进入 `motion-canvas-p1-evidence`。
+- `scripts/ci-local.sh render` 支持 `LCES_MC_MATERIALS=1`。
+
+**本机验证**：素材契约校验 7/7 通过；真实渲染仅能在 Linux + 固定工具链运行。
+
+**未执行**：materials 实测 job。P3-GATE-02 在真实素材渲染报告产生前不得记为 PASS。
