@@ -163,9 +163,12 @@ def _render(
     assert provenance["node_version"] == mc.NODE_VERSION
     assert provenance["motion_canvas_version"] == mc.MOTION_CANVAS_VERSION
     assert provenance["playwright_version"] == mc.PLAYWRIGHT_VERSION
-    # Only the provenance block must be path-free; `command` legitimately
-    # records the absolute FFmpeg argv used for this build.
+    # P2.3-E: both the provenance block and the FFmpeg command are free of
+    # host paths, so the whole report can be uploaded as an artifact.
+    assert encode_report["schema_version"] == "1.2"
+    assert encode_report["command_paths"] == "build-relative"
     assert str(tmp_path) not in json.dumps(provenance)
+    assert str(tmp_path) not in json.dumps(encode_report["command"])
     assert (qa_dir / "frame_manifest.json").is_file()
     diagnostics = " | ".join(renderer.get_diagnostics())
     assert "process group" in diagnostics and "cleaned" in diagnostics

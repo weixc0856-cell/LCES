@@ -70,7 +70,7 @@ from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.supply_chain import audit_supply_chain
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
-from content_studio.utils import read_json, write_json
+from content_studio.utils import read_json, redact_home, write_json
 
 app = typer.Typer(no_args_is_help=True, help="Local Content Engineering Studio (LCES)")
 
@@ -115,8 +115,8 @@ def doctor() -> None:
 
     settings = get_settings()
     typer.echo(f"LCES {__version__} | Python {sys.version.split()[0]}")
-    typer.echo(f"解释器: {sys.executable}")
-    typer.echo(f"配置: {settings.describe()}")
+    typer.echo(f"解释器: {redact_home(sys.executable)}")
+    typer.echo(f"配置: {redact_home(settings.describe())}")
 
     if sys.version_info[:2] != (3, 13):
         typer.secho("警告: 项目锁定 Python 3.13，当前解释器版本不同。", fg=typer.colors.YELLOW)
@@ -124,11 +124,14 @@ def doctor() -> None:
         typer.secho("警告: 当前解释器不在项目 .venv 中。", fg=typer.colors.YELLOW)
 
     templates = template_dir()
-    typer.echo(f"模板目录: {templates} ({'存在' if templates.is_dir() else '缺失'})")
+    typer.echo(
+        f"模板目录: {redact_home(str(templates))} ({'存在' if templates.is_dir() else '缺失'})"
+    )
 
     store = TaskStore(settings.database_path)
     typer.echo(
-        f"数据库: {settings.database_path} (可用, {len(store.list_tasks(limit=1))} 条近期任务)"
+        f"数据库: {redact_home(str(settings.database_path))} "
+        f"(可用, {len(store.list_tasks(limit=1))} 条近期任务)"
     )
 
     provider = settings.provider.lower()
@@ -143,7 +146,7 @@ def doctor() -> None:
         if not key:
             _exit(f"错误: provider={provider} 但未配置 API key")
     if settings.routing_file:
-        typer.echo(f"路由文件: {settings.routing_file}")
+        typer.echo(f"路由文件: {redact_home(str(settings.routing_file))}")
 
     mermaid_ok, mermaid_detail = mermaid_status()
     typer.echo(f"Mermaid: {'可用' if mermaid_ok else '不可用'} — {mermaid_detail}")

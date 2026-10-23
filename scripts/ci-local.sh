@@ -72,6 +72,14 @@ require_docker() {
   docker info >/dev/null 2>&1 || die "the Docker daemon is not reachable"
 }
 
+require_lf() {
+  # Docker copies the working tree; a Windows tool that rewrites a shell
+  # script with CRLF makes bash fail at `set -euo pipefail` inside the image.
+  local bad
+  bad="$(grep -rIl $'\r' scripts/*.sh motion/offline.Dockerfile 2>/dev/null || true)"
+  [ -z "$bad" ] || die "CRLF line endings in files the container runs: $bad"
+}
+
 fast() {
   require_uv
   note "lint, format, types (CI test job)"
@@ -100,6 +108,7 @@ render() {
 
 offline() {
   require_docker
+  require_lf
   mkdir -p var/ci-offline
   note "build the offline image (network allowed here only)"
   docker build -f motion/offline.Dockerfile -t lces-motion-offline .

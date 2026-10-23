@@ -41,7 +41,9 @@ not the development loop:
   gate), `motion/node_modules` (`npm ci`), the Playwright Chromium for 1.64.0,
   and FFmpeg/ffprobe.
 - `offline` (and the offline stage of `full`) need a Docker daemon running Linux
-  containers. The image is built with network access; the render, encode, Gate 4
+  containers, and refuse CRLF line endings in `scripts/*.sh` or the Dockerfile:
+  Docker copies the working tree, and bash inside the image fails on `set -euo
+  pipefail` when the script was rewritten with Windows line endings. The image is built with network access; the render, encode, Gate 4
   and negative controls then run with `--network none`. A missing tool or a
   reachable network fails the gate.
 - A missing tool stops the script with the command to run. Do not lower the

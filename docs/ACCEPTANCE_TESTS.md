@@ -110,6 +110,14 @@ is considered passing because the code exists.
   requires a real build to report `network_policy=local-only`, a non-zero
   blocked count and a named font. The offline job still proves the OS-level
   block.
+- Motion Canvas acceptance (P2.3-E): `tests/test_encode.py` asserts the
+  encode report's FFmpeg command is build-relative and path-free;
+  `tests/test_utils.py` asserts `doctor` never prints the user home;
+  `tests/test_evidence_audit.py` plants home paths and secrets in an evidence
+  tree and expects findings while skipping binaries and symlinks. CI runs
+  `scripts/audit-evidence.py` before uploading the p1, graphviz and offline
+  artifacts. `docs/design/motion-canvas-p2.3-e-acceptance.md` maps N01–N18 to
+  these tests.
 
 ## Manual checks that automation cannot replace
 

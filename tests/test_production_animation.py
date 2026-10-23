@@ -275,6 +275,23 @@ def test_missing_scene_file_is_an_input_failure(tmp_path):
     assert caught.value.code == "invalid_input"
 
 
+def test_oversized_scene_file_is_an_input_failure(tmp_path):
+    """N17: a scene file over the 1 MB cap is rejected before parsing."""
+
+    project = _project(tmp_path)
+    (project / "content" / "scenes" / "course.json").write_text(
+        "x" * (1024 * 1024 + 1), encoding="utf-8"
+    )
+    with pytest.raises(RenderError, match="exceeds 1 MB") as caught:
+        render_content_visuals(
+            _content(),
+            project_dir=project,
+            output_dir=project / "build" / "slides",
+            registry=_registry(),
+        )
+    assert caught.value.code == "invalid_input"
+
+
 def test_wrong_video_output_path_is_rejected(tmp_path):
     project = _project(tmp_path, payload=_scene_payload(output_path="build/other.mp4"))
     with pytest.raises(RenderError, match="build/media/course.mp4") as caught:

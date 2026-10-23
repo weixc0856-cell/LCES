@@ -24,6 +24,27 @@ def utc_now_iso() -> str:
     return utc_now().isoformat(timespec="seconds")
 
 
+def redact_home(value: str) -> str:
+    """Replace the current user's home prefix with ``~``.
+
+    Doctor output is uploaded as CI evidence; ``/home/runner/...`` identifies
+    an account rather than a build. Both slash styles are handled so Windows
+    output is covered too. Other users' home directories are left alone: the
+    step must not pretend to sanitise what it did not recognise.
+    """
+
+    try:
+        home = str(Path.home())
+    except (RuntimeError, OSError):  # pragma: no cover - no home configured
+        return value
+    if not home or home in {"/", "\\"}:
+        return value
+    for prefix in {home, home.replace("\\", "/"), home.replace("/", "\\")}:
+        if prefix:
+            value = value.replace(prefix, "~")
+    return value
+
+
 def write_text(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     # Always LF: `.gitattributes` normalises to LF, and Windows' default

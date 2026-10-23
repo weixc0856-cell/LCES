@@ -109,6 +109,11 @@ jobs:
         if: always()
         run: |
           uv run python scripts/collect-motion-evidence.py             --root /tmp/lces-p1-builds --out motion-evidence
+      - name: Audit evidence for secrets and host paths
+        if: always()
+        run: |
+          set -o pipefail
+          uv run python scripts/audit-evidence.py motion-evidence | tee motion-evidence/evidence-audit.txt
       - name: Stage production frames
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.keep_frames }}
         run: |
@@ -178,15 +183,18 @@ jobs:
         run: uv run lces doctor | tee graphviz-doctor.txt
       - name: Graphviz adapter tests
         run: uv run pytest tests/test_graphviz.py -v --junitxml=graphviz-report.xml
+      - name: Collect evidence and audit it for secrets and host paths
+        if: always()
+        run: |
+          mkdir -p graphviz-evidence
+          cp graphviz-version.txt graphviz-doctor.txt graphviz-report.xml graphviz-evidence/ 2>/dev/null || true
+          uv run python scripts/audit-evidence.py graphviz-evidence | tee graphviz-evidence/evidence-audit.txt
       - name: Upload Graphviz evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: graphviz-evidence
-          path: |
-            graphviz-version.txt
-            graphviz-doctor.txt
-            graphviz-report.xml
+          path: graphviz-evidence/
           if-no-files-found: error
 
   browser-qa:

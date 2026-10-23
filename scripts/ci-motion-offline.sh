@@ -58,3 +58,6 @@ uv run --no-sync python scripts/collect-motion-evidence.py \
 note "verify the request audit and published outputs"
 uv run --no-sync python scripts/verify-offline-evidence.py --root "$BUILDS" \
   | tee "$EVIDENCE/offline-verification.txt"
+
+note "audit evidence for secrets and host paths"
+uv run --no-sync python scripts/audit-evidence.py "$EVIDENCE" | tee "$EVIDENCE/evidence-audit.txt"

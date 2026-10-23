@@ -761,6 +761,10 @@ class MotionCanvasRenderer(Renderer):
                         ),
                         manifest_sha256=sha256_file(manifest_path),
                         provenance=render_provenance(project, node),
+                        # The staging video lives under <build>/media, not under
+                        # the per-build motion directory, so redact against the
+                        # project build root that contains both.
+                        path_root=base_dir,
                     ),
                 )
                 qa_paths = (qa_manifest, qa_report)
