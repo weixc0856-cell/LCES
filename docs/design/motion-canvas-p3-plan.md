@@ -132,3 +132,25 @@
 帧数、分辨率、帧率、解码与 `visual_qa` 全部通过；报告在
 `motion-evidence/materials.json`（artifact `motion-canvas-p1-evidence`），
 已下载到 `var/ci-materials/` 复核。
+
+## 10. P3-B 阶段 A/B 实施记录（本机；实测 job 待触发）
+
+**实现**
+
+- `src/content_studio/resource_probe.py`：后台线程按固定间隔采样进程树 RSS、
+  子进程数与构建目录大小，记录采样方法、间隔与次数；**采集失败记 `None` 并写入
+  `unavailable`，不当作 0**。
+- `tests/test_motion_canvas_stress.py`：`LCES_MC_STRESS=1` 时渲染
+  1 s / 10 s / 60 s（1920×1080，30 fps）三档；10 s 与 60 s 重复两次。
+  记录总耗时、渲染耗时（driver 报告）、编码耗时（包装 `encode_frames`）、
+  Gate 4 校验耗时、峰值 RSS、峰值子进程数、峰值目录大小、帧目录/视频大小、
+  运行前后可用空间、帧数/分辨率/帧率/解码/哈希，以及环境与素材契约哈希。
+- CI：`workflow_dispatch` 新增 `stress` 输入，p1 job 在该输入为真时运行，
+  报告写入 `motion-evidence/stress.json`；`ci-local.sh render` 支持
+  `LCES_MC_STRESS=1`。
+
+**本机验证**：`uv run pytest` → 436 passed, 53 skipped；ruff / format / mypy 全绿。
+真实三档仅在 Linux + 固定工具链执行。
+
+**未执行**：stress 实测 job；故障注入（阶段 C）尚未开始。P3-GATE-04/05 保持
+`NOT_RUN`。

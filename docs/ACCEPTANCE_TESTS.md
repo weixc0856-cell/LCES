@@ -166,3 +166,9 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   with `LCES_MC_MATERIALS=1`, renders the set on Linux, checking frames,
   resolution, fps, decode and visual QA and emitting a per-material report.
   CI exposes it through the manual `materials` input.
+
+- Motion Canvas resource baseline (P3-B): `tests/test_resource_probe.py` covers
+  the probe's sampling and its `unavailable` semantics (a failed measurement is
+  never zero). `tests/test_motion_canvas_stress.py` renders the 1 s / 10 s /
+  60 s tiers with `LCES_MC_STRESS=1`, repeating the longer tiers, and records
+  timing, process-tree resources, disk, artifacts and environment.
