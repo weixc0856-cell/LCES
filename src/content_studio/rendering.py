@@ -14,7 +14,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from content_studio.errors import RenderError
 from content_studio.models import AnimationBlock, ChartBlock, PublicContent, ReadingEdition
-from content_studio.paths import BUILD_MARKER
+from content_studio.paths import BUILD_MARKER, symlinks_in_tree
 from content_studio.renderers import RendererRegistry
 from content_studio.utils import utc_now_iso, write_json_atomic, write_text_atomic
 from content_studio.visuals import (
@@ -39,9 +39,32 @@ def _environment(template_dir: Path) -> Environment:
 
 
 def _copy_charts(project_dir: Path, output_dir: Path) -> None:
+    """Copy authored charts, refusing to follow links out of the project.
+
+    ``copytree`` follows symlinks by default, so one link in ``content/charts``
+    would pull a file from anywhere on the host into the build and, from there,
+    into the release staging tree.
+    """
+
     charts = project_dir / "content" / "charts"
-    if charts.is_dir():
-        shutil.copytree(charts, output_dir / "charts", dirs_exist_ok=True)
+    if not charts.is_dir():
+        return
+    links = symlinks_in_tree(charts)
+    if charts.is_symlink() or links:
+        culprit = Path("content/charts") if charts.is_symlink() else links[0]
+        raise RenderError(
+            f"content/charts contains a symlink: {culprit.as_posix()}",
+            code="invalid_input",
+            stage="input",
+        )
+    destination = output_dir / "charts"
+    if destination.is_symlink():
+        raise RenderError(
+            f"build chart directory is a symlink: {destination}",
+            code="invalid_input",
+            stage="input",
+        )
+    shutil.copytree(charts, destination, dirs_exist_ok=True)
 
 
 def _reject_registry_only_blocks(content: PublicContent) -> None:

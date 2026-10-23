@@ -682,7 +682,14 @@ def render_spec(
 def render_scene(
     project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
     spec_file: Path = typer.Argument(..., exists=True, dir_okay=False),
-    out: Path | None = typer.Option(None, "--out", help="构建输出目录（默认 <project>/build）"),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help=(
+            "构建输出目录（默认 <project>/build；必须在项目内，"
+            "且不得是 input/internal/content/release）"
+        ),
+    ),
     build_id: str | None = typer.Option(None, "--build-id", help="固定构建 ID"),
 ) -> None:
     """Render one Motion Canvas scene (P1, Linux only; not in the release path)."""

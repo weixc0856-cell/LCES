@@ -16,6 +16,7 @@ adapter-enforced timeout). Both must leave an older ``course.mp4`` untouched.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import threading
@@ -63,7 +64,33 @@ def _spec(*, duration_ms: int, width: int, height: int) -> VisualSpec:
     )
 
 
-def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
+@contextlib.contextmanager
+def host_home_canary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Point HOME at a canary while keeping Playwright's browser lookup.
+
+    The driver's HOME is isolated to the build, so Playwright resolves its
+    registry from the build directory. Resolve the host directory *before*
+    HOME moves and pin it for this test only; an explicit
+    ``PLAYWRIGHT_BROWSERS_PATH`` (including ``0``) is never overridden.
+    """
+
+    host_home = tmp_path / "host-home"
+    host_home.mkdir(exist_ok=True)
+    if not os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "").strip():
+        resolved = mc.playwright_browsers_path()
+        if resolved is None:
+            pytest.fail(
+                "cannot resolve the host Playwright browser directory; "
+                "set PLAYWRIGHT_BROWSERS_PATH so the isolated HOME can still find Chromium"
+            )
+        monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", resolved)
+    monkeypatch.setenv("HOME", str(host_home))
+    yield host_home
+
+
+def _render(
+    tmp_path: Path, spec: VisualSpec, *, max_render_ms: int, monkeypatch: pytest.MonkeyPatch
+) -> dict:
     if os.environ.get("LCES_MC_E2E") != "1":
         pytest.skip("set LCES_MC_E2E=1 on a Linux host with the pinned toolchain")
 
@@ -74,11 +101,19 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
         "not a skip): " + "; ".join(problems)
     )
 
-    result = renderer.render(
-        spec, RenderContext(output_dir=tmp_path, project_dir=tmp_path / "project", publish=True)
-    )
+    # N09: point the host HOME at a canary. The driver must use the build's
+    # own HOME/TMP, so a successful render leaves the canary untouched.
+    with host_home_canary(tmp_path, monkeypatch) as host_home:
+        result = renderer.render(
+            spec,
+            RenderContext(output_dir=tmp_path, project_dir=tmp_path / "project", publish=True),
+        )
     assert result.status == "completed"
     assert result.build_id
+    assert not list(host_home.iterdir()), "the render wrote into the host HOME"
+    build_homes = list((tmp_path / "project" / "build" / "motion").glob("*/home"))
+    assert len(build_homes) == 1, "the driver HOME must live inside the build directory"
+    assert build_homes[0].is_dir()
 
     report_path = next(path for path in result.artifacts if path.name == "report.json")
     report = json.loads(report_path.read_text(encoding="utf-8"))
@@ -118,18 +153,22 @@ def _render(tmp_path: Path, spec: VisualSpec, *, max_render_ms: int) -> dict:
     return report
 
 
-def test_smoke_config_renders_30_frames(tmp_path):
+def test_smoke_config_renders_30_frames(tmp_path, monkeypatch):
     report = _render(
-        tmp_path, _spec(duration_ms=1000, width=640, height=360), max_render_ms=180_000
+        tmp_path,
+        _spec(duration_ms=1000, width=640, height=360),
+        max_render_ms=180_000,
+        monkeypatch=monkeypatch,
     )
     assert report["frames"] == 30
 
 
-def test_production_config_renders_300_frames_at_1080p(tmp_path):
+def test_production_config_renders_300_frames_at_1080p(tmp_path, monkeypatch):
     report = _render(
         tmp_path,
         _spec(duration_ms=10_000, width=1920, height=1080),
         max_render_ms=300_000,
+        monkeypatch=monkeypatch,
     )
     assert report["frames"] == 300
     frames = sorted(tmp_path.rglob("000000.png"))[0].parent

@@ -54,7 +54,7 @@ from content_studio.motion_templates import (
     data_problems,
     scene_source,
 )
-from content_studio.paths import repository_root
+from content_studio.paths import repository_root, symlink_components
 from content_studio.renderers import (
     RenderContext,
     Renderer,
@@ -78,6 +78,9 @@ MAX_WIDTH = 7680
 MAX_HEIGHT = 4320
 
 BUILD_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+# A standalone render may not write into these: they hold inputs,
+# internal research, or the release tree.
+PROTECTED_PROJECT_DIRS = frozenset({"input", "internal", "content", "release"})
 HEX_COLOUR = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOCKFILE_NAME = "package-lock.json"
 
@@ -138,6 +141,84 @@ def _run_probe(command: list[str], *, cwd: Path | None = None) -> str:
         command, capture_output=True, text=True, timeout=20, check=False, cwd=cwd
     )
     return (completed.stdout or completed.stderr or "").strip()
+
+
+def _invalid(message: str) -> RenderError:
+    return RenderError(message, code="invalid_input", stage="input")
+
+
+def _require_no_symlink_components(path: Path, root: Path, *, what: str) -> None:
+    links = symlink_components(path, root)
+    if links:
+        raise _invalid(f"{what} contains a symlink: {links[0]}")
+
+
+def _bound_output_dir(output_dir: Path, project_root: Path | None) -> Path:
+    """A build output directory inside the project, with no link components.
+
+    ``lces render-scene --out`` used to accept any path, so a mistyped or
+    hostile value could write frames and a video into the host tree. The
+    production path always passes the project root; direct registry calls
+    without one still get the symlink and file-type checks that need no root.
+    """
+
+    candidate = output_dir.expanduser()
+    if not candidate.is_absolute():
+        candidate = Path.cwd() / candidate
+    if project_root is not None:
+        try:
+            relative = candidate.resolve().relative_to(project_root)
+        except ValueError as exc:
+            raise _invalid(f"output directory escapes the project directory: {output_dir}") from exc
+        if not relative.parts:
+            raise _invalid("output directory must be a build directory, not the project root")
+        if relative.parts[0] in PROTECTED_PROJECT_DIRS:
+            raise _invalid(f"output directory must not be under {relative.parts[0]}/")
+        _require_no_symlink_components(candidate, project_root, what="output directory")
+    elif candidate.is_symlink():
+        raise _invalid("output directory must not be a symlink")
+    final = candidate.resolve()
+    if final.exists() and not final.is_dir():
+        raise _invalid(f"output directory is not a directory: {output_dir}")
+    return final
+
+
+def _prepare_driver_dirs(build_root: Path) -> tuple[Path, Path]:
+    """Per-build HOME and TMP so the editor cannot write the host profile."""
+
+    home = build_root / "home"
+    temporary = build_root / "tmp"
+    for path in (
+        home / ".config",
+        home / ".cache",
+        home / ".local" / "share",
+        home / ".local" / "state",
+        temporary,
+    ):
+        path.mkdir(parents=True, exist_ok=True)
+    return home, temporary
+
+
+def playwright_browsers_path() -> str | None:
+    """Host browser location to keep reading after HOME is redirected.
+
+    Browsers are read-only inputs; the driver must still find the Chromium
+    that Playwright installed into the host profile or an explicit
+    ``PLAYWRIGHT_BROWSERS_PATH``.
+    """
+
+    configured = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "").strip()
+    if configured:
+        return configured
+    home = Path.home()
+    for candidate in (
+        home / ".cache" / "ms-playwright",
+        home / "Library" / "Caches" / "ms-playwright",
+        home / "AppData" / "Local" / "ms-playwright",
+    ):
+        if candidate.is_dir():
+            return str(candidate)
+    return None
 
 
 def _package_version(path: Path) -> str:
@@ -455,9 +536,22 @@ class MotionCanvasRenderer(Renderer):
                 "P2.1 publishes to build/media/course.mp4; "
                 f"video.output_path is '{video.output_path}'"
             )
-        base_dir = publish_root / "build" if publish_root is not None else context.output_dir
+        if publish_root is not None:
+            base_dir = publish_root / "build"
+            _require_no_symlink_components(base_dir, publish_root, what="build directory")
+            # QA evidence is written below internal/qa; a linked directory
+            # would redirect it outside the project before the build commits.
+            _require_no_symlink_components(
+                publish_root / "internal" / "qa",
+                publish_root,
+                what="internal/qa",
+            )
+        else:
+            base_dir = _bound_output_dir(context.output_dir, project_root)
         build_id = _build_id()
         build_root = base_dir / "motion" / build_id
+        if project_root is not None:
+            _require_no_symlink_components(build_root, project_root, what="build directory")
         if build_root.exists():
             raise _invalid(f"build directory already exists: {build_root.name}")
         project = motion_project_dir()
@@ -499,13 +593,18 @@ class MotionCanvasRenderer(Renderer):
         self._last = {"build_id": build_id, "visual_id": spec.visual_id}
         try:
             work = _materialise_project(project, build_root, scenes.scenes[0], plan, video)
+            home_dir, tmp_dir = _prepare_driver_dirs(build_root)
             frames_dir = build_root / "frames"
             frames_dir.mkdir(parents=True, exist_ok=True)
+            if frames_dir.is_symlink():
+                raise _invalid("frame directory must not be a symlink")
             env = _driver_env(
                 output_dir=frames_dir,
                 expected_frames=plan.total_frames,
                 build_id=build_id,
                 max_render_ms=self.max_render_ms,
+                home_dir=home_dir,
+                tmp_dir=tmp_dir,
             )
             log_path = build_root / "driver.log"
             command = [node, "driver.mjs"]
@@ -591,9 +690,12 @@ class MotionCanvasRenderer(Renderer):
             if publish_root is not None:
                 media_dir = publish_root / "build" / "media"
                 final_video = publish_root / video.output_path
+                _require_no_symlink_components(media_dir, publish_root, what="media directory")
             else:
-                media_dir = context.output_dir / "media"
+                media_dir = base_dir / "media"
                 final_video = media_dir / "course.mp4"
+                if project_root is not None:
+                    _require_no_symlink_components(media_dir, project_root, what="media directory")
             staging_dir = media_dir / f".staging-{build_id}"
             staging_dir.mkdir(parents=True, exist_ok=True)
             staged_video = staging_dir / "course.mp4"
@@ -762,10 +864,6 @@ def motion_canvas_registry() -> RendererRegistry:
     return registry
 
 
-def _invalid(message: str) -> RenderError:
-    return RenderError(message, code="invalid_input", stage="input")
-
-
 def _build_id() -> str:
     override = os.environ.get("LCES_BUILD_ID", "").strip()
     if override:
@@ -855,15 +953,37 @@ def _scene_source(scene: SceneContract, plan: TimelinePlan, *, width: int, heigh
 
 
 def _driver_env(
-    *, output_dir: Path, expected_frames: int, build_id: str, max_render_ms: int
+    *,
+    output_dir: Path,
+    expected_frames: int,
+    build_id: str,
+    max_render_ms: int,
+    home_dir: Path,
+    tmp_dir: Path,
 ) -> dict[str, str]:
-    allow = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TMP", "TEMP")
+    """A whitelisted environment with the host profile pointed at the build.
+
+    HOME, XDG_*, TMPDIR and TMP all move into ``build/motion/<id>/``. The
+    editor writes configuration on first use, and those writes must not leak
+    into the user's profile or another build. ``PLAYWRIGHT_BROWSERS_PATH``
+    stays a host read: browsers are installed once and shared.
+    """
+
+    allow = ("PATH", "LANG", "LC_ALL")
     env = {name: os.environ[name] for name in allow if name in os.environ}
-    playwright = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    playwright = playwright_browsers_path()
     if playwright:
         env["PLAYWRIGHT_BROWSERS_PATH"] = playwright
     env.update(
         {
+            "HOME": str(home_dir),
+            "XDG_CONFIG_HOME": str(home_dir / ".config"),
+            "XDG_CACHE_HOME": str(home_dir / ".cache"),
+            "XDG_DATA_HOME": str(home_dir / ".local" / "share"),
+            "XDG_STATE_HOME": str(home_dir / ".local" / "state"),
+            "TMPDIR": str(tmp_dir),
+            "TMP": str(tmp_dir),
+            "TEMP": str(tmp_dir),
             "OUTPUT_DIR": str(output_dir),
             "EXPECTED_FRAMES": str(expected_frames),
             "EXPECTED_EDITOR_VERSION": MOTION_CANVAS_VERSION,

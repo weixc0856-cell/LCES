@@ -15,6 +15,7 @@ import {
   terminalFor,
   validateFrameCount,
 } from './contract.mjs';
+import {prepareOutputDir} from './output-dir.mjs';
 
 // LCES Motion Canvas driver (P1). Modes:
 //   render  (default) - render the full range and require EXPECTED_FRAMES
@@ -42,11 +43,10 @@ try {
   throw error;
 }
 
+let outputReady = false;
 function resetOutput() {
-  fs.mkdirSync(out, {recursive: true});
-  for (const entry of fs.readdirSync(out)) {
-    fs.rmSync(path.join(out, entry), {recursive: true, force: true});
-  }
+  prepareOutputDir(out);
+  outputReady = true;
 }
 
 const vite = path.join('node_modules', 'vite', 'bin', 'vite.js');
@@ -192,6 +192,13 @@ try {
 }
 
 if (mode === 'cancel' && cancelled) errorCode = CODES.cancelled;
+
+if (!outputReady) {
+  // The output directory was rejected. Do not write a report into it: that
+  // would create an artifact in a directory this build does not own.
+  console.log('DRIVER_ERROR', 'OUTPUT_DIR was rejected; no report written');
+  process.exit(exitCodeFor(errorCode || CODES.invalidInput));
+}
 
 const report = {
   schema_version: '1.0',

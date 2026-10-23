@@ -29,3 +29,5 @@ projects/*/
 .DS_Store
 Thumbs.db
 offline-evidence/
+# Local Claude Code state (session locks and caches) is per-machine.
+.claude/
