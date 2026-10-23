@@ -118,14 +118,17 @@ class ResourceProbe:
         with self._lock:
             pids = tree_pids(self._pid)
             rss = 0
-            rss_available = True
+            read_any = False
             for pid in pids:
                 value = _rss_bytes(pid)
                 if value is None:
-                    rss_available = False
-                else:
-                    rss += value
-            if rss_available:
+                    # A short-lived child (vite probe, esbuild) can vanish
+                    # between the tree walk and the read. Its memory was
+                    # already captured by earlier samples; ignore the miss.
+                    continue
+                read_any = True
+                rss += value
+            if read_any:
                 self.peak_rss_bytes = max(self.peak_rss_bytes, rss)
             elif "rss" not in self.unavailable:
                 self.unavailable.append("rss")
