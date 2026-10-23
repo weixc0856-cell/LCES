@@ -246,35 +246,46 @@ def _evidence_quote_checks(project_dir: Path, ledger: EvidenceLedger) -> list[Ch
 
     Locator presence is already checked. This goes one step further: the
     model can invent a plausible quote and a plausible locator, and only a
-    substring test against the extracted source catches it. The check warns
-    rather than blocks because normalisation can fail on unusual typography.
+    substring test against the extracted source catches it.
+
+    Nothing is silently skipped: a missing excerpt, an unavailable source
+    text or a too-short excerpt is reported as unverifiable with its
+    evidence id. The check warns rather than blocks because normalisation
+    can fail on unusual typography.
     """
 
     unmatched: list[str] = []
+    unverifiable: list[str] = []
     compared = 0
     for record in ledger.records:
         excerpt = record.source_excerpt.strip()
         if not excerpt:
+            unverifiable.append(f"{record.evidence_id}(缺少摘录)")
             continue
         source = load_source_text(project_dir, record.source_id)
         if not source:
+            unverifiable.append(f"{record.evidence_id}(来源文本不可用)")
             continue
         normalized = _normalize_quote(excerpt)
         if len(normalized) < 12:
+            unverifiable.append(f"{record.evidence_id}(摘录过短)")
             continue
         compared += 1
         if normalized not in _normalize_quote(source):
             unmatched.append(record.evidence_id)
-    if compared == 0:
+    if not ledger.records:
         return []
+    problems: list[str] = []
+    if unmatched:
+        problems.append("未在来源中找到：" + ", ".join(unmatched))
+    if unverifiable:
+        problems.append("无法核对：" + ", ".join(unverifiable))
     return [
         _check(
             "gate_1_research",
             "evidence_quotes_in_source",
-            "warn" if unmatched else "pass",
-            "证据摘录未在来源文本中找到：" + ", ".join(unmatched)
-            if unmatched
-            else f"{compared} 条证据摘录均可在来源文本中找到",
+            "warn" if problems else "pass",
+            "；".join(problems) if problems else f"{compared} 条证据摘录均可在来源文本中找到",
             blocking=False,
         )
     ]
