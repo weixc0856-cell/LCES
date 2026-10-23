@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
+from content_studio.errors import ProviderError
 from content_studio.providers.base import GenerationRequest, Message
 from content_studio.providers.factory import build_provider
 from content_studio.providers.local_llama_cpp import LocalLlamaProvider
@@ -111,6 +112,40 @@ def test_local_provider_roundtrip(fake_llama_server):
     assert result.text == "OK"
     assert result.usage.total_tokens == 8
     provider.close()
+
+
+def test_pinned_model_that_is_not_loaded_fails_before_generating(fake_llama_server):
+    """llama-server ignores the request's model field; the pin must be checked."""
+
+    provider = LocalLlamaProvider(
+        base_url=fake_llama_server,
+        model="Qwen3-Coder-30B-A3B-Instruct-Q4_K_M",
+        timeout=5,
+    )
+    try:
+        info = provider.probe()
+        assert info["expected_model"] == "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M"
+        assert info["model_match"] is False
+        assert "not loaded" in info["model_problem"]
+        with pytest.raises(ProviderError) as caught:
+            provider.generate(GenerationRequest(messages=[Message("user", "hi")], max_tokens=16))
+        assert "not loaded" in str(caught.value)
+    finally:
+        provider.close()
+
+
+def test_matching_pinned_model_generates(fake_llama_server):
+    provider = LocalLlamaProvider(base_url=fake_llama_server, model="qwen-test", timeout=5)
+    try:
+        info = provider.probe()
+        assert info["model_match"] is True
+        assert info["model_problem"] == ""
+        result = provider.generate(
+            GenerationRequest(messages=[Message("user", "hi")], max_tokens=16)
+        )
+        assert result.text == "OK"
+    finally:
+        provider.close()
 
 
 def test_local_provider_needs_no_api_key():

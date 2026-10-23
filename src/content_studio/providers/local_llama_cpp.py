@@ -12,6 +12,8 @@ from typing import Any
 
 import httpx
 
+from content_studio.errors import ProviderError
+from content_studio.providers.base import GenerationRequest, GenerationResult
 from content_studio.providers.openai_compatible import OpenAICompatibleProvider
 
 
@@ -43,6 +45,9 @@ class LocalLlamaProvider(OpenAICompatibleProvider):
             # 127.0.0.1 requests with 502 and hides the real llama-server state.
             trust_env=False,
         )
+        # The pin is checked against ``/v1/models``: llama-server ignores the
+        # request's ``model`` field and serves whatever it loaded.
+        self.expected_model = model.strip()
         if not model and discover_model:
             self.model = self.discover_model()
 
@@ -70,6 +75,33 @@ class LocalLlamaProvider(OpenAICompatibleProvider):
         models = self.list_models()
         return models[0] if models else "local-model"
 
+    def model_problem(self, timeout: float = 5.0) -> str:
+        """The pinned model is not what llama-server actually loaded.
+
+        ``llama-server`` ignores the request's ``model`` field and answers with
+        the model it was started with, so a stale ``LCES_LOCAL_MODEL`` would
+        otherwise generate with the wrong model without any error. An
+        unreachable server returns an empty list here; the request itself then
+        reports the connection failure.
+        """
+
+        if not self.expected_model:
+            return ""
+        models = self.list_models(timeout=timeout)
+        if not models or self.expected_model in models:
+            return ""
+        return (
+            f"configured model '{self.expected_model}' is not loaded; "
+            f"llama-server reports {models}; start the pinned model or update "
+            "LCES_LOCAL_MODEL"
+        )
+
+    def generate(self, request: GenerationRequest) -> GenerationResult:
+        problem = self.model_problem()
+        if problem:
+            raise ProviderError(problem)
+        return super().generate(request)
+
     def probe(self) -> dict[str, Any]:
         """Diagnostics for `lces models`; never calls a completion endpoint."""
 
@@ -93,5 +125,15 @@ class LocalLlamaProvider(OpenAICompatibleProvider):
             result["error"] = f"{exc.__class__.__name__}: {exc}"
         result["models"] = self.list_models()
         result["reachable"] = result["reachable"] or bool(result["models"])
+        result["expected_model"] = self.expected_model
+        result["model_match"] = None
+        result["model_problem"] = ""
+        if self.expected_model and result["models"]:
+            result["model_match"] = self.expected_model in result["models"]
+            if not result["model_match"]:
+                result["model_problem"] = (
+                    f"configured model '{self.expected_model}' is not loaded; "
+                    f"llama-server reports {result['models']}"
+                )
         result["latency_ms"] = int((time.perf_counter() - started) * 1000)
         return result

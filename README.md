@@ -55,7 +55,7 @@ LCES_ANTHROPIC_API_KEY=
 ```
 
 - `mock`：确定性占位输出，可离线跑通结构，但**发布门禁会拒绝**。
-- `local`：llama.cpp `llama-server` 的 OpenAI 兼容接口，无需 API key；模型 ID 从 `/v1/models` 自动发现。
+- `local`：llama.cpp `llama-server` 的 OpenAI 兼容接口；模型 ID 从 `/v1/models` 自动发现。若服务以 `--api-key` 启动（当前课程开发实例即是），必须设置 `LCES_LOCAL_API_KEY`。
 - `deepseek`：OpenAI 兼容接口，`httpx` 实现，带超时/重试/结构化输出校验。密钥可用 `LCES_DEEPSEEK_API_KEY` 或 `DEEPSEEK_API_KEY`。
 - `anthropic`：Messages API，`httpx` 实现。密钥可用 `LCES_ANTHROPIC_API_KEY` 或 `ANTHROPIC_API_KEY`。
 
@@ -63,12 +63,12 @@ LCES_ANTHROPIC_API_KEY=
 
 ## 本地模型（llama.cpp / Intel Arc）
 
-1. 运行 `D:\AI\start_server.bat` 启动 `llama-server`（加载 `D:\AI\models\Qwen3.5-4B_Q4_k_m.gguf`）。
+1. 运行 `D:\AI\start_server.bat` 启动 `llama-server`。课程开发固定配置：后端 **SYCL**（直接回车），模型 `D:\AI\models\Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf`，档位 **[4] CPU-MoE 48 层 @ 32K**。完整步骤、实际下发参数与排错见 `docs/LOCAL_MODEL.md`。
 2. 检查服务与模型：`uv run lces models`（会请求 `/health` 与 `/v1/models`，不产生生成调用）；加 `--test` 会发送一次最小生成请求，验证结构化输出链路。
-3. 在 `.env` 设置 `LCES_PROVIDER=local`，或直接 `uv run lces run <project> --provider local`。
+3. 在 `.env` 设置 `LCES_PROVIDER=local`，或直接 `uv run lces run <project> --provider local`。固定 `LCES_LOCAL_MODEL` 后，适配器会在每次生成前核对 `/v1/models`；llama-server 本身会忽略请求中的 model 字段，这一步是防止用错模型的唯一保障。
 4. 如果服务端口不是 8080，修改 `LCES_LOCAL_BASE_URL`。
 5. 若该 llama-server 版本不支持 `response_format`，设置 `LCES_LOCAL_JSON_MODE=false`；结构化输出仍会由提示词 + Pydantic 校验兜底。
-6. 本地上下文较小：`LCES_LOCAL_PROMPT_CHAR_BUDGET`（默认 24000 字符）限制研究阶段的资料长度。上下文不足时应减少资料或改用云端模型，而不是强行塞满。
+6. 本地上下文较小：`LCES_LOCAL_PROMPT_CHAR_BUDGET` 限制研究阶段的资料长度。32K 档位建议 16000–20000 字符（默认 24000 面向更大上下文）；上下文不足时应减少资料或改用云端模型，而不是强行塞满。
 
 ### 按阶段路由（本地 + 云端混合）
 
