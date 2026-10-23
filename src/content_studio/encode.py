@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from content_studio.errors import RenderError
 from content_studio.media import ffmpeg_path, ffmpeg_version
@@ -111,11 +112,18 @@ def encode_report(
     output: Path,
     command: list[str],
     manifest_sha256: str,
+    provenance: dict[str, str] | None = None,
 ) -> dict:
-    """The evidence a build records about how the video was produced."""
+    """The evidence a build records about how the video was produced.
 
-    return {
-        "schema_version": "1.0",
+    ``provenance`` (P2.3-C) carries the Level 1 input traceability for the
+    render: tool versions and the hashes of the npm manifests the build
+    consumed. It is optional so older callers keep the 1.0 shape; the
+    Motion Canvas adapter always supplies it.
+    """
+
+    report: dict[str, Any] = {
+        "schema_version": "1.1" if provenance is not None else "1.0",
         "build_id": manifest.build_id,
         "asset_id": manifest.asset_id,
         "frames": manifest.total_frames,
@@ -129,3 +137,6 @@ def encode_report(
         "video_sha256": sha256_file(output),
         "video_bytes": output.stat().st_size,
     }
+    if provenance is not None:
+        report["provenance"] = dict(provenance)
+    return report

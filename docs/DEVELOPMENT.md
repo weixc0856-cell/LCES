@@ -11,6 +11,7 @@
 
 ```powershell
 uv run lces doctor
+uv run lces supply-chain-check      # pins vs. Dockerfile, lockfiles, workflows
 uv run lces models                 # probe local llama-server without generating
 uv run lces run .\projects\p1 --routing config/routing.yaml
 uv run lces export-schemas
@@ -27,7 +28,7 @@ Run these before pushing. GitHub Actions is the final clean-environment gate,
 not the development loop:
 
 ```bash
-./scripts/ci-local.sh fast     # ruff, format, mypy, pytest (any OS)
+./scripts/ci-local.sh fast     # ruff, format, mypy, supply-chain audit, pytest (any OS)
 ./scripts/ci-local.sh render   # Linux/WSL2: Node contract + real renders + encode + Gate 4
 ./scripts/ci-local.sh offline  # Docker: build once, run renders with --network none
 ./scripts/ci-local.sh full     # fast + render + offline + browser QA

@@ -68,6 +68,7 @@ from content_studio.renderers import (
 )
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
+from content_studio.supply_chain import audit_supply_chain
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
 from content_studio.utils import read_json, write_json
 
@@ -151,6 +152,24 @@ def doctor() -> None:
     motion_ok, motion_detail = motion_status()
     typer.echo(f"Motion Canvas: {'可用' if motion_ok else '不可用'} — {motion_detail}")
     typer.echo("配置检查完成；未测试网络连通性。")
+
+
+@app.command("supply-chain-check")
+@guarded
+def supply_chain_check(
+    root: Path | None = typer.Option(
+        None, help="仓库根目录；默认使用当前源码树", file_okay=False, dir_okay=True
+    ),
+) -> None:
+    """Audit pinned build inputs against the files that consume the pins."""
+
+    report = audit_supply_chain(root)
+    for finding in report.findings:
+        colour = typer.colors.GREEN if finding.status == "pass" else typer.colors.RED
+        typer.secho(finding.line(), fg=colour)
+    if not report.ok:
+        _exit(f"供应链审计失败：{len(report.failures())} 项未通过")
+    typer.echo("供应链审计通过：版本固定、来源记录与消费文件一致。")
 
 
 @app.command("init-project")

@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0",
+  "description": "Pinned build inputs for the Motion Canvas render path (P2.3-C). Every entry records what is pinned, how it is pinned, where it came from, and what the pin cannot promise. `lces supply-chain-check` audits the record against the Dockerfile, lockfiles and CI workflows; a record without a matching consumer is not a control.",
+  "components": {
+    "base_image": {
+      "kind": "container-image",
+      "reference": "ghcr.io/astral-sh/uv:python3.13-trixie-slim",
+      "digest": "sha256:331fbb158258608b9391e802305a9a2c9e42d689435c1d98706647122a122ab0",
+      "trust": "upstream-publisher",
+      "reproducibility": "digest-pinned",
+      "recorded_at": "2026-10-23",
+      "notes": "Multi-arch index digest resolved from the ghcr.io registry API. The tag is kept next to the digest for readability; only the digest is authoritative. Upgrade in a dedicated change that records the new digest and rebuilds the offline image."
+    },
+    "node_distribution": {
+      "kind": "binary-archive",
+      "version": "24.22.1",
+      "platform": "linux-x64",
+      "url": "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.xz",
+      "sha256": "6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6",
+      "checksum_source": "https://nodejs.org/dist/v24.22.1/SHASUMS256.txt",
+      "trust": "official-release",
+      "reproducibility": "checksum-pinned",
+      "recorded_at": "2026-10-23",
+      "notes": "SHA-256 copied from the official release directory's SHASUMS256.txt (which is accompanied by SHASUMS256.txt.sig). The checksum is verified inside the image build; the signature is not verified by LCES, so the trust anchor is the official release channel, not a local signature check."
+    },
+    "npm_registry": {
+      "kind": "package-registry",
+      "host": "registry.npmjs.org",
+      "lockfile": "motion/package-lock.json",
+      "integrity_algorithm": "sha512",
+      "trust": "official-registry",
+      "reproducibility": "lockfile-pinned",
+      "notes": "The lockfile resolved to registry.npmmirror.com until P2.3-C. Content was hash-identical (npm ci verified every integrity value against this registry), but the mirror is not the upstream publisher, so the default decision is the official registry."
+    },
+    "playwright_browser": {
+      "kind": "browser-bundle",
+      "version": "1.64.0",
+      "installer": "npx playwright install --with-deps chromium",
+      "source": "Playwright CDN selected by the pinned Playwright version",
+      "trust": "upstream-installer",
+      "reproducibility": "version-pinned",
+      "notes": "Playwright downloads its own Chromium build and verifies it against checksums bundled in the package. LCES does not record the browser archive hash separately; CI records the resolved executable path and version per job."
+    },
+    "ffmpeg": {
+      "kind": "system-package",
+      "minimum_version": "6.0",
+      "trust": "distro-package",
+      "reproducibility": "version-floor",
+      "notes": "Installed from the Debian trixie apt repository. The exact build is recorded in every encode report; byte-identical encoding across distro builds is not promised."
+    },
+    "node_lock": {
+      "kind": "package-lock",
+      "lockfile": "motion/package-lock.json",
+      "install_mode": "npm ci",
+      "trust": "official-registry",
+      "reproducibility": "lockfile-pinned",
+      "notes": "Only npm ci is admitted; npm install may rewrite versions. The adapter refuses to render when the installed direct dependencies disagree with the lockfile."
+    },
+    "python_lock": {
+      "kind": "package-lock",
+      "lockfile": "uv.lock",
+      "install_mode": "uv sync --locked",
+      "registry": "https://pypi.org/simple",
+      "trust": "official-registry",
+      "reproducibility": "lockfile-pinned",
+      "notes": "PyPI packages resolved through uv.lock; CI and the offline image install with --locked, so a stale lockfile fails instead of silently re-resolving."
+    },
+    "github_actions": {
+      "kind": "github-actions",
+      "actions": {
+        "actions/checkout": {
+          "ref": "v4",
+          "sha": "11d5960a326750d5838078e36cf38b85af677262"
+        },
+        "actions/setup-node": {
+          "ref": "v4",
+          "sha": "49933ea5288caeca8642d1e84afbd3f7d6820020"
+        },
+        "actions/upload-artifact": {
+          "ref": "v4",
+          "sha": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+        },
+        "astral-sh/setup-uv": {
+          "ref": "v5",
+          "sha": "d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86"
+        }
+      },
+      "trust": "upstream-publisher",
+      "reproducibility": "version-pinned",
+      "notes": "Workflows reference the 40-character commit SHA; the readable tag stays in a trailing comment. A tag is mutable, a commit SHA is not. Upgrade by resolving the new tag and updating both the workflow and this record."
+    }
+  }
+}

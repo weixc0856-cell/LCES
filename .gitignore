@@ -31,3 +31,8 @@ Thumbs.db
 offline-evidence/
 # Local Claude Code state (session locks and caches) is per-machine.
 .claude/
+
+# Motion Canvas run artifacts (the contract tests and the editor write these).
+motion/output/
+motion/publish/
+motion/src/scenes/generated.meta

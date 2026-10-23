@@ -134,6 +134,9 @@ LCES (Python)
 2. 审核直接与传递依赖的许可证和已知安全风险，记录审计日期与结果；
 3. `setup-motion-canvas.ps1` 必须幂等：版本不匹配时**失败**，不自动升级 Node、不重写锁文件；
 4. 记录浏览器身份与启动参数，不只写"Playwright Chromium"。
+5. 每个固定在 `config/supply-chain.json` 中记录来源级别（`trust`）与可复现级别
+   （`reproducibility`），并由 `lces supply-chain-check` 对照 Dockerfile、锁文件与
+   workflow 逐项审计；记录与消费文件不一致即失败（P2.3-C）。
 
 ### 4.3 浏览器与编码职责
 
