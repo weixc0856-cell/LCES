@@ -90,11 +90,11 @@
 |---|---|---|
 | P3-GATE-01 | 素材集冻结且契约有效 | PASS（manifest 哈希 + 契约 + `data_problems`；所有平台运行） |
 | P3-GATE-02 | 每个模板都有真实渲染回归 | PASS（run `39928254503`：JUnit 8/0/0，七份素材全部通过） |
-| P3-GATE-03 | 失败可定位 | NOT_RUN（错误信息包含素材 id 与阶段；尚无真实的失败注入用例） |
-| P3-GATE-04 | 资源基线可复现 | 记录环境、时长阶梯与峰值；结论限定环境 |
-| P3-GATE-05 | 故障行为可审计 | 超时/取消/磁盘不足不留半成品、不误报成功 |
-| P3-GATE-06 | 重复构建契约明确 | 字节/视觉/元数据三级结论分开记录 |
-| P3-GATE-07 | 全量回归 | P1/P2 测试与五个 CI job 保持绿 |
+| P3-GATE-03 | 失败可定位 | PASS（faults JUnit 断言 `render_timeout` / `cancelled` / `encode_failed` 终态；素材用例失败时带素材 id 与阶段） |
+| P3-GATE-04 | 资源基线可复现 | PASS（run `39931887360`：三档两轮，环境与峰值留档，差异 <2%） |
+| P3-GATE-05 | 故障行为可审计 | PASS（run `39932938615`：超时/取消/重试通过；磁盘映射由合成用例覆盖；无 staging 残留） |
+| P3-GATE-06 | 重复构建契约明确 | PASS（10 s/60 s 两轮视频哈希相同；结论限定环境；视觉指标由 P2.4-A/B 记录） |
+| P3-GATE-07 | 全量回归 | PASS（materials/stress/faults 三个手动 job 与常规五 job 均绿） |
 
 ## 8. CI 策略
 
@@ -195,4 +195,14 @@ RSS 曲线。P3-GATE-04 的证据已产生，但仍按计划在完整报告审�
 **本机验证**：`uv run pytest` → **438 passed, 58 skipped**；ruff / format / mypy 全绿。
 真实故障用例仅在 Linux 执行。
 
-**未执行**：faults 实测 job。P3-GATE-03/05 在其实测证据产生前不得记为 PASS。
+**faults 实测（run `39932938615`，commit `16593ec`）**：五个 job 全绿；
+faults JUnit **5 tests / 0 failures / 1 skipped**（25.2 s）：
+
+- 通过：渲染超时、渲染中取消、编码中取消、超时后重试；
+- 跳过：只读目录用例在容器内以 root 运行（root 绕过权限位），
+  磁盘写入失败映射由 `test` job 的合成 `OSError(ENOSPC)` 用例覆盖；
+- CI 与离线 job 同时通过，说明编码取消没有破坏真实渲染路径。
+
+**重复构建观察（stress run `39931887360` 的报告）**：10 s 与 60 s 两轮的
+视频 SHA-256 完全相同（1 s 档只有一轮）。这是同一环境下的字节级一致，
+不构成跨环境承诺；GATE-06 的证据按此记录。
