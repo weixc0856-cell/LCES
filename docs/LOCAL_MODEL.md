@@ -4,12 +4,18 @@
 模型 ID、上下文和档位都属于**可核验的运行参数**，不是建议值：换模型或换档位
 必须同时更新本文件、`.env` 和启动器选择。
 
+本机路径一律用占位符表示，实际值由操作者在本地设置，不写入仓库：
+
+- `<LLAMA_HOME>`：llama.cpp 构建目录（含 `llama-server` / `llama-server.exe`）；
+- `<MODELS_DIR>`：GGUF 模型目录；
+- `<LAUNCHER>`：可选的交互式启动脚本。
+
 ## 当前配置（2026-10-23 起）
 
 | 项目 | 值 |
 |---|---|
-| 启动器 | `D:\AI\start_server.bat`（交互式菜单） |
-| 模型文件 | `D:\AI\models\Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf` |
+| 启动器 | `<LAUNCHER>`（交互式菜单，可选） |
+| 模型文件 | `<MODELS_DIR>/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf` |
 | 模型别名（`/v1/models`） | `Qwen3-Coder-30B-A3B-Instruct-Q4_K_M`，另含 `default` |
 | 后端 | SYCL（菜单 `[2]`，直接回车即默认） |
 | 档位 | `[4] CPU-MoE 48 层 @ 32K` |
@@ -17,12 +23,12 @@
 | 服务地址 | `http://127.0.0.1:8080/v1` |
 | 认证 | llama-server 以 `--api-key` 启动，必须设置 `LCES_LOCAL_API_KEY` |
 
-`start_server.bat` 是交互式的：先选后端，再从 `D:\AI\models\*.gguf` 列表里选模型，
+启动脚本是交互式的：先选后端，再从 `<MODELS_DIR>/*.gguf` 列表里选模型，
 最后为 Qwen3-30B-A3B 系列选择档位。课程开发固定走 **SYCL → Coder 模型 → 档位 [4]**。
 
 ## 启动步骤
 
-1. 双击运行 `D:\AI\start_server.bat`。
+1. 运行本机的 llama-server 启动脚本（或使用下文的按需启动命令）。
 2. 后端提示 `请选择 [1-2]，直接回车使用 SYCL`：直接回车（或输入 `2`）。
 3. 在模型列表中找到 `Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf`，输入对应编号。
 4. 档位提示 `选择档位 [1-4]`：输入 `4`（CPU-MoE 48 层 @ 32K）。
@@ -39,12 +45,13 @@ uv run lces models --test   # 发送一次最小生成请求，验证结构化�
 
 ## 按需启动（非交互）
 
-课程制作时由 LCES 侧按需拉起模型，不依赖人工点菜单。与档位 `[4]` 等价的命令：
+课程制作时由 LCES 侧按需拉起模型，不依赖人工点菜单。与档位 `[4]` 等价的命令
+（SYCL 构建）：
 
 ```powershell
 $env:LCES_LOCAL_API_KEY = "<从 .env 读取；服务端未加 --api-key 时可省略>"
-D:\AI\bin-sycl\llama-server.exe `
-  -m "D:\AI\models\Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf" `
+<LLAMA_HOME>/llama-server.exe `
+  -m "<MODELS_DIR>/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf" `
   --host 127.0.0.1 --port 8080 `
   -dev SYCL0 -ngl 99 `
   -c 32768 --parallel 1 `
@@ -57,17 +64,16 @@ D:\AI\bin-sycl\llama-server.exe `
 
 - 只在需要时启动，用完停止；`.env` 里的 `LCES_LOCAL_MODEL` 与
   `LCES_LOCAL_API_KEY` 必须与启动参数一致。
-- 交互式 `start_server.bat` 仍然可用（人工试探不同档位时更方便），但不是课程
+- 交互式启动脚本仍然可用（人工试探不同档位时更方便），但不是课程
   流程的必要条件；两种方式不能同时占用 8080。
 - 启动后必须通过 `uv run lces models` 确认 `模型固定: ...（已加载）`。
 
 ## 启动器实际下发的参数
 
-档位 `[4]` 展开后，`llama-server.exe` 的实际参数为（`D:\AI\bin-sycl` 下的
-SYCL 构建）：
+档位 `[4]` 展开后，`llama-server` 的实际参数为：
 
 ```
--m D:\AI\models\Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
+-m <MODELS_DIR>/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
 --host 127.0.0.1 --port 8080
 -dev SYCL0 -ngl 99
 -c 32768 --parallel 1
@@ -80,7 +86,7 @@ SYCL 构建）：
 
 要点：
 
-- `--n-cpu-moe 48` 把 48 层 MoE 专家放在 CPU，避免 30B-A3B 在 Arc A750 上 OOM；
+- `--n-cpu-moe 48` 把 48 层 MoE 专家放在 CPU，降低 30B-A3B 在 GPU 上的显存压力；
   这是档位 2/3/4 的共有参数，档位 1 不设置它（可能 OOM）。
 - `-c 32768` 是档位 `[4]` 的上下文；档位 2 为 8192，档位 3 为 16384。
 - `-b 256 -ub 128` 与 `--jinja` 是 Qwen3-30B-A3B 专用配置；Jinja 使用 GGUF 内置模板，
