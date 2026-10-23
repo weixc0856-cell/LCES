@@ -469,7 +469,7 @@ base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`）�
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | PASS（run `39893948581`：8 份真实构建报告均为 `local-only`、4 次拦截/4 次失败；离线 job 11/0 且负控制失败） |
 | P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | PASS（E 批 run `39899991262`；矩阵见 `motion-canvas-p2.3-e-acceptance.md`） |
 | P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | PASS（run `39888269698`：flow/compare 模板与 `lces build` 的真实渲染、编码、Gate 4 全部通过） |
-| P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | PASS for E（run `39899991262`；artifact 已下载复核）；合并后 main 需复跑 |
+| P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | PASS（合并后 `main` @ `f98df74`，run `39902414995` 五 job 绿；E 批 artifact 已复核） |
 | P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | PASS（E 批：矩阵文档 + 脱敏 + 证据审计；run `39899991262`） |
 
 `BLOCKED` 只用于已定义但环境不满足的项；本地 Windows 的 Linux 专属测试仍由
@@ -500,15 +500,17 @@ CI 执行，不得用“本机通过”替代。
   Gate 4 12/12（60.5 s）；工具链为 Node 24.22.1、FFmpeg 7.0.2-static、
   Playwright 1.64.0、Chromium 156.0.8078.4。离线 job 与 CI 仍未运行。
 - B 批已于 PR #16 合并（`main` = `5bb69bb`），CI run `39875910627` 五个 job 全绿。
-- C 批分支 `feat/motion-canvas-p2.3-c`（基于 `main` = `5bb69bb`）；本机 Windows
+- C 批分支 `feat/motion-canvas-p2.3-c`（基于 `main` = `5bb69bb`），PR #17 已合并；本机 Windows
   `368 passed, 38 skipped`；Node 22/19/0/3；ruff/format/mypy 全绿；
   `lces supply-chain-check` 7/7 PASS。离线镜像与五个 CI job 未运行。
 - C 批 CI run `39888269698`（commit `e943433`）五个 job 全绿；离线 job 用
   digest 固定镜像重建成功。C 批证据已回填本节与 GATE-01/02/03/06/07。
-- D 批分支 `feat/motion-canvas-p2.3-d`（基于 C 批），PR #19（draft，栈在 #17 之上）；
+- D 批分支 `feat/motion-canvas-p2.3-d`（基于 C 批），PR #19 已合并；
   CI run `39893948581` 五个 job 全绿；本机离线门禁 11/11。详见
   `docs/design/motion-canvas-p2.3-d-plan.md`。
-- E 批分支 `feat/motion-canvas-p2.3-e`（基于 D 批），PR #20（draft）；
+- E 批分支 `feat/motion-canvas-p2.3-e`（基于 D 批），PR #20 已合并；
   矩阵收口、encode report 1.2 脱敏、doctor home 脱敏、证据审计脚本；
   本机 Windows `386 passed, 39 skipped`，CI run `39899991262` 五 job 全绿。
   详见 `docs/design/motion-canvas-p2.3-e-acceptance.md`。
+- P2.3 全部批次已合并到 `main` @ `f98df74`；合并后 CI run `39902414995`
+  五个 job 全绿。
