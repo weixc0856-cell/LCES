@@ -19,6 +19,7 @@ from content_studio.errors import RenderCancelled, RenderError
 from content_studio.frame_manifest import png_problems
 from content_studio.models import VisualSpec
 from content_studio.renderers import RenderContext, default_registry
+from content_studio.utils import sha256_file
 
 
 def _spec(
@@ -648,8 +649,20 @@ def test_publish_writes_the_video_and_qa_evidence(build_root, tmp_path):
 
     assert (media / "course.mp4").read_bytes() == b"fake-mp4"
     assert (project / "internal" / "qa" / "frame_manifest.json").is_file()
-    assert (project / "internal" / "qa" / "encode_report.json").is_file()
+    encode_report = project / "internal" / "qa" / "encode_report.json"
+    assert encode_report.is_file()
     assert media / "course.mp4" in result.artifacts
+    # P2.3-C: Level 1 provenance is written with the report, hashes the npm
+    # manifests actually consumed, and carries no host path.
+    report = json.loads(encode_report.read_text(encoding="utf-8"))
+    assert report["schema_version"] == "1.1"
+    provenance = report["provenance"]
+    assert provenance["package_lock_sha256"] == sha256_file(
+        tmp_path / "motion-template" / "package-lock.json"
+    )
+    assert provenance["motion_canvas_version"] == mc.MOTION_CANVAS_VERSION
+    assert provenance["playwright_version"] == mc.PLAYWRIGHT_VERSION
+    assert str(project) not in json.dumps(provenance)
 
 
 def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):

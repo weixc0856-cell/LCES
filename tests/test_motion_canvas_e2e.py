@@ -147,6 +147,17 @@ def _render(
     assert encode_report["frames"] == manifest.total_frames
     assert encode_report["video_sha256"] == sha256_file(video)
     assert encode_report["command"], "the FFmpeg argv must be recorded"
+    # P2.3-C: Level 1 traceability — the lockfile and manifest the build
+    # consumed are hashed into the report, and no host path leaks into it.
+    provenance = encode_report["provenance"]
+    motion_dir = mc.motion_project_dir()
+    assert provenance["package_lock_sha256"] == sha256_file(motion_dir / "package-lock.json")
+    assert provenance["node_version"] == mc.NODE_VERSION
+    assert provenance["motion_canvas_version"] == mc.MOTION_CANVAS_VERSION
+    assert provenance["playwright_version"] == mc.PLAYWRIGHT_VERSION
+    # Only the provenance block must be path-free; `command` legitimately
+    # records the absolute FFmpeg argv used for this build.
+    assert str(tmp_path) not in json.dumps(provenance)
     assert (qa_dir / "frame_manifest.json").is_file()
     diagnostics = " | ".join(renderer.get_diagnostics())
     assert "process group" in diagnostics and "cleaned" in diagnostics

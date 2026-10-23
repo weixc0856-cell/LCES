@@ -18,9 +18,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           enable-cache: true
       - name: Set up Python
@@ -33,6 +33,8 @@ jobs:
         run: uv run ruff format --check .
       - name: Type check
         run: uv run mypy src
+      - name: Supply-chain pin audit
+        run: uv run lces supply-chain-check
       - name: Tests
         run: uv run pytest
 
@@ -53,8 +55,8 @@ jobs:
         # Container jobs default to sh, which has no pipefail.
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24.22.1"
           cache: npm
@@ -72,7 +74,7 @@ jobs:
             apt-get update && apt-get install -y ffmpeg
           fi
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           enable-cache: true
       - name: Set up Python
@@ -118,7 +120,7 @@ jobs:
           cp -r /tmp/lces-p1-builds/* motion-evidence/failure/ 2>/dev/null || true
       - name: Upload P1 evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: motion-canvas-p1-evidence
           path: motion-evidence/
@@ -131,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build the offline image
         run: docker build -f motion/offline.Dockerfile -t lces-motion-offline .
       - name: Record image identity and inputs
@@ -150,7 +152,7 @@ jobs:
             lces-motion-offline
       - name: Upload offline evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: motion-canvas-offline-evidence
           path: offline-evidence/
@@ -159,9 +161,9 @@ jobs:
   graphviz:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           enable-cache: true
       - name: Set up Python
@@ -178,7 +180,7 @@ jobs:
         run: uv run pytest tests/test_graphviz.py -v --junitxml=graphviz-report.xml
       - name: Upload Graphviz evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: graphviz-evidence
           path: |
@@ -190,9 +192,9 @@ jobs:
   browser-qa:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           enable-cache: true
       - name: Set up Python

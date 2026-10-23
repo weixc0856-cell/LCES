@@ -78,6 +78,8 @@ fast() {
   uv run ruff check .
   uv run ruff format --check .
   uv run mypy src
+  note "supply-chain pins (CI test job)"
+  uv run lces supply-chain-check
   note "pytest (CI test job; motion tests skip without LCES_MC_E2E)"
   uv run pytest
 }

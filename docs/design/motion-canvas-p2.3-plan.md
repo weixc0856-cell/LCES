@@ -347,6 +347,88 @@ generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据�
 - **未执行**：`--network none` 离线 job、五个 CI job。B 批在 CI 证据产生前
   不得记为 PASS。
 
+### C 批实现记录（本机；CI 待执行）
+
+**C1 供应链记录与审计**
+
+- `config/supply-chain.json` 是供应链记录。每个组件同时声明来源
+  `trust`（`official-release` / `official-registry` / `upstream-publisher` /
+  `upstream-installer` / `distro-package`）与可复现级别 `reproducibility`
+  （`digest-pinned` / `checksum-pinned` / `lockfile-pinned` /
+  `version-pinned` / `version-floor`）。记录由 Pydantic 校验，
+  格式错误即 `ConfigurationError`，不会退化成“未记录但继续构建”。
+- `src/content_studio/supply_chain.py` 的 `audit_supply_chain()` 逐项核对记录与
+  真正消费该固定的文件；`lces supply-chain-check` 输出 `[PASS]/[FAIL]`，
+  任一失败以退出码 1 结束。检查项：
+  - SC-01 base image 必须按 digest 固定，且与记录一致；
+  - SC-02 Dockerfile 的 `ARG NODE_VERSION` / `ARG NODE_SHA256` 与记录一致，
+    并在解压前执行 `sha256sum -c`；
+  - SC-03 `package-lock.json` 的 `resolved` 必须全部来自记录的 registry，
+    每个非链接包必须带 sha512 integrity；
+  - SC-04 `package.json` 与锁文件根条目一致，直接依赖必须是精确版本；
+  - SC-05 所有 workflow 的 `uses:` 必须是 40 位 commit SHA，且与记录一致；
+  - SC-06 Node / Motion Canvas / Playwright / FFmpeg 下限在记录、适配器常量与
+    `motion/package.json` 之间一致；
+  - SC-07 `uv.lock` 覆盖 pyproject 的直接依赖，所有包来自记录的
+    `https://pypi.org/simple`，CI 使用 `uv sync --locked`。
+- CI `test` job 与 `scripts/ci-local.sh fast` 都执行该命令；记录本身不构成控制，
+  审计必须读到消费方文件。
+
+**C2 固定下载**
+
+- `motion/offline.Dockerfile`：base image 固定为
+  `ghcr.io/astral-sh/uv:python3.13-trixie-slim@sha256:331fbb15…22ab0`
+  （多架构 index digest，标签仅保留可读性）；Node 24.22.1 linux-x64 归档固定
+  SHA-256 `6c172a9a…95e6`（取自官方 `SHASUMS256.txt`），解压前校验，
+  解压后再断言 `node --version`。
+- CI workflow 的 Actions 全部改为 40 位 commit SHA，行尾保留可读 tag：
+  checkout `11d5960a…`（v4）、setup-node `49933ea5…`（v4）、
+  upload-artifact `ea165f8d…`（v4）、setup-uv `d4b2f3b6…`（v5）。
+- `motion/package-lock.json` 的 91 个 `resolved` 从 `registry.npmmirror.com`
+  改写为官方 `registry.npmjs.org`；integrity 值未变。本机对该锁文件执行
+  `npm ci` 重新安装 69 个包成功（@motion-canvas 3.17.2 / Playwright 1.64.0），
+  证明官方 registry 提供的内容通过全部 integrity 校验。
+- Playwright 浏览器仍为 `version-pinned`：下载由 Playwright 自带校验和验证，
+  LCES 不单独记录浏览器归档哈希；CI 每个 job 记录解析出的浏览器路径与版本。
+
+**C3 来源可追溯（Level 1）**
+
+- `internal/qa/encode_report.json` 升级为 schema 1.1，新增 `provenance`：
+  `node_version`、`npm_version`、`motion_canvas_version`、`playwright_version`、
+  `ffmpeg_version`、`python_version`、`lces_version`、
+  `package_json_sha256`、`package_lock_sha256`。不写任何绝对路径，
+  可安全作为 CI artifact 上传。
+- 假驱动发布测试与真实 E2E 都断言 provenance 中的 lockfile 哈希与磁盘一致，
+  且 provenance 块不含构建目录路径（`command` 字段仍按 P1.3 记录绝对 argv）。
+
+**C 批测试与证据**
+
+- 新增 `tests/test_supply_chain.py`（21 项）：仓库自身审计通过；N13（Node
+  校验和不一致、缺少校验步骤）与 N14（tag 代替 SHA、未记录 action、无 digest
+  的镜像、digest 不一致）的负向用例；镜像来自非白名单 host、缺 integrity、
+  锁文件版本漂移、范围版本、Python 锁缺依赖、CI 未用 `--locked`；
+  CLI 成功/失败退出码；encode report provenance 与无路径泄漏断言。
+- 本机 Windows：`uv run pytest` → **370 passed, 38 skipped**；
+  `ruff check .`、`ruff format --check .`、`mypy src` 全绿；
+  `node --test contract.test.mjs output-dir.test.mjs` → 22 tests /
+  19 pass / 0 fail / 3 skipped（符号链接用例在 Windows 跳过）。
+- WSL Linux（同一份代码）：`tests/test_supply_chain.py` 21 passed；
+  `lces supply-chain-check` 7/7 PASS。
+- 未执行：五个 CI job 与 `--network none` 离线渲染。C 批在 CI 证据产生前
+  不得记为 PASS。
+
+**C 批残余与边界**
+
+- 审计是静态一致性检查：它证明记录与消费文件相符，不能证明上游发布本身可信。
+  Node 的 `SHASUMS256.txt.sig` 未在 LCES 内做 GPG 验证，信任锚是官方发布渠道。
+- Playwright 浏览器由 installer 自带的校验和验证，LCES 不单独记录浏览器归档哈希；
+  CI 每个 job 记录解析出的浏览器路径与版本。
+- `encode_report.json` 的 `command` 字段（P1.3 既有）记录绝对 FFmpeg argv，会把
+  runner 临时路径带入 CI artifact；新增的 `provenance` 不含路径。该报告不在发布
+  白名单内，因此不构成发布泄露，artifact 级脱敏留待 E 批统一处理。
+- 镜像构建期仍需外网（apt/npm/Playwright/uv）；P2.3-C 保证的是固定与校验，
+  不是构建期断网。
+
 | 批次 | 内容 | 完成条件 |
 |---|---|---|
 | P2.3-A 执行边界 | 校验 `OUTPUT_DIR`/`--out` 在项目内且为专用目录；HOME/XDG 隔离；可执行文件校验；进程残留断言 | N04/N05/N06/N07/N08/N09 通过；P1/P2 回归 |
@@ -363,9 +445,9 @@ generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据�
 |---|---|---|
 | P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（A1/A2 已通过 CI run `39816426680`；输出目录/HOME 边界本机 + WSL 测试通过，WSL 真实渲染门禁 12/12 通过；CI 待执行） |
 | P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | NOT_RUN（B 批实现与本机 + WSL 测试通过，边界模块 33/33；CI 待执行） |
-| P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | NOT_RUN |
+| P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | NOT_RUN（C 批实现与本机测试通过：7 项审计 + 19 项测试；CI 待执行） |
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN |
-| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01/N02/N04-N11 已覆盖；N12-N15 属 C/D 批） |
+| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01/N02/N04-N11 已覆盖；N12 由适配器运行时校验 + SC-04 覆盖，N13/N14 由 C 批静态审计覆盖；N15 属 D 批） |
 | P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | NOT_RUN（WSL 真实渲染 12/12 覆盖 P2.1/P2.2 用例；CI 待执行） |
 | P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | NOT_RUN |
 | P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | NOT_RUN |
@@ -397,5 +479,8 @@ CI 执行，不得用“本机通过”替代。
 - WSL `scripts/ci-local.sh render` 已通过：Node 契约 13/13，真实渲染/编码/
   Gate 4 12/12（60.5 s）；工具链为 Node 24.22.1、FFmpeg 7.0.2-static、
   Playwright 1.64.0、Chromium 156.0.8078.4。离线 job 与 CI 仍未运行。
-- 真实渲染与五个 CI job 尚未运行；C（供应链）与 D（网络）批未开始。
-- 工作区仅 `.claude/` 未跟踪，无业务改动。
+- B 批已于 PR #16 合并（`main` = `5bb69bb`），CI run `39875910627` 五个 job 全绿。
+- C 批分支 `feat/motion-canvas-p2.3-c`（基于 `main` = `5bb69bb`）；本机 Windows
+  `368 passed, 38 skipped`；Node 22/19/0/3；ruff/format/mypy 全绿；
+  `lces supply-chain-check` 7/7 PASS。离线镜像与五个 CI job 未运行。
+- D（网络）批未开始。

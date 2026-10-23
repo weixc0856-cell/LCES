@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
@@ -35,6 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from content_studio import __version__
 from content_studio.encode import build_encode_command, encode_frames, encode_report
 from content_studio.errors import (
     ERROR_CODES,
@@ -416,6 +418,38 @@ def motion_status() -> tuple[bool, str]:
     )
 
 
+def render_provenance(project: Path, node: str) -> dict[str, str]:
+    """Level 1 input traceability for one render (P2.3-C).
+
+    Records the tool versions the build actually found and the hashes of the
+    npm manifests it consumed. Absolute host paths stay out on purpose:
+    encode reports are uploaded as CI evidence and must not leak the runner.
+    """
+
+    try:
+        node_version = _run_probe([node, "--version"]).lstrip("v")
+    except (OSError, subprocess.TimeoutExpired):
+        node_version = ""
+    npm = shutil.which("npm")
+    npm_version = ""
+    if npm is not None:
+        try:
+            npm_version = _run_probe([npm, "--version"])
+        except (OSError, subprocess.TimeoutExpired):
+            npm_version = ""
+    return {
+        "node_version": node_version,
+        "npm_version": npm_version,
+        "motion_canvas_version": MOTION_CANVAS_VERSION,
+        "playwright_version": PLAYWRIGHT_VERSION,
+        "ffmpeg_version": ffmpeg_version(),
+        "python_version": platform.python_version(),
+        "lces_version": __version__,
+        "package_json_sha256": sha256_file(project / "package.json"),
+        "package_lock_sha256": sha256_file(project / LOCKFILE_NAME),
+    }
+
+
 class MotionCanvasRenderer(Renderer):
     name = "motion_canvas.renderer"
     version = "0.1.0"
@@ -725,6 +759,7 @@ class MotionCanvasRenderer(Renderer):
                             ffmpeg_bin=ffmpeg_path() or "ffmpeg",
                         ),
                         manifest_sha256=sha256_file(manifest_path),
+                        provenance=render_provenance(project, node),
                     ),
                 )
                 qa_paths = (qa_manifest, qa_report)

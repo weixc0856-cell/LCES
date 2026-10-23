@@ -98,6 +98,11 @@ is considered passing because the code exists.
   real encoded video; `tests/test_motion_canvas_e2e.py` performs real renders,
   cancellation and timeout on Linux. `tests/test_offline_evidence.py` checks
   the verifier used by the `--network none` job.
+- Motion Canvas supply chain (P2.3-C): `tests/test_supply_chain.py` audits the
+  checked-in repository, then flips one pin at a time (image digest, Node
+  checksum, registry host, integrity, exact versions, action SHAs, Python
+  lockfile) and asserts the matching SC check fails. CI runs
+  `uv run lces supply-chain-check` in the `test` job.
 
 ## Manual checks that automation cannot replace
 
