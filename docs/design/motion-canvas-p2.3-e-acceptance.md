@@ -100,3 +100,4 @@
 - 三份 `evidence-audit.txt`（p1、graphviz、离线）均为 **0 finding(s)**；
   graphviz `doctor.txt` 已脱敏为 `~/work/LCES/LCES/...`。
 - artifact 已下载到 `var/ci-run-e/`（git 忽略）并独立复核。
+- 四个 PR（#17–#20）合并后，`main` @ `f98df74` 的 CI run `39902414995` 五 job 全绿。
