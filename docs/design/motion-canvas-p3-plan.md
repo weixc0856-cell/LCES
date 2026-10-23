@@ -86,11 +86,11 @@
 
 ## 7. 验收门禁（草案）
 
-| ID | 验收项 | 说明 |
+| ID | 验收项 | 状态 |
 |---|---|---|
-| P3-GATE-01 | 素材集冻结且契约有效 | manifest 哈希 + `data_problems` 全通过 |
-| P3-GATE-02 | 每个模板都有真实渲染回归 | representative 素材全部通过帧数/分辨率/解码/视觉核对 |
-| P3-GATE-03 | 失败可定位 | 报告素材 id、阶段与退出码 |
+| P3-GATE-01 | 素材集冻结且契约有效 | PASS（manifest 哈希 + 契约 + `data_problems`；所有平台运行） |
+| P3-GATE-02 | 每个模板都有真实渲染回归 | PASS（run `39928254503`：JUnit 8/0/0，七份素材全部通过） |
+| P3-GATE-03 | 失败可定位 | NOT_RUN（错误信息包含素材 id 与阶段；尚无真实的失败注入用例） |
 | P3-GATE-04 | 资源基线可复现 | 记录环境、时长阶梯与峰值；结论限定环境 |
 | P3-GATE-05 | 故障行为可审计 | 超时/取消/磁盘不足不留半成品、不误报成功 |
 | P3-GATE-06 | 重复构建契约明确 | 字节/视觉/元数据三级结论分开记录 |
@@ -116,4 +116,19 @@
 
 **本机验证**：素材契约校验 7/7 通过；真实渲染仅能在 Linux + 固定工具链运行。
 
-**未执行**：materials 实测 job。P3-GATE-02 在真实素材渲染报告产生前不得记为 PASS。
+**materials 实测（workflow_dispatch run `39928254503`，commit `bbca37b`）**：
+`motion-canvas-p1` 的 materials JUnit **8/0/0**（62.5 s），七份素材全部渲染成功：
+
+| 素材 | 帧数 | 画布 | 耗时 | 前景 / 边缘（采样） |
+|---|---|---|---|---|
+| title-zh-long | 60 | 1920×1080 | 10.2 s | 7.3–7.6% / 7.1–7.6% |
+| title-en-short | 30 | 640×360 | 6.8 s | 10.6% / 13.6% |
+| title-boundary-max | 30 | 640×360 | 6.8 s | 11.1% / 14.5% |
+| flow-zh-6nodes | 60 | 1920×1080 | 10.2 s | 6.1–6.2% / 2.3–2.4% |
+| flow-en-tb | 30 | 1920×1080 | 7.7 s | 6.6% / 1.1% |
+| compare-zh-long | 60 | 1920×1080 | 10.3 s | 4.5–5.1% / 3.7–4.2% |
+| compare-en | 30 | 1920×1080 | 8.6 s | 2.2% / 2.4% |
+
+帧数、分辨率、帧率、解码与 `visual_qa` 全部通过；报告在
+`motion-evidence/materials.json`（artifact `motion-canvas-p1-evidence`），
+已下载到 `var/ci-materials/` 复核。
