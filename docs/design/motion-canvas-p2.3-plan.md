@@ -428,6 +428,14 @@ generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据�
   `image-id.txt`、`input-hashes.txt`、`contract-tests.tap`、`e2e-report.xml`
   可独立复核；输入哈希：`package-lock.json` `c387b6d6…`、`uv.lock`
   `03660c8f…`、`offline.Dockerfile` `023fc359…`。
+- 文档提交 `a4431f6` 的复跑（run `39889057954`）同样五个 job 全绿。
+
+**C 批本机 Docker 复验（Windows 11，Docker 29.9.1）**：用 digest 固定的
+base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`），
+再以 `--network none` 运行 `scripts/ci-motion-offline.sh`：
+**11 passed / 0 failed**（31.8 s）；两次真实构建 300 帧与 30 帧，各有
+4 次外部请求且全部失败；负控制 `fetch_exit=1 npm_exit=1`。
+证据写入 `var/ci-offline/`（git 忽略）。
 
 **C 批残余与边界**
 
