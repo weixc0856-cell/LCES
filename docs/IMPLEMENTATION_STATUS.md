@@ -57,7 +57,7 @@ by a working code path.
 | Custom SVG rendering | Implemented | `custom_svg` inlines XML-valid SVG after blocking scripts, handlers, `foreignObject`, and external references |
 | Inline SVG accessibility/layout | Implemented | `role="img"`, `aria-label`, `max-width:100%`; mobile overflow caught by browser QA and fixed |
 | Third-party licence record | Implemented | `LICENSE-THIRD-PARTY.md` lists Playwright/Chromium, vl-convert, Vega-Lite/Vega |
-| Gate 1 research checks | Partial | Evidence references, key-claim support, claim/evidence review states, locators, contradicted-claim blocking; scientific review is `NOT_RUN` |
+| Gate 1 research checks | Partial | Evidence references, key-claim support, claim/evidence review states, locators, quote-in-source matching, contradicted-claim blocking; scientific review is `NOT_RUN` |
 | Claim-level verification | Implemented | Six canonical states plus legacy mapping; `lces review-claims` records reviewer and time |
 | Model self-verification blocked | Implemented | Research stage resets model-reported statuses; `supported` without a reviewer is treated as `pending` |
 | Broken claims handling | Implemented | `claims.json` parse failures fail Gate 1 instead of becoming "no claims" |
