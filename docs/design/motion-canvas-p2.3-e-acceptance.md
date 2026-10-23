@@ -61,12 +61,12 @@
 | P2.3-GATE-02 文件系统边界 | PASS（B 批 + Linux pytest） |
 | P2.3-GATE-03 供应链 | PASS（C 批 run `39888269698`） |
 | P2.3-GATE-04 网络边界 | PASS（D 批 run `39893948581`） |
-| P2.3-GATE-05 负向矩阵 | 本批收口（见 §2；CI 待执行） |
+| P2.3-GATE-05 负向矩阵 | PASS（N01-N18 全部映射到测试；run `39899991262` 五 job 绿） |
 | P2.3-GATE-06 P2.1/P2.2 回归 | PASS（D 批 CI）；本批重跑 |
-| P2.3-GATE-07 五 job 全绿 | 本批最终提交（待合并后 main 复跑） |
-| P2.3-GATE-08 审计与证据留档 | 本批（矩阵 + 脱敏 + 审计脚本；CI 待执行） |
+| P2.3-GATE-07 五 job 全绿 | PASS for E（run `39899991262`）；合并后 main 需复跑确认 |
+| P2.3-GATE-08 审计与证据留档 | PASS（矩阵 + 脱敏 + 审计脚本；三份 artifact 审计 0 findings） |
 
-## 5. 实施记录（本机；CI 待执行）
+## 5. 实施记录（本机 + CI）
 
 **实现**
 
@@ -91,4 +91,12 @@
 - 校验：`scripts/ci-local.sh offline` 新增 CRLF 预检（一次真实故障：脚本被写回
   CRLF 后容器内 `set -euo pipefail` 失败）。
 
-**未执行**：Linux CI 五 job。E 批在 CI 证据产生前不得记为 PASS。
+**E 批 CI 证据（run `39899991262`，commit `504cd25`，PR #20）**：五个 job 全绿。
+
+- `motion-canvas-p1`：JUnit 19/0/0（62.4 s），Node 契约 TAP 29/29；真实
+  `encode_report.json` 为 1.2、`command_paths=build-relative`、无 `/home/`。
+- `motion-canvas-offline`：JUnit 13/0/0（34.8 s），镜像
+  `sha256:d64ce8ac…046f`，负控制 `fetch_exit=1 npm_exit=1`。
+- 三份 `evidence-audit.txt`（p1、graphviz、离线）均为 **0 finding(s)**；
+  graphviz `doctor.txt` 已脱敏为 `~/work/LCES/LCES/...`。
+- artifact 已下载到 `var/ci-run-e/`（git 忽略）并独立复核。

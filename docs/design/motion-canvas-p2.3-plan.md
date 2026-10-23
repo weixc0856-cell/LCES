@@ -455,7 +455,7 @@ base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`）�
 | P2.3-B 文件系统 | 符号链接统一检查（场景、帧、charts、staging）；临时文件安全；发布拒绝链接；输出目录/HOME 隔离（A 批表内遗留项） | 实现与本机/WSL 测试完成；CI 待执行 |
 | P2.3-C 供应链 | Node tarball SHA256；base image digest；CI actions SHA/记录；lockfile/registry/浏览器来源记录；构建可复现性分级 | N12/N13/N14 通过；文档记录来源/版本/可复现边界 |
 | P2.3-D 网络隔离 | 驱动层 Playwright 路由只允许 localhost/data/blob；外部请求失败并记录；字体回退 | N15 通过；P1.4 断网 job 继续（run `39893948581` 五 job 全绿） |
-| P2.3-E 安全验收 | 全量负向矩阵；CI artifact（JUnit、报告、截图/关键帧）；P2.1/P2.2 回归 | N01-N18 + 全部 P2.1/P2.2 测试；五个 CI job 绿（本批实现，CI 待执行） |
+| P2.3-E 安全验收 | 全量负向矩阵；CI artifact（JUnit、报告、截图/关键帧）；P2.1/P2.2 回归 | N01-N18 + 全部 P2.1/P2.2 测试；五个 CI job 绿（run `39899991262`） |
 
 每批独立提交、独立审查；不把 P2.4 的全局门禁混入。
 
@@ -467,10 +467,10 @@ base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`）�
 | P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | PASS（边界模块 33/33 在 WSL；run `39875910627` 与 `39888269698` 的 Linux pytest 覆盖同一模块） |
 | P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | PASS（run `39888269698`：SC-01…SC-07 全 PASS；离线 job 用 digest 固定的镜像重建并通过，输入哈希留档） |
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | PASS（run `39893948581`：8 份真实构建报告均为 `local-only`、4 次拦截/4 次失败；离线 job 11/0 且负控制失败） |
-| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01-N18 均已实现并有本机 + CI 证据；按计划由 E 批统一复核后收口） |
+| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | PASS（E 批 run `39899991262`；矩阵见 `motion-canvas-p2.3-e-acceptance.md`） |
 | P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | PASS（run `39888269698`：flow/compare 模板与 `lces build` 的真实渲染、编码、Gate 4 全部通过） |
-| P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | PASS for C（run `39888269698` 五 job 绿且 artifact 已复核）；E 批最终提交仍需重跑 |
-| P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | NOT_RUN |
+| P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | PASS for E（run `39899991262`；artifact 已下载复核）；合并后 main 需复跑 |
+| P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | PASS（E 批：矩阵文档 + 脱敏 + 证据审计；run `39899991262`） |
 
 `BLOCKED` 只用于已定义但环境不满足的项；本地 Windows 的 Linux 专属测试仍由
 CI 执行，不得用“本机通过”替代。
@@ -508,6 +508,7 @@ CI 执行，不得用“本机通过”替代。
 - D 批分支 `feat/motion-canvas-p2.3-d`（基于 C 批），PR #19（draft，栈在 #17 之上）；
   CI run `39893948581` 五个 job 全绿；本机离线门禁 11/11。详见
   `docs/design/motion-canvas-p2.3-d-plan.md`。
-- E 批分支 `feat/motion-canvas-p2.3-e`（基于 D 批）：矩阵收口、encode report 1.2
-  脱敏、doctor home 脱敏、证据审计脚本；本机 Windows `386 passed, 39 skipped`。
+- E 批分支 `feat/motion-canvas-p2.3-e`（基于 D 批），PR #20（draft）；
+  矩阵收口、encode report 1.2 脱敏、doctor home 脱敏、证据审计脚本；
+  本机 Windows `386 passed, 39 skipped`，CI run `39899991262` 五 job 全绿。
   详见 `docs/design/motion-canvas-p2.3-e-acceptance.md`。
