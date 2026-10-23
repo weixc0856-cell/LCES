@@ -347,7 +347,7 @@ generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据�
 - **未执行**：`--network none` 离线 job、五个 CI job。B 批在 CI 证据产生前
   不得记为 PASS。
 
-### C 批实现记录（本机；CI 待执行）
+### C 批实现记录（本机 + CI）
 
 **C1 供应链记录与审计**
 
@@ -414,8 +414,20 @@ generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据�
   19 pass / 0 fail / 3 skipped（符号链接用例在 Windows 跳过）。
 - WSL Linux（同一份代码）：`tests/test_supply_chain.py` 21 passed；
   `lces supply-chain-check` 7/7 PASS。
-- 未执行：五个 CI job 与 `--network none` 离线渲染。C 批在 CI 证据产生前
-  不得记为 PASS。
+**C 批 CI 证据（run `39888269698`，commit `e943433`）**：五个 job 全绿。
+
+- `test` job 实际执行 `lces supply-chain-check`，SC-01…SC-07 全部 PASS。
+- `motion-canvas-p1`：JUnit 17 tests / 0 failures / 0 skipped（66.7 s）；
+  Node 契约 TAP 22/22；Node 24.22.1、npm 11、Playwright 1.64.0、FFmpeg 6.1.1。
+- `motion-canvas-offline`：用 digest 固定的 base image 重新构建镜像
+  （image ID `sha256:53423ae7…f4a6`），`--network none` 下真实渲染、编码与
+  Gate 4 通过（JUnit 11/0/0，34.7 s）；负控制 `fetch_exit=1 npm_exit=1`；
+  两次构建（300 帧 / 30 帧）各有 4 次外部请求、4 次全部失败。
+- `graphviz`、`browser-qa` 绿。
+- artifact 已下载到本机 `var/ci-run-39888269698/`（git 忽略），
+  `image-id.txt`、`input-hashes.txt`、`contract-tests.tap`、`e2e-report.xml`
+  可独立复核；输入哈希：`package-lock.json` `c387b6d6…`、`uv.lock`
+  `03660c8f…`、`offline.Dockerfile` `023fc359…`。
 
 **C 批残余与边界**
 
@@ -443,13 +455,13 @@ generation trace 仍直接写入 `internal/qa`；它们属于构建内部证据�
 
 | ID | 验收项 | 状态 |
 |---|---|---|
-| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | NOT_RUN（A1/A2 已通过 CI run `39816426680`；输出目录/HOME 边界本机 + WSL 测试通过，WSL 真实渲染门禁 12/12 通过；CI 待执行） |
-| P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | NOT_RUN（B 批实现与本机 + WSL 测试通过，边界模块 33/33；CI 待执行） |
-| P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | NOT_RUN（C 批实现与本机测试通过：7 项审计 + 19 项测试；CI 待执行） |
+| P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | PASS（A 批 run `39816426680`；B 批 run `39875910627`；C 批 run `39888269698` 的真实渲染、取消/超时与 HOME canary） |
+| P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | PASS（边界模块 33/33 在 WSL；run `39875910627` 与 `39888269698` 的 Linux pytest 覆盖同一模块） |
+| P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | PASS（run `39888269698`：SC-01…SC-07 全 PASS；离线 job 用 digest 固定的镜像重建并通过，输入哈希留档） |
 | P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN |
-| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01/N02/N04-N11 已覆盖；N12 由适配器运行时校验 + SC-04 覆盖，N13/N14 由 C 批静态审计覆盖；N15 属 D 批） |
-| P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | NOT_RUN（WSL 真实渲染 12/12 覆盖 P2.1/P2.2 用例；CI 待执行） |
-| P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | NOT_RUN |
+| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01-N02、N04-N14、N16-N18 已覆盖；仅 N15 属 D 批未实现） |
+| P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | PASS（run `39888269698`：flow/compare 模板与 `lces build` 的真实渲染、编码、Gate 4 全部通过） |
+| P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | PASS for C（run `39888269698` 五 job 绿且 artifact 已复核）；E 批最终提交仍需重跑 |
 | P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | NOT_RUN |
 
 `BLOCKED` 只用于已定义但环境不满足的项；本地 Windows 的 Linux 专属测试仍由
@@ -483,4 +495,6 @@ CI 执行，不得用“本机通过”替代。
 - C 批分支 `feat/motion-canvas-p2.3-c`（基于 `main` = `5bb69bb`）；本机 Windows
   `368 passed, 38 skipped`；Node 22/19/0/3；ruff/format/mypy 全绿；
   `lces supply-chain-check` 7/7 PASS。离线镜像与五个 CI job 未运行。
+- C 批 CI run `39888269698`（commit `e943433`）五个 job 全绿；离线 job 用
+  digest 固定镜像重建成功。C 批证据已回填本节与 GATE-01/02/03/06/07。
 - D（网络）批未开始。
