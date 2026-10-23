@@ -8,11 +8,14 @@ an atomic ``os.replace``.
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
-from content_studio.errors import RenderError
+from content_studio.errors import RenderCancelled, RenderError
 from content_studio.media import ffmpeg_path, ffmpeg_version
 from content_studio.models import FrameManifest
 from content_studio.utils import sha256_file
@@ -58,14 +61,46 @@ def build_encode_command(
     ]
 
 
+def _terminate(process: subprocess.Popen[str]) -> None:
+    """Stop FFmpeg and anything it started; never leave an encoder behind."""
+
+    killpg = getattr(os, "killpg", None)
+    getpgid = getattr(os, "getpgid", None)
+    if os.name != "posix" or killpg is None or getpgid is None:
+        process.terminate()
+        return
+    try:
+        killpg(getpgid(process.pid), signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=5)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        killpg(getpgid(process.pid), getattr(signal, "SIGKILL", signal.SIGTERM))
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        return
+
+
 def encode_frames(
     manifest: FrameManifest,
     *,
     build_root: Path,
     output: Path,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    cancel: threading.Event | None = None,
 ) -> Path:
-    """Encode the manifest's frames to ``output``; raises ``encode_failed``."""
+    """Encode the manifest's frames to ``output``; raises ``encode_failed``.
+
+    ``cancel`` is checked while FFmpeg runs, so cancelling during the encode
+    stops the encoder instead of waiting for it and then publishing.
+    """
 
     binary = ffmpeg_path()
     if binary is None:
@@ -75,28 +110,36 @@ def encode_frames(
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
-            capture_output=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout_seconds,
-            check=False,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired as exc:
-        raise RenderError(
-            f"ffmpeg encoding exceeded {timeout_seconds}s",
-            code="encode_failed",
-            stage="encode",
-        ) from exc
     except OSError as exc:
         raise RenderError(
             f"ffmpeg could not run: {exc.__class__.__name__}",
             code="encode_failed",
             stage="encode",
         ) from exc
-    if completed.returncode != 0:
-        detail = (completed.stderr or "").strip().splitlines()
-        message = detail[-1] if detail else f"exit code {completed.returncode}"
+    deadline = time.monotonic() + timeout_seconds
+    while process.poll() is None:
+        if cancel is not None and cancel.is_set():
+            _terminate(process)
+            raise RenderCancelled("encoding was cancelled")
+        if time.monotonic() > deadline:
+            _terminate(process)
+            raise RenderError(
+                f"ffmpeg encoding exceeded {timeout_seconds}s",
+                code="encode_failed",
+                stage="encode",
+            )
+        time.sleep(0.1)
+    _stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        detail = (stderr or "").strip().splitlines()
+        message = detail[-1] if detail else f"exit code {process.returncode}"
         raise RenderError(
             f"ffmpeg encoding failed: {message[:300]}",
             code="encode_failed",

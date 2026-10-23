@@ -21,6 +21,7 @@ on the two sides.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import platform
@@ -790,17 +791,42 @@ class MotionCanvasRenderer(Renderer):
                 if project_root is not None:
                     _require_no_symlink_components(media_dir, project_root, what="media directory")
             staging_dir = media_dir / f".staging-{build_id}"
-            staging_dir.mkdir(parents=True, exist_ok=True)
             staged_video = staging_dir / "course.mp4"
-            encode_frames(manifest, build_root=build_root, output=staged_video)
-            video_problems = verify_video_against_manifest(staged_video, manifest)
-            if video_problems:
-                raise RenderError("; ".join(video_problems), code="qa_failed", stage="qa")
-            os.replace(staged_video, final_video)
             try:
-                staging_dir.rmdir()
-            except OSError:
-                pass
+                try:
+                    staging_dir.mkdir(parents=True, exist_ok=True)
+                    encode_frames(
+                        manifest,
+                        build_root=build_root,
+                        output=staged_video,
+                        cancel=self._cancel,
+                    )
+                except OSError as exc:
+                    # A full or read-only disk is an encode failure, not a
+                    # crash; the published video stays untouched.
+                    raise RenderError(
+                        f"cannot write the staged video: {exc.__class__.__name__}",
+                        code="encode_failed",
+                        stage="encode",
+                    ) from exc
+                video_problems = verify_video_against_manifest(staged_video, manifest)
+                if video_problems:
+                    raise RenderError("; ".join(video_problems), code="qa_failed", stage="qa")
+                try:
+                    os.replace(staged_video, final_video)
+                except OSError as exc:
+                    raise RenderError(
+                        f"cannot publish the video: {exc.__class__.__name__}",
+                        code="encode_failed",
+                        stage="encode",
+                    ) from exc
+            finally:
+                # No partial staged video or staging directory survives a
+                # failure; the published path only changes on success.
+                with contextlib.suppress(OSError):
+                    staged_video.unlink(missing_ok=True)
+                with contextlib.suppress(OSError):
+                    staging_dir.rmdir()
             qa_paths: tuple[Path, ...] = ()
             if project_root is not None:
                 qa_dir = project_root / "internal" / "qa"

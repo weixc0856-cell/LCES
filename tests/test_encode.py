@@ -97,21 +97,49 @@ def test_encode_report_keeps_absolute_paths_without_build_root(tmp_path):
     assert report["command"][1] == str(video)
 
 
-def _patch_ffmpeg(monkeypatch, *, result=None, error=None):
+class _FakeProcess:
+    def __init__(self, *, returncode: int, stderr: str = "", hang: bool = False) -> None:
+        self.pid = 4242
+        self.returncode: int | None = None if hang else returncode
+        self._stderr = stderr
+        self.terminated = False
+
+    def poll(self) -> int | None:
+        return self.returncode
+
+    def communicate(self) -> tuple[str, str]:
+        if self.returncode is None:
+            self.returncode = -9
+        return "", self._stderr
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self.returncode is None:
+            self.returncode = -9
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.terminated = True
+        self.returncode = -15
+
+
+def _patch_ffmpeg(
+    monkeypatch, *, returncode: int = 0, stderr: str = "", hang: bool = False
+) -> list[_FakeProcess]:
+    started: list[_FakeProcess] = []
     monkeypatch.setattr(encode, "ffmpeg_path", lambda: "ffmpeg")
 
-    def fake_run(*args, **kwargs):
-        if error is not None:
-            raise error
-        return result
+    def fake_popen(command, **kwargs):
+        process = _FakeProcess(returncode=returncode, stderr=stderr, hang=hang)
+        started.append(process)
+        return process
 
-    monkeypatch.setattr(encode.subprocess, "run", fake_run)
+    monkeypatch.setattr(encode.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(encode, "_terminate", lambda process: process.terminate())
+    return started
 
 
 def test_non_zero_exit_is_encode_failed(tmp_path, monkeypatch):
-    _patch_ffmpeg(
-        monkeypatch, result=subprocess.CompletedProcess([], returncode=1, stdout="", stderr="boom")
-    )
+    _patch_ffmpeg(monkeypatch, returncode=1, stderr="boom")
     with pytest.raises(RenderError) as caught:
         encode_frames(_manifest(), build_root=tmp_path, output=tmp_path / "course.mp4")
     assert caught.value.code == "encode_failed"
@@ -119,17 +147,32 @@ def test_non_zero_exit_is_encode_failed(tmp_path, monkeypatch):
 
 
 def test_timeout_is_encode_failed(tmp_path, monkeypatch):
-    _patch_ffmpeg(monkeypatch, error=subprocess.TimeoutExpired("ffmpeg", 1))
+    started = _patch_ffmpeg(monkeypatch, hang=True)
     with pytest.raises(RenderError) as caught:
-        encode_frames(_manifest(), build_root=tmp_path, output=tmp_path / "course.mp4")
+        encode_frames(
+            _manifest(), build_root=tmp_path, output=tmp_path / "course.mp4", timeout_seconds=0
+        )
     assert caught.value.code == "encode_failed"
+    assert started[0].terminated is True
+
+
+def test_cancel_stops_the_encoder(tmp_path, monkeypatch):
+    import threading
+
+    from content_studio.errors import RenderCancelled
+
+    started = _patch_ffmpeg(monkeypatch, hang=True)
+    cancel = threading.Event()
+    cancel.set()
+    with pytest.raises(RenderCancelled):
+        encode_frames(
+            _manifest(), build_root=tmp_path, output=tmp_path / "course.mp4", cancel=cancel
+        )
+    assert started[0].terminated is True
 
 
 def test_missing_output_is_encode_failed(tmp_path, monkeypatch):
-    _patch_ffmpeg(
-        monkeypatch,
-        result=subprocess.CompletedProcess([], returncode=0, stdout="", stderr=""),
-    )
+    _patch_ffmpeg(monkeypatch)
     with pytest.raises(RenderError) as caught:
         encode_frames(_manifest(), build_root=tmp_path, output=tmp_path / "course.mp4")
     assert caught.value.code == "encode_failed"
