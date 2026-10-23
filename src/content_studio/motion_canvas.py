@@ -68,6 +68,7 @@ from content_studio.renderers import (
 from content_studio.timeline import TimelinePlan, plan_from_scenes
 from content_studio.utils import sha256_file, write_json
 from content_studio.video_qa import verify_video_against_manifest
+from content_studio.visual_baseline import compare_baseline
 from content_studio.visual_qa import analyze_frames
 
 NODE_VERSION = "24.22.1"
@@ -757,6 +758,24 @@ class MotionCanvasRenderer(Renderer):
                         code="qa_failed",
                         stage="qa",
                     )
+                if project_root is not None:
+                    comparison = compare_baseline(
+                        project_root,
+                        template=scenes.scenes[0].scene_type,
+                        width=video.width,
+                        height=video.height,
+                        fps_num=manifest.fps_num,
+                        fps_den=manifest.fps_den,
+                        visual=visual_dict,
+                        frame_sha256={entry.index: entry.sha256 for entry in manifest.frames},
+                    )
+                    visual_dict["baseline"] = comparison.as_dict()
+                    write_json(build_root / "visual_qa.json", visual_dict)
+                    if comparison.warnings:
+                        self._diagnostics.append(
+                            f"build {build_id}: baseline {comparison.status}: "
+                            + "; ".join(comparison.warnings[:3])
+                        )
 
             # Encode into a sibling staging directory, verify, then replace
             # atomically. Nothing touches the published path until every check

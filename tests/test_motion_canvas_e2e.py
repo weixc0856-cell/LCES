@@ -174,6 +174,8 @@ def _render(
     assert visual["status"] == "pass"
     assert visual["sampled_frames"]
     assert all(not frame["blank"] for frame in visual["frames"])
+    # P2.4-B: a build without a stored baseline records that fact, not a pass.
+    assert visual["baseline"]["status"] in {"missing", "matched"}
     assert (qa_dir / "frame_manifest.json").is_file()
     diagnostics = " | ".join(renderer.get_diagnostics())
     assert "process group" in diagnostics and "cleaned" in diagnostics
