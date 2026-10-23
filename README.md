@@ -298,7 +298,7 @@ Motion Canvas 仍只支持 Linux；P2.2 已由 CI run `39807639618` 验收（真
 与 P2.3-B（输出目录、HOME 与符号链接边界）已合并，CI run `39875910627` 五个 job 全绿；
 P2.3-C（供应链固定）、P2.3-D（网络边界）与 P2.3-E（安全验收）已全部合并到 `main`
 （`f98df74`），合并后 CI run `39902414995` 五个 job 全绿。P2.4（P2 全量验收）
-已开始：A 批（MC-04 自动视觉检查）已实现，等待最终 CI 证据。Windows 原生仍由入口显式拒绝，
+已开始：A 批（MC-04 自动视觉检查）已通过 CI（run `39910802614`），PR #23 待合并。Windows 原生仍由入口显式拒绝，
 需要新的 P0 才能纳入。P1 的运行范围与验收记录见
 `docs/design/motion-canvas-p1-plan.md`，设计与边界见
 `docs/design/MOTION_CANVAS.md`。
