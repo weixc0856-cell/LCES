@@ -209,6 +209,15 @@ artifact 已下载到 `var/ci-run-b/`（git 忽略）并复核。
 **本机验证**
 
 - 单元测试 6 项：一致/不一致/零帧比较、视觉偏差、状态不一致、报告字段。
-- 真实双渲染只能在 Linux + 固定工具链执行；本机 Windows 跳过。
+- 真实双渲染只能在 Linux + 固定工具链上执行；本机 Windows 跳过。
 
-**未执行**：实测 job。C 批在真实双渲染报告产生前不得记为 PASS。
+**C 批实测（workflow_dispatch run `39913768740`，commit `524ae25`）**：
+
+- 同一场景（title，640×360，30 帧）连续渲染两次：**30/30 帧字节一致**
+  （`byte_identical_rate = 1.0`，无差异帧）；
+- 采样帧 15 的视觉指标偏差为 0（前景 0、边缘 0），两次状态均为 `pass`；
+- 环境：LCES 0.11.0、Python 3.13.17、Node 24.22.1、Motion Canvas 3.17.2、
+  Playwright 1.64.0、FFmpeg 6.1.1、lockfile `c387b6d6…`；
+- 报告写入 `motion-evidence/reproducibility.json`，位于 artifact
+  `motion-canvas-p1-evidence`；已下载到 `var/ci-repro/` 复核。
+- 该结论仅限同一环境；不构成跨 OS/GPU 承诺。
