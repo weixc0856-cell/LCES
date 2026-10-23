@@ -64,6 +64,10 @@ def collect(root: Path, out: Path, *, keep_frames: bool, frames_out: Path | None
         copy_if_file(build / "frames" / "report.json", target / "report.json")
         copy_if_file(build / "driver.log", target / "driver.log")
         copy_if_file(build / "encode_report.json", target / "encode_report.json")
+        # MC-04 (P2.4-A): the QA copy sits next to the other evidence and is
+        # its own manifest entry (internal/qa), so copy it from the build dir
+        # as well as from a resolvable project root below.
+        copy_if_file(build / "visual_qa.json", target / "visual_qa.json")
         # The adapter also copies its build evidence into the project's
         # internal/qa directory; keep that copy as the Gate 4 input. The
         # production test puts the build under <project>/build/motion/...,
@@ -77,6 +81,7 @@ def collect(root: Path, out: Path, *, keep_frames: bool, frames_out: Path | None
             for name in (
                 "encode_report.json",
                 "frame_manifest.json",
+                "visual_qa.json",
                 "visual_assets.json",
                 "render_manifest.json",
             ):

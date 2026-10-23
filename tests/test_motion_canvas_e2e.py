@@ -169,6 +169,11 @@ def _render(
     assert encode_report["command_paths"] == "build-relative"
     assert str(tmp_path) not in json.dumps(provenance)
     assert str(tmp_path) not in json.dumps(encode_report["command"])
+    # P2.4-A: MC-04 sampled metrics must pass on a real render.
+    visual = json.loads((qa_dir / "visual_qa.json").read_text(encoding="utf-8"))
+    assert visual["status"] == "pass"
+    assert visual["sampled_frames"]
+    assert all(not frame["blank"] for frame in visual["frames"])
     assert (qa_dir / "frame_manifest.json").is_file()
     diagnostics = " | ".join(renderer.get_diagnostics())
     assert "process group" in diagnostics and "cleaned" in diagnostics
