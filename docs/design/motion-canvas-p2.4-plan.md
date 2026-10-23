@@ -160,3 +160,34 @@ P2.4 = **P2 全量验收**，覆盖三件事：
 - artifact 已下载到 `var/ci-run-a/`（git 忽略）并独立复核；`visual_qa.json`
   同时出现在构建目录与 `internal/qa` 证据中。
 - PR #23 合并后，`main` @ `d0ae97f` 的 CI run `39910895396` 五 job 全绿。
+## 10. P2.4-B 实施记录（本机 + CI）
+
+**实现**
+
+- `src/content_studio/visual_baseline.py`：
+  - 基线路径按模板、画布尺寸与帧率区分：
+    `internal/qa/visual_baselines/<template>-<w>x<h>-<fps_num>_<fps_den>.json`；
+  - 基线保存采样帧索引、前景/边缘指标与逐帧 SHA-256，不保存像素；
+  - `compare_baseline` 返回 `missing` / `matched` / `drifted`；
+    指标偏差超过 0.01（绝对比例）或采样索引变化记 `drifted` 并给出警告；
+    只有字节哈希不同、指标一致时为 `matched` 且 `byte_identical=false`；
+  - 漂移只告警，不阻断构建。
+- 渲染集成：视觉检查通过且存在项目目录时比较基线，把结果写入
+  `visual_qa.json` 的 `baseline` 块，并在 diagnostics 记录警告。
+- 新增 `lces visual-baseline <project> --template <t> [--note ...]`：
+  把当前通过视觉检查的构建登记为基线；拒绝未知模板、失败报告或缺失证据。
+
+**本机验证**
+
+- `uv run pytest` → **412 passed, 39 skipped**；ruff / format / mypy 全绿。
+- 新增测试：`tests/test_visual_baseline.py` 9 项（路径、缺失、匹配、字节漂移、
+  指标漂移、采样索引变化、失败报告拒绝、CLI 写入、未知模板）；
+  `tests/test_motion_canvas.py` 2 项集成（匹配被记录；漂移告警但仍发布）。
+- 离线门禁不受影响：没有基线文件时报告 `missing`。
+
+**B 批 CI 证据（run `39911682016`）**：五个 job 全绿；
+`motion-canvas-p1` JUnit 19/0/0、`motion-canvas-offline` 13/0/0。
+真实渲染的 `visual_qa.json` 中
+`baseline.status = missing`（该构建未登记基线），语义正确。
+artifact 已下载到 `var/ci-run-b/`（git 忽略）并复核。
+

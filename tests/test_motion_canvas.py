@@ -810,6 +810,72 @@ def test_publish_records_visual_qa_evidence(build_root, tmp_path, monkeypatch):
     assert visual_path in result.artifacts
 
 
+def test_baseline_match_is_recorded(build_root, tmp_path, monkeypatch):
+    from content_studio import visual_baseline
+
+    project = tmp_path / "project"
+    (project / "build" / "media").mkdir(parents=True)
+    (project / "content").mkdir(parents=True)
+    monkeypatch.setattr(mc, "analyze_frames", lambda *args, **kwargs: _visual_report(blank=False))
+    monkeypatch.setattr(mc, "ffmpeg_path", lambda: "ffmpeg")
+    visual_baseline.build_baseline(
+        project,
+        template="title",
+        width=320,
+        height=180,
+        fps_num=30,
+        fps_den=1,
+        visual=_visual_report(blank=False).as_dict(),
+        build_id="prior-build",
+    )
+    renderer = _StubRenderer()
+    renderer.visual_check = True
+
+    _render(renderer, build_root, project=project)
+
+    payload = json.loads(
+        (project / "internal" / "qa" / "visual_qa.json").read_text(encoding="utf-8")
+    )
+    assert payload["baseline"]["status"] == "matched"
+    assert payload["baseline"]["warnings"] == []
+
+
+def test_baseline_drift_warns_but_publishes(build_root, tmp_path, monkeypatch):
+    from content_studio import visual_baseline
+
+    project = tmp_path / "project"
+    media = project / "build" / "media"
+    media.mkdir(parents=True)
+    (project / "content").mkdir(parents=True)
+    monkeypatch.setattr(mc, "analyze_frames", lambda *args, **kwargs: _visual_report(blank=False))
+    monkeypatch.setattr(mc, "ffmpeg_path", lambda: "ffmpeg")
+    drifted = _visual_report(blank=False).as_dict()
+    drifted["frames"][0]["foreground_ratio"] = 0.5
+    visual_baseline.build_baseline(
+        project,
+        template="title",
+        width=320,
+        height=180,
+        fps_num=30,
+        fps_den=1,
+        visual=drifted,
+        build_id="prior-build",
+    )
+    renderer = _StubRenderer()
+    renderer.visual_check = True
+
+    _render(renderer, build_root, project=project)
+
+    assert (media / "course.mp4").is_file()
+    payload = json.loads(
+        (project / "internal" / "qa" / "visual_qa.json").read_text(encoding="utf-8")
+    )
+    assert payload["baseline"]["status"] == "drifted"
+    assert payload["baseline"]["warnings"]
+    diagnostics = " | ".join(renderer.get_diagnostics())
+    assert "baseline drifted" in diagnostics
+
+
 def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):
     project = tmp_path / "project"
     media = project / "build" / "media"

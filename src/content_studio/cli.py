@@ -41,6 +41,7 @@ from content_studio.models import (
     VisualSpec,
 )
 from content_studio.motion_canvas import MotionCanvasRenderer, motion_canvas_registry, motion_status
+from content_studio.motion_templates import SUPPORTED_SCENE_TYPES
 from content_studio.orchestrator import load_project_config, run_pipeline
 from content_studio.paths import (
     ensure_project_layout,
@@ -71,6 +72,7 @@ from content_studio.storage import TaskStore
 from content_studio.supply_chain import audit_supply_chain
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
 from content_studio.utils import read_json, redact_home, write_json
+from content_studio.visual_baseline import build_baseline
 
 app = typer.Typer(no_args_is_help=True, help="Local Content Engineering Studio (LCES)")
 
@@ -758,6 +760,52 @@ def render_scene(
     for artifact in result.artifacts:
         typer.echo(f"  产物: {artifact}")
     typer.echo("提示: 此命令是独立渲染入口；生产构建请使用内容中的 animation 块与 `lces build`。")
+
+
+@app.command("visual-baseline")
+@guarded
+def visual_baseline(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    template: str = typer.Option(..., help="场景模板：title | flow | compare"),
+    note: str = typer.Option("", help="建立或更新基线的原因"),
+) -> None:
+    """Record a passing build as the visual baseline for a template (P2.4-B)."""
+
+    root = require_project_dir(project_dir)
+    if template not in SUPPORTED_SCENE_TYPES:
+        _exit(f"未知模板 '{template}'；可用: {sorted(SUPPORTED_SCENE_TYPES)}")
+    qa_dir = root / "internal" / "qa"
+    visual_path = qa_dir / "visual_qa.json"
+    manifest_path = qa_dir / "frame_manifest.json"
+    if not visual_path.is_file() or not manifest_path.is_file():
+        _exit("缺少 internal/qa/visual_qa.json 或 frame_manifest.json；先运行 `lces build`。")
+    try:
+        visual = read_json(visual_path)
+        manifest = read_json(manifest_path)
+    except ValueError as exc:
+        _exit(f"无法读取视觉证据: {exc}")
+    if not isinstance(visual, dict) or not isinstance(manifest, dict):
+        _exit("视觉证据格式不正确。")
+    if visual.get("status") != "pass":
+        _exit("visual_qa.json 不是 pass，不能作为基线。")
+    hashes = {
+        int(frame["index"]): str(frame["sha256"])
+        for frame in manifest.get("frames", [])
+        if isinstance(frame, dict) and "index" in frame
+    }
+    path = build_baseline(
+        root,
+        template=template,
+        width=int(manifest["width"]),
+        height=int(manifest["height"]),
+        fps_num=int(manifest["fps_num"]),
+        fps_den=int(manifest["fps_den"]),
+        visual=visual,
+        build_id=str(manifest["build_id"]),
+        note=note,
+        frame_sha256=hashes,
+    )
+    typer.echo(f"视觉基线: {path.relative_to(root).as_posix()}")
 
 
 @app.command("review-claims")
