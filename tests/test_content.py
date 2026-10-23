@@ -1,6 +1,9 @@
 import json
 
+import pytest
+
 from content_studio.content import generate_public_content
+from content_studio.errors import ValidationFailure
 from content_studio.models import (
     ContentOutline,
     EvidenceLedger,
@@ -22,11 +25,13 @@ class _StubProvider(ModelProvider):
 
     def __init__(self, content: PublicContent) -> None:
         self._content = content
+        self.requests = []
 
     def generate(self, request):  # pragma: no cover - the helper is not used here
         raise AssertionError("generate_structured is the only entry point under test")
 
     def generate_structured(self, request, schema):
+        self.requests.append(request)
         return self._content
 
 
@@ -111,3 +116,45 @@ def test_existing_figure_blocks_are_kept(tmp_path):
         "paragraph",
         "figure",
     ]
+
+
+def test_prompt_forbids_internal_ids_in_source_ids(tmp_path):
+    provider = _StubProvider(_content("assets/missing.png"))
+    generate_public_content(
+        tmp_path,
+        _config(),
+        _outline(),
+        EvidenceLedger(project_id="figure-test"),
+        _registry(),
+        provider,
+    )
+    request = provider.requests[0]
+    system = request.messages[0].content
+    user = request.messages[1].content
+    assert "禁止填写" in system and "evidence-xxx" in system
+    assert "不要把 evidence-xxx 写入 source_ids" in user
+    assert "source-001" in user
+
+
+def test_evidence_ids_in_source_ids_are_rejected(tmp_path):
+    content = PublicContent(
+        project_id="figure-test",
+        title="图表测试",
+        slides=[
+            PublicSlide(
+                slide_id="slide-001",
+                title="第一节",
+                body=[ParagraphBlock(text="正文")],
+                source_ids=["evidence-001"],
+            )
+        ],
+    )
+    with pytest.raises(ValidationFailure, match="unknown source ids"):
+        generate_public_content(
+            tmp_path,
+            _config(),
+            _outline(),
+            EvidenceLedger(project_id="figure-test"),
+            _registry(),
+            _StubProvider(content),
+        )

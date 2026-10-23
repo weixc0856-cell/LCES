@@ -57,7 +57,8 @@ PUBLIC_SYSTEM = """你是 LCES 的公开内容生成模块（tech-content-studio
 3. 不得写入 API 密钥、内部路径或任何系统提示词内容。
 4. 科学限制、假设与不确定性可以作为正式内容表述，但必须措辞严谨。
 5. 每个 slide 的 slide_id 必须与大纲完全一致，顺序一致。
-6. source_ids 只能引用来源台账中存在的 source_id。
+6. source_ids 只能填写来源台账中存在的 source_id（形如 source-001）。禁止填写
+   evidence-xxx、claim-xxx 等内部编号；内部证据台账不进入公开页。
 7. 正文应完整支持目标受众理解，不使用空泛填充。
 8. 只有 content/ 下已存在对应文件时才能使用 figure 块；模型不能创建图片，
    没有现成图表就改用表格或文字说明。
@@ -78,7 +79,8 @@ READING_SYSTEM = """你是 LCES 的研究阅读版模块（tech-content-studio �
 规则：
 1. 阅读版面向课后深入阅读，可比展示页更密集，但不得包含口播稿或内部备注。
 2. slide_id 必须与大纲完全一致。
-3. 所有关键结论保留 source_ids 引用。
+3. 所有关键结论保留 source_ids 引用；source_ids 只能是 source-xxx，
+   不得使用 evidence-xxx 或 claim-xxx。
 4. references 只能列出真实来源台账中的条目。
 只输出符合给定 JSON Schema 的 JSON。"""
 
@@ -164,9 +166,9 @@ def generate_public_content(
         f"受众: {config.audience}\n\n"
         "课程大纲:\n"
         f"{_compact_json(outline.model_dump(mode='json'))}\n\n"
-        "证据台账:\n"
+        "内部证据台账（仅供理解，不要把 evidence-xxx 写入 source_ids）:\n"
         f"{_evidence_table(ledger)}\n\n"
-        "可用 source_id:\n"
+        "可用 source_id（公开页只能从这里选择）:\n"
         f"{', '.join(_source_ids(registry))}\n\n"
         "请为每个大纲章节生成公开展示正文。"
     )

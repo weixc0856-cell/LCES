@@ -94,6 +94,7 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | `ruff check .` | passed |
 | `ruff format --check .` | passed |
 | `mypy src` | no issues in 38 source files |
+| Local course trial (Qwen3-Coder, 32K, 2026-10-23) | research/outline/generate/build/validate completed with the course-development model; the public citation prompt was fixed after the model wrote internal evidence ids into `source_ids`; duration warn 1.9 min vs 20 min target; browser QA `NOT_RUN`. See `docs/design/local-course-trial-2026-10-23.md` |
 | `lces run` (local `Qwen3.5-4B`, arXiv 1706.03762) | all 6 stages completed; browser QA established 10 baselines; Gate 3 passed |
 | `lces run --only build` through the registry | table rendered by `html.table` 1.0.0; manifest hash recorded; screenshots still match baseline |
 | `lces render-spec` (unknown `visual_type`) | exits 1 with `UnsupportedVisualType`; no placeholder output |
