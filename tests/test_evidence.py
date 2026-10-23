@@ -218,13 +218,46 @@ def test_fabricated_quote_is_flagged(tmp_path):
     assert "evidence-001" in checks[0].message
 
 
-def test_missing_source_text_skips_the_check(tmp_path):
+def test_missing_source_text_is_unverifiable(tmp_path):
     project = tmp_path / "project"
     (project / "internal" / "sources").mkdir(parents=True)
     ledger = EvidenceLedger(project_id="p", records=[_evidence(excerpt="anything at all here")])
-    assert _evidence_quote_checks(project, ledger) == []
+    checks = _evidence_quote_checks(project, ledger)
+    assert checks[0].status == "warn"
+    assert "evidence-001(来源文本不可用)" in checks[0].message
 
 
-def test_short_excerpt_is_not_compared(tmp_path):
+def test_missing_excerpt_is_unverifiable(tmp_path):
+    checks = _quote_project(tmp_path, "")
+    assert checks[0].status == "warn"
+    assert "evidence-001(缺少摘录)" in checks[0].message
+
+
+def test_short_excerpt_is_unverifiable(tmp_path):
     checks = _quote_project(tmp_path, "attention")
-    assert checks == []
+    assert checks[0].status == "warn"
+    assert "evidence-001(摘录过短)" in checks[0].message
+
+
+def test_unicode_punctuation_is_normalised(tmp_path):
+    checks = _quote_project(
+        tmp_path,
+        "The model’s encoder is “stable”",
+        source='The model\'s encoder is "stable" in every run.',
+    )
+    assert checks[0].status == "pass"
+
+
+def test_near_match_with_different_words_fails(tmp_path):
+    checks = _quote_project(
+        tmp_path,
+        "The Transformer is based partly on recurrent mechanisms",
+    )
+    assert checks[0].status == "warn"
+    assert "evidence-001" in checks[0].message
+
+
+def test_empty_ledger_has_no_quote_check(tmp_path):
+    project = tmp_path / "project"
+    (project / "internal" / "sources").mkdir(parents=True)
+    assert _evidence_quote_checks(project, EvidenceLedger(project_id="p")) == []

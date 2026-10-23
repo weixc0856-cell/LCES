@@ -7,6 +7,7 @@ persisted to separate files with separate schemas.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from content_studio.errors import ValidationFailure
@@ -49,6 +50,9 @@ OUTLINE_SYSTEM = """你是 LCES 的课程设计模块（tech-content-studio 第�
 5. 关键公式、图表与示例写入 visual_requirements，供后续场景与图表阶段使用。
 6. total_minutes 应与各章节 estimated_minutes 之和一致，并接近目标时长。
 只输出符合给定 JSON Schema 的 JSON。"""
+
+SOURCE_ID_PATTERN = re.compile(r"^source-[a-z0-9-]+$")
+
 
 PUBLIC_SYSTEM = """你是 LCES 的公开内容生成模块（tech-content-studio 第二部分）。
 公开展示内容规则：
@@ -201,12 +205,16 @@ def generate_public_content(
                 f"public content contains internal marker '{marker}'; generation rejected"
             )
 
+    # Structural boundary, not just a prompt hint: a public citation must be
+    # a well-formed source id that exists in the public registry. Internal
+    # evidence/claim ids (evidence-001, claim-001) fail on the pattern even if
+    # someone registered such an id by mistake.
     known_sources = set(_source_ids(registry))
     unknown = {
         source_id
         for slide in content.slides
         for source_id in slide.source_ids
-        if source_id not in known_sources
+        if not SOURCE_ID_PATTERN.fullmatch(source_id) or source_id not in known_sources
     }
     if unknown:
         raise ValidationFailure(

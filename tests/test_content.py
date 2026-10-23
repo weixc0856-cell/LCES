@@ -158,3 +158,27 @@ def test_evidence_ids_in_source_ids_are_rejected(tmp_path):
             _registry(),
             _StubProvider(content),
         )
+
+
+def test_malformed_source_id_is_rejected(tmp_path):
+    content = PublicContent(
+        project_id="figure-test",
+        title="图表测试",
+        slides=[
+            PublicSlide(
+                slide_id="slide-001",
+                title="第一节",
+                body=[ParagraphBlock(text="正文")],
+                source_ids=["source_001"],
+            )
+        ],
+    )
+    with pytest.raises(ValidationFailure, match="unknown source ids"):
+        generate_public_content(
+            tmp_path,
+            _config(),
+            _outline(),
+            EvidenceLedger(project_id="figure-test"),
+            _registry(),
+            _StubProvider(content),
+        )
