@@ -10,6 +10,10 @@ on:
         description: "Upload the production frame sequence (about 17 MB) for evidence checks"
         type: boolean
         default: false
+      reproducibility:
+        description: "Render the same scene twice and record the P2.4-C reproducibility report"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -105,6 +109,13 @@ jobs:
           LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_e2e.py tests/test_motion_canvas_templates.py tests/test_motion_canvas_production.py tests/test_encode.py tests/test_release_video.py -v
           --basetemp=/tmp/lces-p1-builds
           --junitxml=motion-evidence/e2e-report.xml
+      - name: Reproducibility measurement (two renders)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.reproducibility }}
+        run: >-
+          LCES_MC_REPRO=1 LCES_REPRO_OUT=motion-evidence/reproducibility.json
+          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_reproducibility.py -v
+          --basetemp=/tmp/lces-repro
+          --junitxml=motion-evidence/repro-report.xml
       - name: Collect frame manifests
         if: always()
         run: |

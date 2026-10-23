@@ -191,3 +191,33 @@ P2.4 = **P2 全量验收**，覆盖三件事：
 `baseline.status = missing`（该构建未登记基线），语义正确。
 artifact 已下载到 `var/ci-run-b/`（git 忽略）并复核。
 
+## 11. P2.4-C 实施记录（本机；实测 job 待触发）
+
+**实现**
+
+- `src/content_studio/reproducibility.py`：逐帧 SHA-256 一致率、采样视觉指标
+  最大偏差、环境信息（LCES/Python/Node/Motion Canvas/Playwright/FFmpeg 与
+  `package-lock.json` 哈希）；报告写明“仅限同一环境”，不作跨 OS 承诺。
+- `tests/test_motion_canvas_reproducibility.py`：只有 `LCES_MC_REPRO=1` 时运行；
+  同一场景渲染两次（不同 `build_id`），比较 FrameManifest 与 `visual_qa.json`，
+  写出 `LCES_REPRO_OUT` 指定的报告。**不断言字节一致**，只记录实测值。
+- CI：`workflow_dispatch` 新增 `reproducibility` 布尔输入；`motion-canvas-p1`
+  job 在该输入为真时多跑一次双渲染，并把报告纳入 `motion-canvas-p1-evidence`。
+  普通 PR 不付双倍渲染成本。
+- `scripts/ci-local.sh render` 支持 `LCES_MC_REPRO=1` 时追加同一测量。
+
+**本机验证**
+
+- 单元测试 6 项：一致/不一致/零帧比较、视觉偏差、状态不一致、报告字段。
+- 真实双渲染只能在 Linux + 固定工具链上执行；本机 Windows 跳过。
+
+**C 批实测（workflow_dispatch run `39913768740`，commit `524ae25`）**：
+
+- 同一场景（title，640×360，30 帧）连续渲染两次：**30/30 帧字节一致**
+  （`byte_identical_rate = 1.0`，无差异帧）；
+- 采样帧 15 的视觉指标偏差为 0（前景 0、边缘 0），两次状态均为 `pass`；
+- 环境：LCES 0.11.0、Python 3.13.17、Node 24.22.1、Motion Canvas 3.17.2、
+  Playwright 1.64.0、FFmpeg 6.1.1、lockfile `c387b6d6…`；
+- 报告写入 `motion-evidence/reproducibility.json`，位于 artifact
+  `motion-canvas-p1-evidence`；已下载到 `var/ci-repro/` 复核。
+- 该结论仅限同一环境；不构成跨 OS/GPU 承诺。
