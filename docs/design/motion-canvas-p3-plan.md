@@ -152,5 +152,47 @@
 **本机验证**：`uv run pytest` → 436 passed, 53 skipped；ruff / format / mypy 全绿。
 真实三档仅在 Linux + 固定工具链执行。
 
-**未执行**：stress 实测 job；故障注入（阶段 C）尚未开始。P3-GATE-04/05 保持
-`NOT_RUN`。
+**stress 实测（run `39931887360`，commit `6c02777`）**：2 核/4 vCPU GitHub runner，
+Node 24.22.1、Motion Canvas 3.17.2、Playwright 1.64.0、FFmpeg 6.1.1：
+
+| 档位 | 帧数 | 总耗时 | 渲染 | 编码 | Gate 4 | 峰值 RSS | 峰值磁盘 | 视频 |
+|---|---|---|---|---|---|---|---|---|
+| 1 s | 30 | 7.8 s | 1.2 s | 0.6 s | 0.2 s | 1.40 GB | 2 MB | ~40 KB |
+| 10 s (r0) | 300 | 17.4 s | 6.2 s | 3.2 s | 0.9 s | 1.44 GB | 22 MB | ~100 KB |
+| 10 s (r1) | 300 | 17.3 s | 5.9 s | 3.3 s | 0.9 s | 1.43 GB | 22 MB | ~100 KB |
+| 60 s (r0) | 1800 | 66.5 s | 32.2 s | 18.1 s | 4.3 s | 1.53 GB | 136 MB | ~200 KB |
+| 60 s (r1) | 1800 | 66.5 s | 32.3 s | 18.0 s | 4.4 s | 1.51 GB | 136 MB | ~200 KB |
+
+观察（仅限该环境）：
+
+- 总耗时近似线性（每帧约 0.036 s 总成本，其中渲染约 0.018 s），两轮差异 <2%；
+- 峰值 RSS 稳定在 1.4–1.5 GB，60 s 档未见持续增长；
+- 帧目录约每帧 75 KB（1080p PNG），60 s 档峰值 136 MB；最终视频很小，因为画面压缩率高；
+- 子进程峰值 10 个；所有指标通道均可用（`unavailable=[]`）；
+- 1 s 档的磁盘峰值受 0.5 s 采样间隔限制，可能低估瞬时峰值；可用空间差值是更可靠的信号。
+
+结论：当前不需要硬配额；若扩展到 5 分钟档，先按 136 MB/60 s 估算磁盘并复核
+RSS 曲线。P3-GATE-04 的证据已产生，但仍按计划在完整报告审阅后收口。
+
+## 11. P3-C 实施记录（本机；实测 job 待触发）
+
+**实现**
+
+- 编码可取消：`encode_frames(..., cancel=threading.Event)` 使用 `Popen` 轮询，
+  取消时终止整个 FFmpeg 进程组并抛 `RenderCancelled`；超时同样终止并报
+  `encode_failed`。适配器把 `self._cancel` 传入编码阶段，取消不再等到编码完成。
+- 磁盘写入失败映射：staging 目录创建、编码与最终 `os.replace` 的 `OSError`
+  统一映射为 `encode_failed`；失败路径通过 `finally` 删除暂存视频与
+  `.staging-*` 目录，发布视频保持不变。
+- `tests/test_motion_canvas_faults_p3.py`（`LCES_MC_FAULTS=1`）：
+  渲染超时（1.5 s）、渲染中取消（2 s）、编码中取消、超时后重试成功、
+  POSIX 只读 media 目录导致的真实写入失败；每条都断言终态、旧视频哈希不变、
+  无 `.staging-*` 残留。
+- 单位测试补充：`encode_frames` 的非零退出/超时/取消/缺产物，以及
+  “磁盘满” `OSError` 映射为 `encode_failed` 且保留旧视频。
+- CI 新增 `faults` 输入；`ci-local.sh render` 支持 `LCES_MC_FAULTS=1`。
+
+**本机验证**：`uv run pytest` → **438 passed, 58 skipped**；ruff / format / mypy 全绿。
+真实故障用例仅在 Linux 执行。
+
+**未执行**：faults 实测 job。P3-GATE-03/05 在其实测证据产生前不得记为 PASS。

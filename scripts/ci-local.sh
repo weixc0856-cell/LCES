@@ -104,6 +104,10 @@ render() {
   (cd motion && node --test --test-reporter=tap contract.test.mjs output-dir.test.mjs network-policy.test.mjs)
   note "real renders, encoding and Gate 4 (CI motion job)"
   LCES_MC_E2E=1 uv run pytest -m motion -v --basetemp=var/ci-local/pytest
+  if [ "${LCES_MC_FAULTS:-0}" = "1" ]; then
+    note "fault injection (P3-C)"
+    LCES_MC_FAULTS=1 uv run pytest tests/test_motion_canvas_faults_p3.py -v
+  fi
   if [ "${LCES_MC_STRESS:-0}" = "1" ]; then
     note "duration tiers and resource baseline (P3-B)"
     LCES_MC_STRESS=1 LCES_STRESS_OUT=var/ci-local/stress.json       uv run pytest tests/test_motion_canvas_stress.py -v

@@ -876,6 +876,28 @@ def test_baseline_drift_warns_but_publishes(build_root, tmp_path, monkeypatch):
     assert "baseline drifted" in diagnostics
 
 
+def test_disk_write_failure_is_encode_failed(build_root, tmp_path, monkeypatch):
+    """A full disk must not look like a crash or a silent success."""
+
+    project = tmp_path / "project"
+    media = project / "build" / "media"
+    media.mkdir(parents=True)
+    sentinel = media / "course.mp4"
+    sentinel.write_bytes(b"old-video")
+    (project / "content").mkdir(parents=True)
+
+    def full_disk(*args, **kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(mc, "encode_frames", full_disk)
+    with pytest.raises(RenderError) as caught:
+        _render(_StubRenderer(), build_root, project=project)
+
+    assert caught.value.code == "encode_failed"
+    assert sentinel.read_bytes() == b"old-video"
+    assert list(media.glob(".staging-*")) == []
+
+
 def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):
     project = tmp_path / "project"
     media = project / "build" / "media"

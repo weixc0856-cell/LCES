@@ -172,3 +172,10 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   never zero). `tests/test_motion_canvas_stress.py` renders the 1 s / 10 s /
   60 s tiers with `LCES_MC_STRESS=1`, repeating the longer tiers, and records
   timing, process-tree resources, disk, artifacts and environment.
+
+- Motion Canvas fault injection (P3-C): `tests/test_motion_canvas_faults_p3.py`
+  (with `LCES_MC_FAULTS=1`) covers timeout, cancel during render, cancel during
+  encode, retry after failure and a read-only media directory; each case asserts
+  the terminal error, the untouched old video and no staging leftovers.
+  `tests/test_encode.py` covers encoder exit/timeout/cancel and the disk-full
+  mapping.
