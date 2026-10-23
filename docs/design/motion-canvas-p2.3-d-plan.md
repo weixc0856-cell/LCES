@@ -118,4 +118,14 @@ Node 测试并入 `npm test`、CI 的 Node contract 步骤与 `scripts/ci-local.
   → 29 tests / 26 pass / 0 fail / 3 skipped（符号链接用例在 Windows 跳过）；
 - Windows：`uv run pytest` → 373 passed, 38 skipped；ruff/format/mypy 全绿。
 
-**未执行**：Linux CI 的真实渲染与五个 job。D 批在 CI 证据产生前不得记为 PASS。
+**D 批 CI 证据（run `39893948581`，commit `9b64bf4`）**：五个 job 全绿。
+
+- `motion-canvas-p1`：JUnit 17/0/0（66.3 s），Node 契约 TAP 29/29（0 skipped）；
+- `motion-canvas-offline`：JUnit 11/0/0（34.9 s），镜像
+  `sha256:626c144e…25ae`，负控制 `fetch_exit=1 npm_exit=1`，两次构建 4/4 外部请求失败；
+- 两个 job 的全部 8 份 completed `report.json` 均为：
+  `network_policy=local-only`、`blocked_count=4`、`request_failures=4`、
+  `scene_fonts.named_available=[DejaVu Sans, Liberation Sans, Arial]`，
+  拦截项的 path 不含 query/fragment；
+- `test` / `graphviz` / `browser-qa` 绿。artifact 已下载到
+  `var/ci-run-d/`（git 忽略）并独立复核。
