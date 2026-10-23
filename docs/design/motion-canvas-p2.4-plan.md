@@ -244,4 +244,7 @@ artifact 已下载到 `var/ci-run-b/`（git 忽略）并复核。
 - 新增 `tests/test_visual_acceptance.py` 11 项：记录 schema、工具链匹配、
   模板/工具链/verdict 不匹配、CLI 记录与拒绝、Gate 4 的 warn/fail/pass 分支。
 
-**未执行**：Linux CI。D 批在 CI 证据产生前不得记为 PASS。
+**D 批 CI 证据（run `39925848804`，commit `742ac63`）**：五个 job 全绿
+（`test`、`motion-canvas-p1`、`motion-canvas-offline`、`graphviz`、`browser-qa`）。
+`visual_acceptance` 的 warn/fail/pass 分支由 `tests/test_visual_acceptance.py`
+在 Linux 上执行；真实渲染与离线门禁不受影响。
