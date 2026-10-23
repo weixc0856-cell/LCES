@@ -52,6 +52,7 @@ from content_studio.frame_manifest import (
 from content_studio.media import ffmpeg_path, ffmpeg_version
 from content_studio.models import SceneContract, SceneSet, VideoContract, VisualSpec
 from content_studio.motion_templates import (
+    SCENE_FONT_FAMILY,
     SUPPORTED_SCENE_TYPES,
     data_problems,
     scene_source,
@@ -1027,6 +1028,7 @@ def _driver_env(
             "LCES_ERROR_CODES_PATH": str(ERROR_CODES_PATH),
             "MC_OUTPUT_DIR": str(output_dir),
             "MC_NODE_MODULES": str(motion_project_dir() / "node_modules"),
+            "MC_SCENE_FONT": SCENE_FONT_FAMILY,
         }
     )
     return env

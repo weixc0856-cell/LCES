@@ -454,7 +454,7 @@ base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`）�
 | P2.3-A 执行边界 | 校验 `OUTPUT_DIR`/`--out` 在项目内且为专用目录；HOME/XDG 隔离；可执行文件校验；进程残留断言 | N04/N05/N06/N07/N08/N09 通过；P1/P2 回归 |
 | P2.3-B 文件系统 | 符号链接统一检查（场景、帧、charts、staging）；临时文件安全；发布拒绝链接；输出目录/HOME 隔离（A 批表内遗留项） | 实现与本机/WSL 测试完成；CI 待执行 |
 | P2.3-C 供应链 | Node tarball SHA256；base image digest；CI actions SHA/记录；lockfile/registry/浏览器来源记录；构建可复现性分级 | N12/N13/N14 通过；文档记录来源/版本/可复现边界 |
-| P2.3-D 网络隔离 | 驱动层 Playwright 路由只允许 localhost/data/blob；外部请求失败并记录；字体回退 | N15 通过；P1.4 断网 job 继续 |
+| P2.3-D 网络隔离 | 驱动层 Playwright 路由只允许 localhost/data/blob；外部请求失败并记录；字体回退 | N15 通过；P1.4 断网 job 继续（本机已完成，CI 待执行） |
 | P2.3-E 安全验收 | 全量负向矩阵；CI artifact（JUnit、报告、截图/关键帧）；P2.1/P2.2 回归 | N01-N18 + 全部 P2.1/P2.2 测试；五个 CI job 绿 |
 
 每批独立提交、独立审查；不把 P2.4 的全局门禁混入。
@@ -466,8 +466,8 @@ base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`）�
 | P2.3-GATE-01 | 执行边界：输出目录、可执行文件、超时/取消、进程残留 | PASS（A 批 run `39816426680`；B 批 run `39875910627`；C 批 run `39888269698` 的真实渲染、取消/超时与 HOME canary） |
 | P2.3-GATE-02 | 文件系统边界：路径穿越、符号链接、临时文件、发布夹带 | PASS（边界模块 33/33 在 WSL；run `39875910627` 与 `39888269698` 的 Linux pytest 覆盖同一模块） |
 | P2.3-GATE-03 | 供应链：版本固定、来源可信、可复现边界均有记录与测试 | PASS（run `39888269698`：SC-01…SC-07 全 PASS；离线 job 用 digest 固定的镜像重建并通过，输入哈希留档） |
-| P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN |
-| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01-N02、N04-N14、N16-N18 已覆盖；仅 N15 属 D 批未实现） |
+| P2.3-GATE-04 | 网络边界：渲染期非本地请求被阻断/记录，断网 job 仍通过 | NOT_RUN（D 批实现 + 本机 `--network none` 门禁 11/11：`blocked_count=4`、`request_failures=4`、具名字体可用；Linux CI 待执行） |
+| P2.3-GATE-05 | 负向测试矩阵 N01-N18 全部符合预期 | NOT_RUN（N01-N02、N04-N15、N16-N18 均已实现并有本地证据；E 批统一复核、CI 待执行） |
 | P2.3-GATE-06 | P2.1/P2.2 生产链路与模板无回归 | PASS（run `39888269698`：flow/compare 模板与 `lces build` 的真实渲染、编码、Gate 4 全部通过） |
 | P2.3-GATE-07 | 最终提交的五个 CI job 全绿，artifact 可独立复核 | PASS for C（run `39888269698` 五 job 绿且 artifact 已复核）；E 批最终提交仍需重跑 |
 | P2.3-GATE-08 | 审计、威胁模型、负向测试命令与退出码全部留档 | NOT_RUN |
@@ -505,4 +505,5 @@ CI 执行，不得用“本机通过”替代。
   `lces supply-chain-check` 7/7 PASS。离线镜像与五个 CI job 未运行。
 - C 批 CI run `39888269698`（commit `e943433`）五个 job 全绿；离线 job 用
   digest 固定镜像重建成功。C 批证据已回填本节与 GATE-01/02/03/06/07。
-- D（网络）批未开始。
+- D 批分支 `feat/motion-canvas-p2.3-d`（基于 C 批）；实现与测试完成，本机离线门禁
+  11/11 通过；Linux CI 未运行。详见 `docs/design/motion-canvas-p2.3-d-plan.md`。

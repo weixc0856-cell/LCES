@@ -120,17 +120,25 @@ def _render(
     assert report["finished"] is True
     assert report["terminal"] == "completed"
     assert report["error_code"] == ""
-    # Offline isolation is an OS-level claim proved in P1.4; P1.1 only records
-    # what the driver observed. P0 saw failed external attempts even with no
-    # network, so an empty list is not a valid assertion here.
+    # P2.3-D: the driver installs a local-only policy before the first
+    # navigation. The editor always tries Google Fonts, unpkg and the npm
+    # update check, so a successful build proves those attempts were blocked
+    # at the browser boundary. The `--network none` job additionally proves
+    # the process tree cannot reach the network.
+    assert report["network_policy"] == "local-only"
     assert isinstance(report["external_requests"], list)
+    assert report["blocked_count"] > 0, "the editor made no blocked external request"
+    assert report["blocked_requests"], "blocked requests must be listed"
+    for item in report["blocked_requests"]:
+        assert item["origin"] and not item["origin"].startswith("http://127.0.0.1")
+        assert item["reason"] == "blocked-by-policy"
+        assert "?" not in item["path"] and "#" not in item["path"]
+    assert report["request_failures"] > 0
+    assert report["scene_fonts"]["named_available"], "no named scene font resolved"
     if os.environ.get("LCES_MC_OFFLINE") == "1":
         assert report["external_requests"], (
             "the offline run attempted no external request, so it does not "
             "demonstrate that external requests were blocked"
-        )
-        assert report["request_failures"] > 0, (
-            "external requests were not blocked; the container was not offline"
         )
 
     video = tmp_path / "project" / "build" / "media" / "course.mp4"

@@ -93,7 +93,7 @@ render() {
   require_ffmpeg
   mkdir -p var/ci-local
   note "Node contract suite (CI motion job)"
-  (cd motion && node --test --test-reporter=tap contract.test.mjs)
+  (cd motion && node --test --test-reporter=tap contract.test.mjs output-dir.test.mjs network-policy.test.mjs)
   note "real renders, encoding and Gate 4 (CI motion job)"
   LCES_MC_E2E=1 uv run pytest -m motion -v --basetemp=var/ci-local/pytest
 }

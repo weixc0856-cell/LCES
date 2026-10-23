@@ -20,6 +20,10 @@ from content_studio.models import SceneContract
 from content_studio.timeline import TimelinePlan
 
 SUPPORTED_SCENE_TYPES = frozenset({"title", "flow", "compare"})
+# P2.3-D: scene text no longer depends on a webfont. Motion Canvas defaults
+# to Roboto loaded from Google Fonts, which the local-only network policy
+# blocks; this stack resolves to a local font and is recorded per render.
+SCENE_FONT_FAMILY = "'DejaVu Sans', 'Liberation Sans', Arial, sans-serif"
 FLOW_NODE_KINDS = frozenset({"start", "step", "decision", "end"})
 COMMON_KEYS = frozenset({"title", "subtitle", "accent_color", "background_color"})
 FLOW_KEYS = COMMON_KEYS | {"direction", "nodes", "edges"}
@@ -445,6 +449,7 @@ def _title_source(scene: SceneContract, plan: TimelinePlan, *, width: int, heigh
     subtitle = _ts_string(str(data.get("subtitle", "")))
     accent = _ts_string(str(data.get("accent_color", "#4cc9f0")))
     background = _ts_string(str(data.get("background_color", "#0b1220")))
+    font = _ts_string(SCENE_FONT_FAMILY)
     duration = _duration(plan)
     return (
         _header(scene, plan)
@@ -455,6 +460,7 @@ const TITLE = {title};
 const SUBTITLE = {subtitle};
 const ACCENT = {accent};
 const BACKGROUND = {background};
+const FONT = {font};
 const DURATION = {duration!r};
 
 export default makeScene2D(function* (view) {{
@@ -466,9 +472,9 @@ export default makeScene2D(function* (view) {{
       <Rect width={{{width}}} height={{{height}}} fill={{BACKGROUND}} />
       <Rect y={{-170}} width={{560}} height={{8}} fill={{ACCENT}} />
       <Txt ref={{title}} y={{-20}} opacity={{0}} fontSize={{96}}
-        fill={{'#f7fbff'}} text={{TITLE}} />
+        fontFamily={{FONT}} fill={{'#f7fbff'}} text={{TITLE}} />
       <Txt ref={{subtitle}} y={{110}} opacity={{0}} fontSize={{42}}
-        fill={{'#9fb3c8'}} text={{SUBTITLE}} />
+        fontFamily={{FONT}} fill={{'#9fb3c8'}} text={{SUBTITLE}} />
     </Layout>,
   );
   yield* all(title().opacity(1, 0.8, easeOutCubic), title().y(-70, 0.8, easeOutCubic));
@@ -513,6 +519,7 @@ def _flow_source(scene: SceneContract, plan: TimelinePlan, *, width: int, height
         "SUBTITLE": _ts_string(str(data.get("subtitle", ""))),
         "ACCENT": _ts_string(str(data.get("accent_color", "#4cc9f0"))),
         "BACKGROUND": _ts_string(str(data.get("background_color", "#0b1220"))),
+        "FONT": _ts_string(SCENE_FONT_FAMILY),
         "WIDTH": str(width),
         "HEIGHT": str(height),
         "DURATION": repr(_duration(plan)),
@@ -533,6 +540,7 @@ const TITLE = $TITLE;
 const SUBTITLE = $SUBTITLE;
 const ACCENT = $ACCENT;
 const BACKGROUND = $BACKGROUND;
+const FONT = $FONT;
 const WIDTH = $WIDTH;
 const HEIGHT = $HEIGHT;
 const DURATION = $DURATION;
@@ -551,16 +559,16 @@ export default makeScene2D(function* (view) {
   view.add(
     <Layout>
       <Rect width={WIDTH} height={HEIGHT} fill={BACKGROUND} />
-      <Txt y={TITLE_Y} fontSize={TITLE_SIZE} fill={'#f7fbff'} text={TITLE} />
+      <Txt y={TITLE_Y} fontSize={TITLE_SIZE} fontFamily={FONT} fill={'#f7fbff'} text={TITLE} />
       {SUBTITLE ? <Txt y={SUBTITLE_Y} fontSize={TITLE_SIZE * 0.55}
-        fill={'#9fb3c8'} text={SUBTITLE} /> : null}
+        fontFamily={FONT} fill={'#9fb3c8'} text={SUBTITLE} /> : null}
       {EDGES.map((edge, i) => (
         <Line ref={lines[i]} points={[[edge.x1, edge.y1], [edge.x2, edge.y2]]}
           stroke={ACCENT} lineWidth={$LINE_WIDTH} endArrow opacity={0} />
       ))}
       {EDGES.map((edge, i) => (
         <Txt ref={labels[i]} x={edge.lx} y={edge.ly} fontSize={LABEL_SIZE * 0.8}
-          fill={'#9fb3c8'} text={edge.label} opacity={0} />
+          fontFamily={FONT} fill={'#9fb3c8'} text={edge.label} opacity={0} />
       ))}
       {NODES.map((node, i) => (
         <Rect ref={nodes[i]} x={node.x} y={node.y + 24} width={node.width}
@@ -569,7 +577,7 @@ export default makeScene2D(function* (view) {
           stroke={node.kind === 'decision' ? '#f2b84b' : ACCENT}
           lineWidth={2} opacity={0}>
           <Txt text={node.label} fontSize={LABEL_SIZE} fill={'#f7fbff'}
-            textWrap width={node.width - 16} />
+            fontFamily={FONT} textWrap width={node.width - 16} />
         </Rect>
       ))}
     </Layout>,
@@ -612,6 +620,7 @@ def _compare_source(scene: SceneContract, plan: TimelinePlan, *, width: int, hei
         "SUBTITLE": _ts_string(str(data.get("subtitle", ""))),
         "ACCENT": _ts_string(str(data.get("accent_color", "#4cc9f0"))),
         "BACKGROUND": _ts_string(str(data.get("background_color", "#0b1220"))),
+        "FONT": _ts_string(SCENE_FONT_FAMILY),
         "WIDTH": str(width),
         "HEIGHT": str(height),
         "DURATION": repr(_duration(plan)),
@@ -633,6 +642,7 @@ const TITLE = $TITLE;
 const SUBTITLE = $SUBTITLE;
 const ACCENT = $ACCENT;
 const BACKGROUND = $BACKGROUND;
+const FONT = $FONT;
 const WIDTH = $WIDTH;
 const HEIGHT = $HEIGHT;
 const DURATION = $DURATION;
@@ -655,18 +665,18 @@ export default makeScene2D(function* (view) {
     <Layout>
       <Rect width={WIDTH} height={HEIGHT} fill={BACKGROUND} />
       <Txt ref={title} y={TITLE_Y} fontSize={TITLE_SIZE} fill={'#f7fbff'}
-        text={TITLE} opacity={0} />
+        fontFamily={FONT} text={TITLE} opacity={0} />
       <Txt ref={subtitle} y={SUBTITLE_Y} fontSize={SUBTITLE_SIZE}
-        fill={'#9fb3c8'} text={SUBTITLE} opacity={0} />
+        fontFamily={FONT} fill={'#9fb3c8'} text={SUBTITLE} opacity={0} />
       {PANELS.map((panel, i) => (
         <Rect ref={panels[i]} x={panel.x + (i === 0 ? -60 : 60)} y={panel.y}
           width={panel.width} height={panel.height} radius={20}
           fill={'#101a2b'} stroke={ACCENT} lineWidth={2} opacity={0}>
           <Txt y={-panel.height / 2 + 30} fontSize={PANEL_TITLE_SIZE}
-            fill={ACCENT} text={panel.title} />
+            fontFamily={FONT} fill={ACCENT} text={panel.title} />
           {panel.items.map((item, j) => (
             <Txt ref={items[i][j]} y={item.y} width={panel.width - 40}
-              textWrap textAlign={'left'} fontSize={ITEM_SIZE}
+              fontFamily={FONT} textWrap textAlign={'left'} fontSize={ITEM_SIZE}
               fill={'#dbe7f3'} text={item.text} opacity={0} />
           ))}
         </Rect>
