@@ -68,6 +68,7 @@ from content_studio.renderers import (
 from content_studio.timeline import TimelinePlan, plan_from_scenes
 from content_studio.utils import sha256_file, write_json
 from content_studio.video_qa import verify_video_against_manifest
+from content_studio.visual_qa import analyze_frames
 
 NODE_VERSION = "24.22.1"
 MOTION_CANVAS_VERSION = "3.17.2"
@@ -457,10 +458,17 @@ class MotionCanvasRenderer(Renderer):
     visual_types = frozenset({"animation"})
 
     def __init__(
-        self, *, max_render_ms: int = DEFAULT_MAX_RENDER_MS, decode_frames: bool = True
+        self,
+        *,
+        max_render_ms: int = DEFAULT_MAX_RENDER_MS,
+        decode_frames: bool = True,
+        visual_check: bool = True,
     ) -> None:
         self.max_render_ms = max_render_ms
         self.decode_frames = decode_frames
+        # MC-04 (P2.4-A). Test doubles disable it explicitly; production and
+        # real E2E builds always run the visual checks.
+        self.visual_check = visual_check
         self._lock = threading.Lock()
         self._cancel = threading.Event()
         self._process: subprocess.Popen[bytes] | None = None
@@ -719,6 +727,37 @@ class MotionCanvasRenderer(Renderer):
             if self._cancel.is_set():
                 raise RenderCancelled(f"build {build_id} was cancelled")
 
+            # MC-04 (P2.4-A): valid PNGs are not the same as visible content.
+            # The report is written even when the check fails, so a rejected
+            # build still leaves evidence of what it sampled.
+            visual_dict: dict[str, Any] | None = None
+            if self.visual_check:
+                ffmpeg_bin = ffmpeg_path()
+                if ffmpeg_bin is None:
+                    raise RenderError(
+                        "FFmpeg is required for visual QA; install FFmpeg 6 or newer",
+                        code="environment_unavailable",
+                        stage="environment",
+                    )
+                visual = analyze_frames(
+                    manifest,
+                    build_root=build_root,
+                    template=scenes.scenes[0].scene_type,
+                    ffmpeg_bin=ffmpeg_bin,
+                )
+                visual_dict = visual.as_dict()
+                write_json(build_root / "visual_qa.json", visual_dict)
+                self._diagnostics.append(
+                    f"build {build_id}: visual QA {visual.status} "
+                    f"({len(visual.sampled)} sampled frame(s))"
+                )
+                if visual.blank_frames:
+                    raise RenderError(
+                        f"visual QA found blank sample frames: {visual.blank_frames}",
+                        code="qa_failed",
+                        stage="qa",
+                    )
+
             # Encode into a sibling staging directory, verify, then replace
             # atomically. Nothing touches the published path until every check
             # has passed, so a failed build cannot damage an older video.
@@ -768,6 +807,9 @@ class MotionCanvasRenderer(Renderer):
                     ),
                 )
                 qa_paths = (qa_manifest, qa_report)
+                if visual_dict is not None:
+                    qa_visual = write_json(qa_dir / "visual_qa.json", visual_dict)
+                    qa_paths = (qa_manifest, qa_report, qa_visual)
 
             self._diagnostics.append(f"build {build_id}: completed")
             self._last = {

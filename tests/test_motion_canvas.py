@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from content_studio import motion_canvas as mc
+from content_studio import visual_qa
 from content_studio.errors import RenderCancelled, RenderError
 from content_studio.frame_manifest import png_problems
 from content_studio.models import VisualSpec
@@ -87,7 +88,7 @@ class _StubRenderer(mc.MotionCanvasRenderer):
         forced: str = "",
         write_report: bool = True,
     ) -> None:
-        super().__init__(max_render_ms=1000, decode_frames=False)
+        super().__init__(max_render_ms=1000, decode_frames=False, visual_check=False)
         self.report = report
         self.write_report = write_report
         self.frames = frames
@@ -746,6 +747,67 @@ def test_publish_writes_the_video_and_qa_evidence(build_root, tmp_path):
     assert "ffmpeg" in report["command"][0]
     assert str(build_root) not in json.dumps(report["command"])
     assert str(project) not in json.dumps(provenance)
+
+
+def _visual_report(*, blank: bool) -> visual_qa.VisualQAReport:
+    template = "title"
+    return visual_qa.VisualQAReport(
+        template=template,
+        profile=visual_qa.profile_for(template),
+        sampled=[
+            visual_qa.FrameMetrics(
+                index=15,
+                background_share=0.9,
+                foreground_ratio=0.0 if blank else 0.1,
+                edge_ratio=0.0 if blank else 0.05,
+                blank=blank,
+            )
+        ],
+        blank_frames=[15] if blank else [],
+    )
+
+
+def test_blank_visual_report_fails_the_build(build_root, tmp_path, monkeypatch):
+    """P2.4-A: a structurally valid but blank render must not publish."""
+
+    project = tmp_path / "project"
+    media = project / "build" / "media"
+    media.mkdir(parents=True)
+    sentinel = media / "course.mp4"
+    sentinel.write_bytes(b"old-video")
+    (project / "content").mkdir(parents=True)
+    monkeypatch.setattr(mc, "analyze_frames", lambda *args, **kwargs: _visual_report(blank=True))
+    # The CI `test` job has no FFmpeg; encoding is stubbed too.
+    monkeypatch.setattr(mc, "ffmpeg_path", lambda: "ffmpeg")
+    renderer = _StubRenderer()
+    renderer.visual_check = True
+
+    with pytest.raises(RenderError) as caught:
+        _render(renderer, build_root, project=project)
+
+    assert caught.value.code == "qa_failed"
+    assert sentinel.read_bytes() == b"old-video"
+    assert not (project / "internal" / "qa" / "visual_qa.json").exists()
+
+
+def test_publish_records_visual_qa_evidence(build_root, tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    media = project / "build" / "media"
+    media.mkdir(parents=True)
+    (project / "content").mkdir(parents=True)
+    monkeypatch.setattr(mc, "analyze_frames", lambda *args, **kwargs: _visual_report(blank=False))
+    monkeypatch.setattr(mc, "ffmpeg_path", lambda: "ffmpeg")
+    renderer = _StubRenderer()
+    renderer.visual_check = True
+
+    result = _render(renderer, build_root, project=project)
+
+    visual_path = project / "internal" / "qa" / "visual_qa.json"
+    assert visual_path.is_file()
+    payload = json.loads(visual_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "pass"
+    assert payload["sampled_frames"] == [15]
+    assert visual_path in result.artifacts
 
 
 def test_encode_failure_keeps_the_old_video(build_root, tmp_path, monkeypatch):

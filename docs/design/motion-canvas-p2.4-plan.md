@@ -121,3 +121,30 @@ P2.4 = **P2 全量验收**，覆盖三件事：
 | P2.4-GATE-05 | 可复现性实测留档 | 双构建报告 + 环境记录 |
 | P2.4-GATE-06 | 人工验收不可被自动替代 | 记录 schema + 门禁测试 |
 | P2.4-GATE-07 | 全量回归 | P1/P2.1/P2.2/P2.3 测试与五 job |
+
+## 9. P2.4-A 实施记录（本机；CI 待执行）
+
+**实现**
+
+- `src/content_studio/visual_qa.py`：采样窗口（跳过首 1.0 s、尾 0.5 s，最多 9 帧）、
+  灰度三项指标（背景众数占比、前景比例、边缘比例）、按模板 profile；
+  空白判定为 `foreground < 0.002` 且 `edge < 0.001`。
+- 适配器在 FrameManifest 校验后、编码前执行；任一采样帧判空 → `qa_failed`，
+  不编码、不替换旧视频。报告写入 `build/motion/<id>/visual_qa.json`，生产构建
+  同时写 `internal/qa/visual_qa.json` 并进入 `visual_assets.json` 的产物哈希。
+- 测试替身通过显式 `visual_check=False` 关闭检查；生产与真实 E2E 始终开启。
+- `collect-motion-evidence.py` 现在把 `visual_qa.json` 收入证据 artifact。
+
+**本机验证**
+
+- `uv run pytest` → **401 passed, 39 skipped**；ruff / format / mypy 全绿。
+- 新增测试：`tests/test_visual_qa.py` 11 项（纯色/有内容/短缓冲/采样窗口/
+  profile/解码失败/序列化），`tests/test_motion_canvas.py` 2 项集成
+  （空白报告阻断且保留旧视频；通过时写入 QA 证据）。
+- 离线镜像 `sha256:9eb62bd0…53ac`，`--network none`：**13 passed / 0 failed**
+  （25.9 s）；负控制失败；证据审计 0 findings。
+- 真实 title 渲染的采样帧全部 `pass`：9 帧（30…284），
+  `foreground_ratio` 1.69–1.76%，`edge_ratio` 1.88–2.02%，
+  对比阈值 0.2% / 0.1%，余量约 8–19 倍。阈值仍按模板标定，B 批再用基线复核。
+
+**未执行**：Linux CI。A 批在 CI 证据产生前不得记为 PASS。

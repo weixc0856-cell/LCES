@@ -156,6 +156,12 @@ def test_lces_build_renders_animation_end_to_end(tmp_path, monkeypatch, scene_ty
     )
     report = json.loads((qa_dir / "encode_report.json").read_text(encoding="utf-8"))
     assert report["video_sha256"] == sha256_file(video)
+    # P2.4-A: MC-04 evidence is part of the asset contract.
+    visual_path = qa_dir / "visual_qa.json"
+    assert animation["output_hashes"]["internal/qa/visual_qa.json"] == sha256_file(visual_path)
+    visual = json.loads(visual_path.read_text(encoding="utf-8"))
+    assert visual["status"] == "pass"
+    assert visual["sampled_frames"]
     assert verify_build_assets(project) == []
 
 
