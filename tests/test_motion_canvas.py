@@ -777,6 +777,8 @@ def test_blank_visual_report_fails_the_build(build_root, tmp_path, monkeypatch):
     sentinel.write_bytes(b"old-video")
     (project / "content").mkdir(parents=True)
     monkeypatch.setattr(mc, "analyze_frames", lambda *args, **kwargs: _visual_report(blank=True))
+    # The CI `test` job has no FFmpeg; encoding is stubbed too.
+    monkeypatch.setattr(mc, "ffmpeg_path", lambda: "ffmpeg")
     renderer = _StubRenderer()
     renderer.visual_check = True
 
@@ -794,6 +796,7 @@ def test_publish_records_visual_qa_evidence(build_root, tmp_path, monkeypatch):
     media.mkdir(parents=True)
     (project / "content").mkdir(parents=True)
     monkeypatch.setattr(mc, "analyze_frames", lambda *args, **kwargs: _visual_report(blank=False))
+    monkeypatch.setattr(mc, "ffmpeg_path", lambda: "ffmpeg")
     renderer = _StubRenderer()
     renderer.visual_check = True
 
