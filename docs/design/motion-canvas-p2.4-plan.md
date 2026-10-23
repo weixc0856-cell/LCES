@@ -221,3 +221,27 @@ artifact 已下载到 `var/ci-run-b/`（git 忽略）并复核。
 - 报告写入 `motion-evidence/reproducibility.json`，位于 artifact
   `motion-canvas-p1-evidence`；已下载到 `var/ci-repro/` 复核。
 - 该结论仅限同一环境；不构成跨 OS/GPU 承诺。
+
+## 12. P2.4-D 实施记录（本机；CI 待执行）
+
+**实现**
+
+- `src/content_studio/visual_acceptance.py`：记录
+  `{template, toolchain, reviewer, reviewed_at, frames, verdict, note}`；
+  工具链为 Node / Motion Canvas / Playwright / FFmpeg 版本，任一项变化即失效。
+  匹配要求模板一致、verdict 为 `pass`、工具链一致、至少一个抽看帧、审阅人非空。
+- `lces accept-visual <project> --template <t> --by <name> --frame <n> [--verdict pass|fail]`：
+  人工记录入口；拒绝未知模板、空审阅人、空帧列表与非法 verdict。
+- Gate 4 新增 `visual_acceptance`：
+  - 有视频但没有 `visual_qa.json` → `warn`（不阻断，保持旧项目可发布）；
+  - `visual_qa.json` 非 `pass` → `fail`（人工验收不能替代自动检查）；
+  - 没有与当前工具链匹配的通过记录 → `fail`（阻断发布）；
+  - 匹配 → `pass`。
+
+**本机验证**
+
+- `uv run pytest` → **413 passed, 49 skipped**；ruff / format / mypy 全绿。
+- 新增 `tests/test_visual_acceptance.py` 11 项：记录 schema、工具链匹配、
+  模板/工具链/verdict 不匹配、CLI 记录与拒绝、Gate 4 的 warn/fail/pass 分支。
+
+**未执行**：Linux CI。D 批在 CI 证据产生前不得记为 PASS。

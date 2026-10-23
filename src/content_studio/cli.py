@@ -72,6 +72,7 @@ from content_studio.storage import TaskStore
 from content_studio.supply_chain import audit_supply_chain
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
 from content_studio.utils import read_json, redact_home, write_json
+from content_studio.visual_acceptance import record_acceptance
 from content_studio.visual_baseline import build_baseline
 
 app = typer.Typer(no_args_is_help=True, help="Local Content Engineering Studio (LCES)")
@@ -806,6 +807,37 @@ def visual_baseline(
         frame_sha256=hashes,
     )
     typer.echo(f"视觉基线: {path.relative_to(root).as_posix()}")
+
+
+@app.command("accept-visual")
+@guarded
+def accept_visual(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    template: str = typer.Option(..., help="场景模板：title | flow | compare"),
+    by: str = typer.Option(..., "--by", help="审阅人"),
+    frame: list[int] = typer.Option([], "--frame", help="抽看的帧索引，可重复"),
+    verdict: str = typer.Option("pass", help="pass | fail"),
+    note: str = typer.Option("", help="结论与备注"),
+) -> None:
+    """Record a human visual review; machines may fail an asset, never pass it."""
+
+    root = require_project_dir(project_dir)
+    if template not in SUPPORTED_SCENE_TYPES:
+        _exit(f"未知模板 '{template}'；可用: {sorted(SUPPORTED_SCENE_TYPES)}")
+    if not frame:
+        _exit("至少提供一个 --frame 索引（抽看的帧）")
+    try:
+        path = record_acceptance(
+            root,
+            template=template,
+            reviewer=by,
+            frames=frame,
+            verdict=verdict,
+            note=note,
+        )
+    except ValueError as exc:
+        _exit(str(exc))
+    typer.echo(f"视觉验收记录: {path.relative_to(root).as_posix()}")
 
 
 @app.command("review-claims")
