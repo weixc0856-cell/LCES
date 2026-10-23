@@ -1,0 +1,33 @@
+{
+  "scene_set": {
+    "scenes": [
+      {
+        "scene_id": "scene-001",
+        "scene_type": "title",
+        "duration_ms": 1000,
+        "fallback_policy": "fail",
+        "transition_in": "cut",
+        "transition_out": "cut",
+        "data": {
+          "title": "Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title Long title ",
+          "subtitle": ""
+        }
+      }
+    ]
+  },
+  "video": {
+    "project_id": "motion-materials",
+    "video_id": "course-v1",
+    "content_version": "v1",
+    "width": 640,
+    "height": 360,
+    "fps_num": 30,
+    "fps_den": 1,
+    "scene_ids": [
+      "scene-001"
+    ],
+    "output_path": "build/media/course.mp4",
+    "renderer": "motion_canvas.renderer",
+    "renderer_version": "0.1.0"
+  }
+}

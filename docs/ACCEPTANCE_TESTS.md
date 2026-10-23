@@ -154,3 +154,21 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   covers the record schema and validation, toolchain matching, the CLI writer
   and Gate 4's warn/fail/pass branches. A machine may fail an asset; only
   `lces accept-visual` can record a human `pass`.
+
+- Motion Canvas materials (P3-A): `tests/fixtures/motion/` holds seven
+  representative scene contracts and a sha256 manifest.
+  `tests/test_motion_materials.py` checks the hashes, contract validity,
+  expected frame counts and template coverage, so an accidental input change
+  fails before any render runs.
+
+- Motion Canvas material renders (P3-A): `tests/test_motion_canvas_materials.py`
+  validates every frozen material through the adapter on all platforms and,
+  with `LCES_MC_MATERIALS=1`, renders the set on Linux, checking frames,
+  resolution, fps, decode and visual QA and emitting a per-material report.
+  CI exposes it through the manual `materials` input.
+
+- Motion Canvas resource baseline (P3-B): `tests/test_resource_probe.py` covers
+  the probe's sampling and its `unavailable` semantics (a failed measurement is
+  never zero). `tests/test_motion_canvas_stress.py` renders the 1 s / 10 s /
+  60 s tiers with `LCES_MC_STRESS=1`, repeating the longer tiers, and records
+  timing, process-tree resources, disk, artifacts and environment.

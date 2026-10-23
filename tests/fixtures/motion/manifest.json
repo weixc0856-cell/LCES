@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "description": "P3-A representative Motion Canvas materials. Hashes freeze the inputs; update both file and manifest together.",
+  "materials": [
+    {
+      "id": "title-zh-long",
+      "file": "title-zh-long.json",
+      "template": "title",
+      "purpose": "中文长标题与长副标题",
+      "tags": [
+        "cjk",
+        "long-text"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 2000,
+      "frames": 60,
+      "sha256": "aa736387f8c05a29b644f11439ac2e3b8230c932fb6747dced4402c6c368e14e"
+    },
+    {
+      "id": "title-en-short",
+      "file": "title-en-short.json",
+      "template": "title",
+      "purpose": "英文短标题 smoke",
+      "tags": [
+        "english",
+        "smoke"
+      ],
+      "width": 640,
+      "height": 360,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 1000,
+      "frames": 30,
+      "sha256": "722ae92ffed8d3dd71b7bdaab12ef7b1e4b9839f6b77079c4a1c3dc9839602b0"
+    },
+    {
+      "id": "title-boundary-max",
+      "file": "title-boundary-max.json",
+      "template": "title",
+      "purpose": "标题字符数边界（200 字符）",
+      "tags": [
+        "boundary",
+        "long-text"
+      ],
+      "width": 640,
+      "height": 360,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 1000,
+      "frames": 30,
+      "sha256": "ebd09da199da91ee9323f9d65200fb4e6c2deedfbcf026f646a866b75e385713"
+    },
+    {
+      "id": "flow-zh-6nodes",
+      "file": "flow-zh-6nodes.json",
+      "template": "flow",
+      "purpose": "中文六节点流程图与长标签",
+      "tags": [
+        "cjk",
+        "max-nodes"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 2000,
+      "frames": 60,
+      "sha256": "c495b58a69fecc8df161b31e0a837a3fd1f65f22302c87c662a4876cbc70928c"
+    },
+    {
+      "id": "flow-en-tb",
+      "file": "flow-en-tb.json",
+      "template": "flow",
+      "purpose": "英文纵向流程图",
+      "tags": [
+        "english",
+        "tb"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 1000,
+      "frames": 30,
+      "sha256": "8e693d5e8ce9cecdbe98997f837d98c99d653b7ec1595aa98850476c19a9f24e"
+    },
+    {
+      "id": "compare-zh-long",
+      "file": "compare-zh-long.json",
+      "template": "compare",
+      "purpose": "中文方案对比：六项与长条目",
+      "tags": [
+        "cjk",
+        "max-items",
+        "long-text"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 2000,
+      "frames": 60,
+      "sha256": "378deb3953d137f8ec90eec52d9e98d77c468d6f73139f42ee11e24122f71c07"
+    },
+    {
+      "id": "compare-en",
+      "file": "compare-en.json",
+      "template": "compare",
+      "purpose": "英文对比 smoke（1080p）",
+      "tags": [
+        "english",
+        "1080p"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "fps_num": 30,
+      "fps_den": 1,
+      "duration_ms": 1000,
+      "frames": 30,
+      "sha256": "0f9107088789886f6d40cf4347812264aaeebb1a0bfdacba65003b8278f01774"
+    }
+  ]
+}
