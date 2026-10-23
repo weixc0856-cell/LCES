@@ -22,6 +22,14 @@ on:
         description: "Run the P3-B duration tiers (1 s / 10 s / 60 s) and record resources"
         type: boolean
         default: false
+      stress_tiers:
+        description: "Comma-separated durations in ms for the stress job (default 1000,10000,60000)"
+        type: string
+        default: "1000,10000,60000"
+      stress_repeat:
+        description: "Repeats for tiers above 1 s (default 2)"
+        type: string
+        default: "2"
       faults:
         description: "Run the P3-C fault injection cases (timeout, cancel, disk, retry)"
         type: boolean
@@ -131,9 +139,14 @@ jobs:
       - name: Duration tiers and resource baseline (P3-B)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.stress }}
         timeout-minutes: 35
+        env:
+          LCES_MC_STRESS: "1"
+          LCES_MC_E2E: "1"
+          LCES_STRESS_OUT: motion-evidence/stress.json
+          LCES_MC_STRESS_TIERS: ${{ inputs.stress_tiers }}
+          LCES_MC_STRESS_REPEAT: ${{ inputs.stress_repeat }}
         run: >-
-          LCES_MC_STRESS=1 LCES_STRESS_OUT=motion-evidence/stress.json
-          LCES_MC_E2E=1 uv run pytest tests/test_motion_canvas_stress.py -v
+          uv run pytest tests/test_motion_canvas_stress.py -v
           --basetemp=/tmp/lces-stress
           --junitxml=motion-evidence/stress-report.xml
       - name: Representative materials (real renders)
