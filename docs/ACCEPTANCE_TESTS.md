@@ -154,3 +154,9 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   covers the record schema and validation, toolchain matching, the CLI writer
   and Gate 4's warn/fail/pass branches. A machine may fail an asset; only
   `lces accept-visual` can record a human `pass`.
+
+- Motion Canvas materials (P3-A): `tests/fixtures/motion/` holds seven
+  representative scene contracts and a sha256 manifest.
+  `tests/test_motion_materials.py` checks the hashes, contract validity,
+  expected frame counts and template coverage, so an accidental input change
+  fails before any render runs.

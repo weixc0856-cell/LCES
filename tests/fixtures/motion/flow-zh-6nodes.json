@@ -1,0 +1,94 @@
+{
+  "scene_set": {
+    "scenes": [
+      {
+        "scene_id": "scene-001",
+        "scene_type": "flow",
+        "duration_ms": 2000,
+        "fallback_policy": "fail",
+        "transition_in": "cut",
+        "transition_out": "cut",
+        "data": {
+          "title": "请求处理流程",
+          "subtitle": "从网关到存储",
+          "direction": "lr",
+          "nodes": [
+            {
+              "id": "gateway",
+              "label": "接收客户端请求",
+              "kind": "start"
+            },
+            {
+              "id": "auth",
+              "label": "校验身份与权限",
+              "kind": "step"
+            },
+            {
+              "id": "cache",
+              "label": "查询本地缓存",
+              "kind": "decision"
+            },
+            {
+              "id": "store",
+              "label": "读取持久化存储",
+              "kind": "step"
+            },
+            {
+              "id": "assemble",
+              "label": "组装结构化响应",
+              "kind": "step"
+            },
+            {
+              "id": "client",
+              "label": "返回结果给客户端",
+              "kind": "end"
+            }
+          ],
+          "edges": [
+            {
+              "from": "gateway",
+              "to": "auth"
+            },
+            {
+              "from": "auth",
+              "to": "cache"
+            },
+            {
+              "from": "cache",
+              "to": "store",
+              "label": "未命中"
+            },
+            {
+              "from": "store",
+              "to": "assemble"
+            },
+            {
+              "from": "assemble",
+              "to": "client"
+            },
+            {
+              "from": "cache",
+              "to": "assemble",
+              "label": "命中"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "video": {
+    "project_id": "motion-materials",
+    "video_id": "course-v1",
+    "content_version": "v1",
+    "width": 1920,
+    "height": 1080,
+    "fps_num": 30,
+    "fps_den": 1,
+    "scene_ids": [
+      "scene-001"
+    ],
+    "output_path": "build/media/course.mp4",
+    "renderer": "motion_canvas.renderer",
+    "renderer_version": "0.1.0"
+  }
+}

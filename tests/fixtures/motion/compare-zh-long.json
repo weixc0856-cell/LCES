@@ -1,0 +1,55 @@
+{
+  "scene_set": {
+    "scenes": [
+      {
+        "scene_id": "scene-001",
+        "scene_type": "compare",
+        "duration_ms": 2000,
+        "fallback_policy": "fail",
+        "transition_in": "cut",
+        "transition_out": "cut",
+        "data": {
+          "title": "两种部署方案对比",
+          "subtitle": "吞吐、复杂度与运维成本",
+          "left": {
+            "title": "单机部署",
+            "items": [
+              "实现简单，依赖少",
+              "初期成本低",
+              "吞吐受单机上限约束",
+              "扩容需要停机迁移",
+              "故障影响面集中",
+              "运维流程容易标准化"
+            ]
+          },
+          "right": {
+            "title": "分布式部署",
+            "items": [
+              "支持水平扩展",
+              "单点故障可控",
+              "需要服务发现与配置中心",
+              "链路追踪和监控成本更高",
+              "版本发布需要灰度策略",
+              "运维团队要求更高"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "video": {
+    "project_id": "motion-materials",
+    "video_id": "course-v1",
+    "content_version": "v1",
+    "width": 1920,
+    "height": 1080,
+    "fps_num": 30,
+    "fps_den": 1,
+    "scene_ids": [
+      "scene-001"
+    ],
+    "output_path": "build/media/course.mp4",
+    "renderer": "motion_canvas.renderer",
+    "renderer_version": "0.1.0"
+  }
+}
