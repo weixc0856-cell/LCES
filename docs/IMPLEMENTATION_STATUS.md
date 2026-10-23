@@ -3,8 +3,9 @@
 Updated through the roadmap phases (0-6), continuous evaluation/cost work,
 PRD 2 modules 1-2, the Mermaid/Graphviz renderers, Motion Canvas P1
 (adapter, FrameManifest, encoding/publish, fault injection and offline
-acceptance), P2.1/P2.2 production animation, P2.3-A/B execution and
-filesystem boundaries, and P2.3-C supply-chain pinning — package version 0.11.0.
+acceptance), P2.1/P2.2 production animation, and P2.3 execution, filesystem,
+supply-chain, network and acceptance boundaries (A-E, pending merges) —
+package version 0.11.0.
 
 Status meanings: **Implemented** = code exists and is covered by written tests;
 **Partial** = code exists but a meaningful part is missing; **Not implemented** =
