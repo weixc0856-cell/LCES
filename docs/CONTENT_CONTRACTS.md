@@ -157,12 +157,14 @@ Rendering rules enforced in code:
   `internal/qa/frame_manifest.json` and `internal/qa/encode_report.json`.
   `visual_assets.json` records the video, both evidence files and the
   `build_id`; any hash or cross-check mismatch fails the build.
-- `encode_report.json` schema **1.1** adds `provenance` for Level 1 input
-  traceability (P2.3-C): `node_version`, `npm_version`,
-  `motion_canvas_version`, `playwright_version`, `ffmpeg_version`,
-  `python_version`, `lces_version`, `package_json_sha256` and
-  `package_lock_sha256`. It carries no absolute host paths, so it can be
-  uploaded as CI evidence. Reports without provenance keep schema 1.0.
+- `encode_report.json` schema **1.2** redacts the FFmpeg command: paths under
+  the build root become `<build>/…` and the binary keeps only its basename
+  (`command_paths: "build-relative"`), so the report can be uploaded as CI
+  evidence. Schema **1.1** adds `provenance` for Level 1 input traceability
+  (P2.3-C): `node_version`, `npm_version`, `motion_canvas_version`,
+  `playwright_version`, `ffmpeg_version`, `python_version`, `lces_version`,
+  `package_json_sha256` and `package_lock_sha256`. Neither carries a host
+  path. Reports without provenance keep schema 1.0.
 - The public page embeds a fixed `<video controls>` element pointing at
   `../media/course.mp4`; no model-provided HTML is accepted.
 - `use_registry=False` rejects animation blocks, like charts.

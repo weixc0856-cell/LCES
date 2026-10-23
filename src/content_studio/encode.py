@@ -7,6 +7,7 @@ an atomic ``os.replace``.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -106,6 +107,34 @@ def encode_frames(
     return output
 
 
+def redact_command(command: list[str], path_root: Path) -> list[str]:
+    """Replace build-specific absolute paths so the report can be shared.
+
+    The encode report is uploaded as CI evidence. Absolute paths leak the
+    runner's filesystem layout and mean nothing to a reviewer, while the
+    relative frame path plus ``manifest_sha256`` keep the command auditable.
+    The FFmpeg binary is reduced to its basename; ``ffmpeg_version`` records
+    which build ran.
+    """
+
+    root = Path(os.path.abspath(path_root))
+    redacted: list[str] = []
+    for index, argument in enumerate(command):
+        if index == 0:
+            redacted.append(Path(argument).name or argument)
+            continue
+        if not Path(argument).is_absolute():
+            redacted.append(argument)
+            continue
+        try:
+            relative = Path(os.path.abspath(argument)).relative_to(root)
+        except ValueError:
+            redacted.append(argument)
+            continue
+        redacted.append(f"<build>/{relative.as_posix()}")
+    return redacted
+
+
 def encode_report(
     manifest: FrameManifest,
     *,
@@ -113,6 +142,7 @@ def encode_report(
     command: list[str],
     manifest_sha256: str,
     provenance: dict[str, str] | None = None,
+    path_root: Path | None = None,
 ) -> dict:
     """The evidence a build records about how the video was produced.
 
@@ -120,10 +150,21 @@ def encode_report(
     render: tool versions and the hashes of the npm manifests the build
     consumed. It is optional so older callers keep the 1.0 shape; the
     Motion Canvas adapter always supplies it.
+
+    ``path_root`` (P2.3-E) redacts the FFmpeg command to paths relative to
+    the project's build directory. Reports are uploaded as artifacts, and a
+    runner path is both a leak and noise; the manifest still pins the exact
+    frame sequence.
     """
 
+    if path_root is not None:
+        schema_version = "1.2"
+    elif provenance is not None:
+        schema_version = "1.1"
+    else:
+        schema_version = "1.0"
     report: dict[str, Any] = {
-        "schema_version": "1.1" if provenance is not None else "1.0",
+        "schema_version": schema_version,
         "build_id": manifest.build_id,
         "asset_id": manifest.asset_id,
         "frames": manifest.total_frames,
@@ -132,7 +173,8 @@ def encode_report(
         "width": manifest.width,
         "height": manifest.height,
         "ffmpeg_version": ffmpeg_version(),
-        "command": command,
+        "command": redact_command(command, path_root) if path_root is not None else command,
+        "command_paths": "build-relative" if path_root is not None else "absolute",
         "manifest_sha256": manifest_sha256,
         "video_sha256": sha256_file(output),
         "video_bytes": output.stat().st_size,

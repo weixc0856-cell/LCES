@@ -365,6 +365,18 @@ def test_bad_colour_is_rejected():
     assert any("accent_color" in problem for problem in problems)
 
 
+def test_oversized_canvas_is_rejected():
+    """N17: P1 limits exist and are enforced before any process starts."""
+
+    problems = mc.MotionCanvasRenderer().validate_input(_spec(width=7681, height=4320))
+    assert any("exceeds the P1 limit" in problem for problem in problems)
+
+
+def test_overlong_duration_is_rejected():
+    problems = mc.MotionCanvasRenderer().validate_input(_spec(duration_ms=600_001))
+    assert any("limited to 600000 ms" in problem for problem in problems)
+
+
 def test_scene_payload_cannot_carry_assets_in_p1():
     spec = _spec(scene_data={"title": "Hi"})
     spec.data["scene_set"]["scenes"][0]["source_asset_refs"] = ["content/other.svg"]
@@ -721,13 +733,18 @@ def test_publish_writes_the_video_and_qa_evidence(build_root, tmp_path):
     # P2.3-C: Level 1 provenance is written with the report, hashes the npm
     # manifests actually consumed, and carries no host path.
     report = json.loads(encode_report.read_text(encoding="utf-8"))
-    assert report["schema_version"] == "1.1"
+    assert report["schema_version"] == "1.2"
     provenance = report["provenance"]
     assert provenance["package_lock_sha256"] == sha256_file(
         tmp_path / "motion-template" / "package-lock.json"
     )
     assert provenance["motion_canvas_version"] == mc.MOTION_CANVAS_VERSION
     assert provenance["playwright_version"] == mc.PLAYWRIGHT_VERSION
+    # P2.3-E: the FFmpeg command is build-relative so the report can be
+    # uploaded; the binary is reduced to its basename.
+    assert report["command_paths"] == "build-relative"
+    assert "ffmpeg" in report["command"][0]
+    assert str(build_root) not in json.dumps(report["command"])
     assert str(project) not in json.dumps(provenance)
 
 

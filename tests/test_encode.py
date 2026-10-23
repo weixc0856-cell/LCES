@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from content_studio import encode
-from content_studio.encode import build_encode_command, encode_frames
+from content_studio.encode import build_encode_command, encode_frames, encode_report
 from content_studio.errors import RenderError
 from content_studio.frame_manifest import build_frame_manifest
 from content_studio.models import FrameEntry, FrameManifest, SceneFrameSpan
@@ -56,6 +57,44 @@ def test_encode_command_pins_every_parameter(tmp_path):
     pattern = Path(command[command.index("-i") + 1])
     assert pattern.name == "%06d.png"
     assert pattern.parent.name == "project"
+
+
+def test_encode_report_redacts_build_paths(tmp_path):
+    """P2.3-E: the report is uploaded, so it must not carry runner paths."""
+
+    video = tmp_path / "media" / "course.mp4"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"video")
+    command = [
+        str(tmp_path / "bin" / "ffmpeg"),
+        "-i",
+        str(tmp_path / "frames" / "project" / "%06d.png"),
+        "-y",
+        str(video),
+    ]
+    report = encode_report(
+        _manifest(),
+        output=video,
+        command=command,
+        manifest_sha256="f" * 64,
+        path_root=tmp_path,
+    )
+    assert report["schema_version"] == "1.2"
+    assert report["command_paths"] == "build-relative"
+    assert report["command"][0] == "ffmpeg"
+    assert report["command"][2] == "<build>/frames/project/%06d.png"
+    assert report["command"][-1] == "<build>/media/course.mp4"
+    assert str(tmp_path) not in json.dumps(report)
+
+
+def test_encode_report_keeps_absolute_paths_without_build_root(tmp_path):
+    video = tmp_path / "course.mp4"
+    video.write_bytes(b"video")
+    report = encode_report(
+        _manifest(), output=video, command=["ffmpeg", str(video)], manifest_sha256="f" * 64
+    )
+    assert report["command_paths"] == "absolute"
+    assert report["command"][1] == str(video)
 
 
 def _patch_ffmpeg(monkeypatch, *, result=None, error=None):

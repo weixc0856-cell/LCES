@@ -455,7 +455,7 @@ base image 在本机重建 `lces-motion-offline`（`sha256:a4ed0dfc…3d02`）�
 | P2.3-B 文件系统 | 符号链接统一检查（场景、帧、charts、staging）；临时文件安全；发布拒绝链接；输出目录/HOME 隔离（A 批表内遗留项） | 实现与本机/WSL 测试完成；CI 待执行 |
 | P2.3-C 供应链 | Node tarball SHA256；base image digest；CI actions SHA/记录；lockfile/registry/浏览器来源记录；构建可复现性分级 | N12/N13/N14 通过；文档记录来源/版本/可复现边界 |
 | P2.3-D 网络隔离 | 驱动层 Playwright 路由只允许 localhost/data/blob；外部请求失败并记录；字体回退 | N15 通过；P1.4 断网 job 继续（run `39893948581` 五 job 全绿） |
-| P2.3-E 安全验收 | 全量负向矩阵；CI artifact（JUnit、报告、截图/关键帧）；P2.1/P2.2 回归 | N01-N18 + 全部 P2.1/P2.2 测试；五个 CI job 绿 |
+| P2.3-E 安全验收 | 全量负向矩阵；CI artifact（JUnit、报告、截图/关键帧）；P2.1/P2.2 回归 | N01-N18 + 全部 P2.1/P2.2 测试；五个 CI job 绿（本批实现，CI 待执行） |
 
 每批独立提交、独立审查；不把 P2.4 的全局门禁混入。
 
@@ -508,3 +508,6 @@ CI 执行，不得用“本机通过”替代。
 - D 批分支 `feat/motion-canvas-p2.3-d`（基于 C 批），PR #19（draft，栈在 #17 之上）；
   CI run `39893948581` 五个 job 全绿；本机离线门禁 11/11。详见
   `docs/design/motion-canvas-p2.3-d-plan.md`。
+- E 批分支 `feat/motion-canvas-p2.3-e`（基于 D 批）：矩阵收口、encode report 1.2
+  脱敏、doctor home 脱敏、证据审计脚本；本机 Windows `386 passed, 39 skipped`。
+  详见 `docs/design/motion-canvas-p2.3-e-acceptance.md`。
