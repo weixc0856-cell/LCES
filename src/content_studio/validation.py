@@ -18,7 +18,7 @@ from content_studio.content import (
 )
 from content_studio.errors import ValidationFailure
 from content_studio.evidence import is_contradicted, review_state
-from content_studio.ingestion import load_registry
+from content_studio.ingestion import load_registry, load_source_text
 from content_studio.media import MediaError, probe_media, subtitle_problems, tool_status
 from content_studio.models import (
     CheckResult,
@@ -232,6 +232,54 @@ def _browser_result_checks(result: BrowserQAResult) -> list[CheckResult]:
     return checks
 
 
+_QUOTE_TRANSLATION = str.maketrans(
+    {"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", " ": " "}
+)
+
+
+def _normalize_quote(text: str) -> str:
+    return re.sub(r"\s+", " ", text.translate(_QUOTE_TRANSLATION)).strip().lower()
+
+
+def _evidence_quote_checks(project_dir: Path, ledger: EvidenceLedger) -> list[CheckResult]:
+    """A quoted excerpt should exist in the source text; otherwise flag it.
+
+    Locator presence is already checked. This goes one step further: the
+    model can invent a plausible quote and a plausible locator, and only a
+    substring test against the extracted source catches it. The check warns
+    rather than blocks because normalisation can fail on unusual typography.
+    """
+
+    unmatched: list[str] = []
+    compared = 0
+    for record in ledger.records:
+        excerpt = record.source_excerpt.strip()
+        if not excerpt:
+            continue
+        source = load_source_text(project_dir, record.source_id)
+        if not source:
+            continue
+        normalized = _normalize_quote(excerpt)
+        if len(normalized) < 12:
+            continue
+        compared += 1
+        if normalized not in _normalize_quote(source):
+            unmatched.append(record.evidence_id)
+    if compared == 0:
+        return []
+    return [
+        _check(
+            "gate_1_research",
+            "evidence_quotes_in_source",
+            "warn" if unmatched else "pass",
+            "证据摘录未在来源文本中找到：" + ", ".join(unmatched)
+            if unmatched
+            else f"{compared} 条证据摘录均可在来源文本中找到",
+            blocking=False,
+        )
+    ]
+
+
 def _claim_review_checks(
     claims: list[Claim], ledger: EvidenceLedger, claims_error: str
 ) -> list[CheckResult]:
@@ -423,6 +471,7 @@ def run_validation(
         )
 
     checks.extend(_claim_review_checks(claims, ledger, claims_error))
+    checks.extend(_evidence_quote_checks(project_dir, ledger))
 
     unverified = [
         record.evidence_id

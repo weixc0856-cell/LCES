@@ -18,7 +18,7 @@ from content_studio.models import (
     ResearchAnalysis,
 )
 from content_studio.research import _reset_verification
-from content_studio.validation import _claim_review_checks
+from content_studio.validation import _claim_review_checks, _evidence_quote_checks
 
 
 def _claim(
@@ -187,4 +187,44 @@ def test_evidence_without_locator_or_excerpt_is_flagged():
 
 def test_broken_claims_file_suppresses_vacuous_passes():
     checks = _claim_review_checks([], EvidenceLedger(project_id="p"), claims_error="bad json")
+    assert checks == []
+
+
+def _quote_project(
+    tmp_path, excerpt, source="The Transformer is based solely on attention mechanisms."
+):
+    project = tmp_path / "project"
+    (project / "internal" / "sources").mkdir(parents=True)
+    (project / "internal" / "sources" / "source-001.txt").write_text(source, encoding="utf-8")
+    ledger = EvidenceLedger(project_id="p", records=[_evidence(excerpt=excerpt)])
+    return _evidence_quote_checks(project, ledger)
+
+
+def test_quote_found_in_source_passes(tmp_path):
+    checks = _quote_project(tmp_path, "based solely on attention mechanisms")
+    assert checks[0].check_id == "evidence_quotes_in_source"
+    assert checks[0].status == "pass"
+    assert checks[0].blocking is False
+
+
+def test_quote_normalisation_ignores_whitespace_and_case(tmp_path):
+    checks = _quote_project(tmp_path, "  BASED   solely on attention mechanisms ")
+    assert checks[0].status == "pass"
+
+
+def test_fabricated_quote_is_flagged(tmp_path):
+    checks = _quote_project(tmp_path, "The model uses a recurrent encoder for every layer")
+    assert checks[0].status == "warn"
+    assert "evidence-001" in checks[0].message
+
+
+def test_missing_source_text_skips_the_check(tmp_path):
+    project = tmp_path / "project"
+    (project / "internal" / "sources").mkdir(parents=True)
+    ledger = EvidenceLedger(project_id="p", records=[_evidence(excerpt="anything at all here")])
+    assert _evidence_quote_checks(project, ledger) == []
+
+
+def test_short_excerpt_is_not_compared(tmp_path):
+    checks = _quote_project(tmp_path, "attention")
     assert checks == []

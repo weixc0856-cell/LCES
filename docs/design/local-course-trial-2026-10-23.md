@@ -76,6 +76,14 @@
 `uv sync --extra browser` + `uv run playwright install chromium` 未安装，
 Gate 3 记为 NOT_RUN，不是通过。
 
+### 4.4 引文真实性（本批新增自动检查）
+
+试跑后逐条核对：6 条证据摘录都能在源文档文本中逐字找到，定位分别为
+Abstract（4 条）、3.2.2（多头注意力）、3.5（位置编码）。为把这项人工核对
+固化为门禁，Gate 1 新增 `evidence_quotes_in_source`：把摘录与来源文本做
+空白/大小写/标点归一化后比较，找不到的记为 warn 并列出 evidence id。
+本次试跑该检查为 pass。
+
 ## 5. 结论
 
 - 内容流水线在本地 30B Coder 模型下可以完整跑通研究、大纲、生成、构建与校验；

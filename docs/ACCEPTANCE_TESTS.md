@@ -179,3 +179,8 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   the terminal error, the untouched old video and no staging leftovers.
   `tests/test_encode.py` covers encoder exit/timeout/cancel and the disk-full
   mapping.
+
+- Research quotes (Gate 1): `tests/test_evidence.py` checks that an evidence
+  excerpt which does not appear in the extracted source is flagged, while
+  whitespace/case variants pass and a missing source text skips the check.
+  The local course trial's six quotes pass this check against the paper text.
