@@ -39,6 +39,7 @@ from content_studio.paths import (
 from content_studio.research import load_evidence_ledger, load_research_brief
 from content_studio.utils import sha256_file, write_json
 from content_studio.video_qa import verify_video_against_manifest
+from content_studio.visual_acceptance import acceptance_problem
 
 PUBLIC_MARKERS = (
     "TODO",
@@ -927,4 +928,52 @@ def _manifest_video_checks(video: Path, project_dir: Path) -> list[CheckResult]:
                     "视频哈希与编码记录一致" if expected == actual else "视频哈希与编码记录不一致",
                 )
             )
+    checks.extend(_visual_acceptance_checks(project_dir))
     return checks
+
+
+def _visual_acceptance_checks(project_dir: Path) -> list[CheckResult]:
+    """P2.4-D: a machine may fail an asset; only a person may accept it."""
+
+    qa_dir = project_dir / "internal" / "qa"
+    visual_path = qa_dir / "visual_qa.json"
+    if not visual_path.is_file():
+        return [
+            _check(
+                "gate_4_release",
+                "visual_acceptance",
+                "warn",
+                "视频存在但没有 visual_qa.json，无法核对人工视觉验收",
+                blocking=False,
+            )
+        ]
+    try:
+        visual = json.loads(visual_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return [
+            _check(
+                "gate_4_release",
+                "visual_acceptance",
+                "fail",
+                "visual_qa.json 无法解析，无法核对人工视觉验收",
+            )
+        ]
+    if not isinstance(visual, dict) or visual.get("status") != "pass":
+        return [
+            _check(
+                "gate_4_release",
+                "visual_acceptance",
+                "fail",
+                "视觉检查未通过，人工验收不能替代它",
+            )
+        ]
+    template = str(visual.get("template") or "")
+    problem = acceptance_problem(project_dir, template=template)
+    return [
+        _check(
+            "gate_4_release",
+            "visual_acceptance",
+            "pass" if not problem else "fail",
+            problem or f"{template} 已有与当前工具链匹配的人工视觉验收",
+        )
+    ]

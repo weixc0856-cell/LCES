@@ -150,3 +150,7 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   `tests/test_motion_canvas_reproducibility.py` renders the same scene twice on
   Linux when `LCES_MC_REPRO=1`; it records the measured byte-identical rate
   instead of asserting one. CI runs it from the manual `reproducibility` input.
+- Motion Canvas manual acceptance (P2.4-D): `tests/test_visual_acceptance.py`
+  covers the record schema and validation, toolchain matching, the CLI writer
+  and Gate 4's warn/fail/pass branches. A machine may fail an asset; only
+  `lces accept-visual` can record a human `pass`.
