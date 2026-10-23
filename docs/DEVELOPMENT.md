@@ -76,7 +76,7 @@ not the development loop:
 
 ```powershell
 git init -b main            # first time only
-git remote add origin git@github.com:weixc0856-cell/LCES.git
+git remote add origin <your-remote-url>
 git add .
 git commit -m "feat: phase 0 + phase 1 baseline"
 git push -u origin main

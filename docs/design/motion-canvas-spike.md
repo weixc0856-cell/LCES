@@ -174,7 +174,7 @@ CI run `39752667833` 在 `docker run --network none` 中完成真实渲染：
   （gitignored）
 
 副作用说明：首次打开编辑器时，Motion Canvas 在
-`C:\Users\99236\.motion-canvas\settings.json` 写入了 214 字节的默认设置
+`%USERPROFILE%\.motion-canvas\settings.json` 写入了 214 字节的默认设置
 （创建时间 2026-10-22 15:05，内容仅 appearance/defaults）。该文件已在上述
 证据目录留档；后续实验均使用沙箱 `USERPROFILE`，未再触碰用户目录。
 未删除该文件，交由用户决定是否保留。

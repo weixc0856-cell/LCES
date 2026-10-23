@@ -61,9 +61,9 @@ LCES_ANTHROPIC_API_KEY=
 
 模型名称、端点和限额以各家官方文档为准；切换供应商不需要改内容 Schema、模板或发布流程。
 
-## 本地模型（llama.cpp / Intel Arc）
+## 本地模型（llama.cpp）
 
-1. 运行 `D:\AI\start_server.bat` 启动 `llama-server`。课程开发固定配置：后端 **SYCL**（直接回车），模型 `D:\AI\models\Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf`，档位 **[4] CPU-MoE 48 层 @ 32K**。完整步骤、实际下发参数与排错见 `docs/LOCAL_MODEL.md`。
+1. 启动 llama.cpp `llama-server` 并加载课程开发用模型。课程开发的固定配置（SYCL 后端、Coder 模型、`[4] CPU-MoE 48 层 @ 32K` 档位）、等价启动命令与排错见 `docs/LOCAL_MODEL.md`；本机路径不写入仓库。
 2. 检查服务与模型：`uv run lces models`（会请求 `/health` 与 `/v1/models`，不产生生成调用）；加 `--test` 会发送一次最小生成请求，验证结构化输出链路。
 3. 在 `.env` 设置 `LCES_PROVIDER=local`，或直接 `uv run lces run <project> --provider local`。固定 `LCES_LOCAL_MODEL` 后，适配器会在每次生成前核对 `/v1/models`；llama-server 本身会忽略请求中的 model 字段，这一步是防止用错模型的唯一保障。
 4. 如果服务端口不是 8080，修改 `LCES_LOCAL_BASE_URL`。
@@ -123,7 +123,7 @@ projects/<id>/
 ## 远程仓库
 
 ```powershell
-git remote -v        # origin -> git@github.com:weixc0856-cell/LCES.git
+git remote -v        # 确认 origin 指向你的远程仓库
 git push -u origin main
 ```
 
