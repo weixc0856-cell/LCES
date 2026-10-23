@@ -103,6 +103,13 @@ is considered passing because the code exists.
   checksum, registry host, integrity, exact versions, action SHAs, Python
   lockfile) and asserts the matching SC check fails. CI runs
   `uv run lces supply-chain-check` in the `test` job.
+- Motion Canvas network boundary (P2.3-D): `motion/network-policy.test.mjs`
+  covers the allow/block matrix, query stripping and the fake-page
+  continue/abort behaviour; `tests/test_motion_canvas.py` asserts all three
+  templates pin the local font stack; `tests/test_motion_canvas_e2e.py`
+  requires a real build to report `network_policy=local-only`, a non-zero
+  blocked count and a named font. The offline job still proves the OS-level
+  block.
 
 ## Manual checks that automation cannot replace
 

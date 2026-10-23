@@ -579,6 +579,72 @@ def test_scene_source_uses_the_contract_canvas():
     assert "DURATION = 1.0" in source
 
 
+def test_scene_source_pins_a_local_font_stack():
+    """P2.3-D: blocking webfonts must not leave the scene on Roboto."""
+
+    renderer = mc.MotionCanvasRenderer()
+    scenes, video, plan = renderer._parse(_spec())
+    source = mc._scene_source(scenes.scenes[0], plan, width=video.width, height=video.height)
+    assert "const FONT =" in source
+    assert "fontFamily={FONT}" in source
+    assert "'DejaVu Sans'" in source
+    assert "Roboto" not in source
+
+
+FLOW_DATA = {
+    "title": "请求处理流程",
+    "subtitle": "从网关到存储",
+    "direction": "lr",
+    "nodes": [
+        {"id": "gateway", "label": "网关", "kind": "start"},
+        {"id": "auth", "label": "鉴权", "kind": "step"},
+        {"id": "store", "label": "存储", "kind": "end"},
+    ],
+    "edges": [
+        {"from": "gateway", "to": "auth"},
+        {"from": "auth", "to": "store", "label": "写入"},
+    ],
+}
+
+COMPARE_DATA = {
+    "title": "两种方案",
+    "subtitle": "吞吐与复杂度",
+    "left": {"title": "方案 A", "items": ["实现简单", "吞吐稳定"]},
+    "right": {"title": "方案 B", "items": ["扩展性好", "运维复杂"]},
+}
+
+
+@pytest.mark.parametrize(("scene_type", "data"), [("flow", FLOW_DATA), ("compare", COMPARE_DATA)])
+def test_flow_and_compare_sources_pin_the_local_font(scene_type, data):
+    scene = {"scene_id": "scene-001", "scene_type": scene_type, "duration_ms": 1000, "data": data}
+    video = {
+        "project_id": "demo",
+        "video_id": "course-v1",
+        "content_version": "v1",
+        "width": 640,
+        "height": 360,
+        "fps_num": 30,
+        "fps_den": 1,
+        "scene_ids": ["scene-001"],
+        "output_path": "build/media/course.mp4",
+        "renderer": mc.MotionCanvasRenderer.name,
+        "renderer_version": mc.MotionCanvasRenderer.version,
+    }
+    spec = VisualSpec(
+        visual_id="course-v1",
+        visual_type="animation",
+        renderer=mc.MotionCanvasRenderer.name,
+        data={"scene_set": {"scenes": [scene]}, "video": video},
+    )
+    scenes, parsed_video, plan = mc.MotionCanvasRenderer()._parse(spec)
+    source = mc._scene_source(
+        scenes.scenes[0], plan, width=parsed_video.width, height=parsed_video.height
+    )
+    assert "fontFamily={FONT}" in source
+    assert "'DejaVu Sans'" in source
+    assert "Roboto" not in source
+
+
 # -- frame checks --------------------------------------------------------
 
 

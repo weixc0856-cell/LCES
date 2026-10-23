@@ -15,6 +15,7 @@ import {
   terminalFor,
   validateFrameCount,
 } from './contract.mjs';
+import {installLocalOnlyPolicy} from './network-policy.mjs';
 import {prepareOutputDir} from './output-dir.mjs';
 
 // LCES Motion Canvas driver (P1). Modes:
@@ -30,6 +31,22 @@ const timeoutAfter = Number(process.env.TIMEOUT_MS || '1000');
 const maxRenderMs = Number(process.env.MAX_RENDER_MS || '120000');
 const out = process.env.OUTPUT_DIR || path.resolve('output');
 const reportPath = path.join(out, 'report.json');
+// P2.3-D: scene text is pinned to locally available families. The adapter
+// passes the same stack it writes into the generated scene.
+const sceneFont = process.env.MC_SCENE_FONT || "'DejaVu Sans', 'Liberation Sans', Arial, sans-serif";
+
+function sceneFontFamilies(css) {
+  return css
+    .split(',')
+    .map(entry => entry.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean);
+}
+
+function uniqueBlocked(items) {
+  const seen = new Map();
+  for (const item of items) seen.set(`${item.origin}${item.path}|${item.type}`, item);
+  return [...seen.values()];
+}
 
 // The platform gate runs before anything touches the filesystem, so an
 // unsupported host cannot leave a half-created build behind.
@@ -70,6 +87,8 @@ async function waitForServer() {
 
 const external = [];
 const consoleErrors = [];
+let blocked = [];
+let sceneFonts = {requested: sceneFontFamilies(sceneFont), available: []};
 let requestFailures = 0;
 let browser;
 let finished = false;
@@ -89,6 +108,9 @@ try {
   await waitForServer();
   browser = await chromium.launch({args: ['--no-sandbox', '--disable-dev-shm-usage']});
   const page = await browser.newPage({viewport: {width: 1600, height: 1000}});
+  // Blocked before the first navigation: the editor's Google Fonts, unpkg
+  // stylesheet and npm update check never leave the machine.
+  blocked = installLocalOnlyPolicy(page);
   page.on('request', r => {
     const u = r.url();
     if (!u.startsWith('http://127.0.0.1:9000') && !u.startsWith('data:') && !u.startsWith('blob:')) {
@@ -101,6 +123,28 @@ try {
   });
   await page.goto('http://127.0.0.1:9000/', {waitUntil: 'networkidle', timeout: 60000});
   await page.waitForTimeout(2500);
+
+  const families = sceneFontFamilies(sceneFont);
+  const available = await page.evaluate(names => {
+    return names.filter(name => {
+      try {
+        return document.fonts.check(`12px "${name}"`);
+      } catch {
+        return false;
+      }
+    });
+  }, families);
+  const generic = new Set(['sans-serif', 'serif', 'monospace', 'system-ui', 'cursive', 'fantasy']);
+  const named = available.filter(name => !generic.has(name.toLowerCase()));
+  sceneFonts = {requested: families, available, named_available: named};
+  if (named.length === 0) {
+    // Generic css families always resolve; only a named local font proves the
+    // text is not silently rendered with an arbitrary fallback.
+    throw new ContractError(
+      CODES.environmentUnavailable,
+      `no named scene font is available from: ${families.join(', ')}`,
+    );
+  }
 
   const readState = async () => {
     const labels = await page.evaluate(() =>
@@ -201,7 +245,7 @@ if (!outputReady) {
 }
 
 const report = {
-  schema_version: '1.0',
+  schema_version: '1.1',
   mode,
   build_id: buildId,
   expected_frames: expected,
@@ -213,7 +257,11 @@ const report = {
   terminal: errorCode ? terminalFor(errorCode) : finished ? 'completed' : 'failed',
   elapsed_s: Number(elapsed.toFixed(2)),
   error_code: errorCode,
+  network_policy: 'local-only',
   external_requests: [...new Set(external)].slice(0, 20),
+  blocked_requests: uniqueBlocked(blocked).slice(0, 20),
+  blocked_count: blocked.length,
+  scene_fonts: sceneFonts,
   request_failures: requestFailures,
   console_errors: consoleErrors.slice(0, 10),
 };

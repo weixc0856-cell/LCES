@@ -296,8 +296,8 @@ FrameManifest、编码记录与 `build_id`。`build/.build-in-progress` 标记�
 Motion Canvas 仍只支持 Linux；P2.2 已由 CI run `39807639618` 验收（真实 flow/compare 渲染与
 生产入口；run `39808284124` 恢复并确认 main 全绿）。P2.3-A（可执行文件与进程边界）
 与 P2.3-B（输出目录、HOME 与符号链接边界）已合并，CI run `39875910627` 五个 job 全绿；
-P2.3-C（供应链固定）已在本机完成，等待 CI 证据。P2.3-D（网络边界）与 P2.4（P2 全量验收）
-尚未开始。Windows 原生仍由入口显式拒绝，
+P2.3-C（供应链固定）已通过 CI（run `39888269698`），PR #17 待合并；P2.3-D（网络边界）
+已通过 CI（run `39893948581`），PR #19 待合并。P2.4（P2 全量验收）尚未开始。Windows 原生仍由入口显式拒绝，
 需要新的 P0 才能纳入。P1 的运行范围与验收记录见
 `docs/design/motion-canvas-p1-plan.md`，设计与边界见
 `docs/design/MOTION_CANVAS.md`。

@@ -98,7 +98,7 @@ jobs:
         run: |
           set -o pipefail
           cd motion
-          node --test --test-reporter=tap contract.test.mjs output-dir.test.mjs \
+          node --test --test-reporter=tap contract.test.mjs output-dir.test.mjs network-policy.test.mjs \
             | tee ../motion-evidence/contract-tests.tap
       - name: Real title renders
         run: >-
