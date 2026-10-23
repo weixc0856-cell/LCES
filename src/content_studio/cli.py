@@ -413,6 +413,14 @@ def models(
                 f" latency={info['latency_ms']}ms"
             )
             typer.echo(f"  models={info['models'] or '（未发现）'}")
+            expected = info.get("expected_model") or ""
+            if expected and info.get("model_match") is True:
+                typer.echo(f"  模型固定: {expected}（已加载）")
+            elif expected and info.get("model_match") is False:
+                typer.secho(
+                    f"  模型不匹配: 期望 {expected}，服务端为 {info['models']}",
+                    fg=typer.colors.RED,
+                )
             if info["error"] and info["error"] != "not probed":
                 typer.secho(f"  错误: {info['error']}", fg=typer.colors.YELLOW)
             if not info["reachable"]:

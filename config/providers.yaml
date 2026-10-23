@@ -5,7 +5,9 @@ providers:
     adapter: mock
     model: mock-deterministic
 
-  # llama.cpp `llama-server` (OpenAI-compatible). Start it with D:\AI\start_server.bat.
+  # llama.cpp `llama-server` (OpenAI-compatible). Start it with D:\AI\start_server.bat:
+  # SYCL backend, Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf, profile [3]
+  # (CPU-MoE 48 layers @ 16K). See docs/LOCAL_MODEL.md.
   # The model ID is discovered from /v1/models when `model` is empty.
   local:
     adapter: local_llama_cpp

@@ -12,6 +12,7 @@
 ```powershell
 uv run lces doctor
 uv run lces models                 # probe local llama-server without generating
+                                   # course-dev model/profile: docs/LOCAL_MODEL.md
 uv run lces run .\projects\p1 --routing config/routing.yaml
 uv run lces export-schemas
 uv run pytest
