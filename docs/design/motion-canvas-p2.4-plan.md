@@ -110,17 +110,21 @@ P2.4 = **P2 全量验收**，覆盖三件事：
 
 每批独立提交、独立 CI 证据；A 批先行。
 
-## 8. 验收门禁（草案）
+## 8. 验收门禁（收口）
 
-| ID | 验收项 | 说明 |
+| ID | 验收项 | 状态 |
 |---|---|---|
-| P2.4-GATE-01 | 空白/纯色帧被自动拒绝 | 真实构建负向用例 + 单测 |
-| P2.4-GATE-02 | 正常模板不误报 | 真实 `title`/`flow`/`compare` 渲染 |
-| P2.4-GATE-03 | 视觉证据可追溯 | `visual_qa.json` 进入资产哈希与 Gate 4 |
-| P2.4-GATE-04 | 基线与差分按模板记录 | warn/NOT_RUN 语义正确 |
-| P2.4-GATE-05 | 可复现性实测留档 | 双构建报告 + 环境记录 |
-| P2.4-GATE-06 | 人工验收不可被自动替代 | 记录 schema + 门禁测试 |
-| P2.4-GATE-07 | 全量回归 | P1/P2.1/P2.2/P2.3 测试与五 job |
+| P2.4-GATE-01 | 空白/纯色帧被自动拒绝 | PASS（A 批单测 + 离线真实渲染；`qa_failed` 阻断编码） |
+| P2.4-GATE-02 | 正常模板不误报 | PASS（`title`/`flow`/`compare` 真实渲染在 CI 全部 `pass`） |
+| P2.4-GATE-03 | 视觉证据可追溯 | PASS（`visual_qa.json` 写入构建与 `internal/qa`，进入资产哈希；collector 收入 artifact） |
+| P2.4-GATE-04 | 基线与差分按模板记录 | PASS（B 批：`missing`/`matched`/`drifted` 分支测试；CI 真实构建记录 `missing`） |
+| P2.4-GATE-05 | 可复现性实测留档 | PASS（C 批 run `39913768740`：30/30 帧字节一致，环境随报告） |
+| P2.4-GATE-06 | 人工验收不可被自动替代 | PASS（D 批 11 项测试；Gate 4 的 warn/fail/pass 分支） |
+| P2.4-GATE-07 | 全量回归 | PASS（A–D 各自五 job 绿；合并后 main 见下） |
+
+**合并后 main 证据**：A @ `d0ae97f`（run `39910895396`）、B @ `9002837`
+（run `39912288614`）、C @ `c62656d`（run `39925246659`）、D @ `323148f`
+（run `39925973033`）；每次合并的五个 job 全绿。
 
 ## 9. P2.4-A 实施记录（本机；CI 待执行）
 
@@ -244,4 +248,7 @@ artifact 已下载到 `var/ci-run-b/`（git 忽略）并复核。
 - 新增 `tests/test_visual_acceptance.py` 11 项：记录 schema、工具链匹配、
   模板/工具链/verdict 不匹配、CLI 记录与拒绝、Gate 4 的 warn/fail/pass 分支。
 
-**未执行**：Linux CI。D 批在 CI 证据产生前不得记为 PASS。
+**D 批 CI 证据（run `39925848804`，commit `742ac63`）**：五个 job 全绿
+（`test`、`motion-canvas-p1`、`motion-canvas-offline`、`graphviz`、`browser-qa`）。
+`visual_acceptance` 的 warn/fail/pass 分支由 `tests/test_visual_acceptance.py`
+在 Linux 上执行；真实渲染与离线门禁不受影响。
