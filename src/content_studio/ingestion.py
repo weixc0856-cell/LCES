@@ -22,11 +22,13 @@ from content_studio.models import (
     AccessStatus,
     ProjectConfig,
     SourceKind,
+    SourceMap,
     SourceRecord,
     SourceRegistry,
 )
 from content_studio.paths import require_inside
 from content_studio.settings import Settings
+from content_studio.source_map import build_document_map, load_source_map, write_source_map
 from content_studio.utils import (
     read_text_utf8,
     relative_posix,
@@ -63,6 +65,9 @@ class LoadedDocument:
     notes: str = ""
     publisher: str | None = None
     published_at: str | None = None
+    # ``(page_number, normalized_page_text)`` for PDFs; empty pages keep their
+    # number so page locators stay truthful.
+    pages: list[tuple[int, str]] | None = None
     extra_fields: dict[str, str] = field(default_factory=dict)
 
 
@@ -85,26 +90,34 @@ def _title_from_text(text: str, fallback: str) -> str:
     return fallback
 
 
-def _extract_pdf(data: bytes) -> tuple[str, AccessStatus, str]:
+def _extract_pdf(data: bytes) -> tuple[str, AccessStatus, str, list[tuple[int, str]]]:
     try:
         reader = PdfReader(io.BytesIO(data))
     except Exception as exc:  # pypdf raises several unrelated exception types
-        return "", "unavailable", f"PDF could not be opened: {exc.__class__.__name__}"
+        return "", "unavailable", f"PDF could not be opened: {exc.__class__.__name__}", []
     if getattr(reader, "is_encrypted", False):
         try:
             reader.decrypt("")
         except Exception:
-            return "", "unavailable", "PDF is encrypted"
-    pages: list[str] = []
-    for page in reader.pages:
+            return "", "unavailable", "PDF is encrypted", []
+    pages: list[tuple[int, str]] = []
+    for index, page in enumerate(reader.pages, start=1):
         try:
-            pages.append(page.extract_text() or "")
+            raw = page.extract_text() or ""
         except Exception:
-            pages.append("")
-    text = _normalize("\n\n".join(pages))
+            raw = ""
+        pages.append((index, _normalize(raw)))
+    # Normalise per page so page offsets survive; the "\n\n" join is what
+    # ``_page_spans`` reconstructs when it builds the source map.
+    text = "\n\n".join(page_text for _, page_text in pages if page_text)
     if not text:
-        return "", "partial", "PDF has no extractable text; OCR is not implemented (Phase 3)"
-    return text, "fetched", ""
+        return (
+            "",
+            "partial",
+            "PDF has no extractable text; OCR is not implemented (Phase 3)",
+            pages,
+        )
+    return text, "fetched", "", pages
 
 
 def _extract_docx(data: bytes) -> tuple[str, AccessStatus, str]:
@@ -147,8 +160,9 @@ def load_local(path: Path, settings: Settings) -> LoadedDocument:
 
     notes = ""
     access: AccessStatus = "fetched"
+    pages: list[tuple[int, str]] | None = None
     if kind == "pdf":
-        text, access, notes = _extract_pdf(data)
+        text, access, notes, pages = _extract_pdf(data)
         title = path.stem
     elif kind == "docx":
         text, access, notes = _extract_docx(data)
@@ -173,6 +187,7 @@ def load_local(path: Path, settings: Settings) -> LoadedDocument:
         suffix=suffix,
         access_status=access,
         notes=notes,
+        pages=pages,
     )
 
 
@@ -218,8 +233,9 @@ def fetch_url(url: str, settings: Settings) -> LoadedDocument:
     publisher = parsed.netloc
     notes = ""
 
+    pages: list[tuple[int, str]] | None = None
     if kind == "pdf":
-        text, access, notes = _extract_pdf(data)
+        text, access, notes, pages = _extract_pdf(data)
         title = Path(parsed.path).stem or publisher
         suffix = ".pdf"
     elif kind == "html":
@@ -244,6 +260,7 @@ def fetch_url(url: str, settings: Settings) -> LoadedDocument:
         access_status=access,
         notes=notes,
         publisher=publisher,
+        pages=pages,
     )
 
 
@@ -275,6 +292,7 @@ def save_registry(project_dir: Path, registry: SourceRegistry) -> Path:
 
 def _store_document(
     project_dir: Path,
+    config: ProjectConfig,
     document: LoadedDocument,
     source_id: str,
 ) -> SourceRecord:
@@ -285,7 +303,29 @@ def _store_document(
         local_path.write_bytes(document.raw)
 
     text_path = project_dir / "internal" / "sources" / f"{source_id}.txt"
-    write_text(text_path, document.text or "[NO EXTRACTED TEXT]")
+    stored_text = document.text or "[NO EXTRACTED TEXT]"
+    write_text(text_path, stored_text)
+
+    # The map is written next to the source text at ingest time: PDF page
+    # numbers are only available here, and later stages must not guess them.
+    document_map = build_document_map(
+        source_id,
+        stored_text,
+        pages=document.pages,
+        sha256=sha256_bytes(document.raw) if document.raw else "",
+        parser=f"{document.kind}/v1",
+    )
+    existing = load_source_map(project_dir)
+    documents = (
+        [item for item in existing.documents if item.source_id != source_id]
+        if existing is not None
+        else []
+    )
+    documents.append(document_map)
+    write_source_map(
+        project_dir,
+        SourceMap(project_id=config.project_id, documents=documents),
+    )
 
     return SourceRecord(
         source_id=source_id,
@@ -337,12 +377,12 @@ def ingest_project(
             relative_posix(candidate, root) if _is_relative(candidate, root) else str(candidate)
         )
         source_id = _next_source_id(registry.sources)
-        registry.sources.append(_store_document(root, document, source_id))
+        registry.sources.append(_store_document(root, config, document, source_id))
 
     for url in urls:
         document = fetch_url(url, settings)
         source_id = _next_source_id(registry.sources)
-        registry.sources.append(_store_document(root, document, source_id))
+        registry.sources.append(_store_document(root, config, document, source_id))
 
     save_registry(root, registry)
     return registry

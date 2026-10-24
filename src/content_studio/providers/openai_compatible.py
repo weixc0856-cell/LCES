@@ -86,7 +86,8 @@ class OpenAICompatibleProvider(ModelProvider):
         choices = data.get("choices") or []
         if not choices:
             raise ProviderResponseError(f"{self.name} response has no choices", provider=self.name)
-        message = choices[0].get("message") or {}
+        choice = choices[0]
+        message = choice.get("message") or {}
         text = message.get("content") or ""
         if not isinstance(text, str) or not text.strip():
             raise ProviderResponseError(f"{self.name} returned empty content", provider=self.name)
@@ -102,6 +103,8 @@ class OpenAICompatibleProvider(ModelProvider):
             model=str(data.get("model") or self.model),
             usage=usage,
             latency_ms=latency,
+            finish_reason=str(choice.get("finish_reason") or ""),
+            request_id=str(data.get("id") or ""),
         )
 
     def close(self) -> None:

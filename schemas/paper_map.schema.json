@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "PaperElement": {
+      "additionalProperties": false,
+      "description": "One thing the source paper contains or is expected to contain.",
+      "properties": {
+        "paper_item_id": {
+          "pattern": "^paper-[0-9]{3,}$",
+          "title": "Paper Item Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "section",
+            "equation",
+            "figure",
+            "table",
+            "experiment",
+            "result",
+            "ablation",
+            "complexity",
+            "limitation",
+            "conclusion"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "status": {
+          "default": "unverified",
+          "enum": [
+            "verified",
+            "unverified",
+            "not_found",
+            "not_applicable",
+            "needs_review"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "paper_item_id",
+        "kind",
+        "title"
+      ],
+      "title": "PaperElement",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structural map of the source paper, built before the course outline.",
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "source_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "parser": {
+      "default": "",
+      "title": "Parser",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "elements": {
+      "items": {
+        "$ref": "#/$defs/PaperElement"
+      },
+      "minItems": 1,
+      "title": "Elements",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "elements"
+  ],
+  "title": "PaperMap",
+  "type": "object"
+}

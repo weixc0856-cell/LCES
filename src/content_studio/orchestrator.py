@@ -81,6 +81,7 @@ def _stage_research(
         config,
         provider,
         prompt_char_budget=budget,
+        max_output_tokens=min(settings.max_output_tokens, settings.research_max_output_tokens),
     )
 
 
@@ -89,7 +90,14 @@ def _stage_outline(
 ) -> None:
     brief = _require_brief(project_dir)
     ledger = load_evidence_ledger(project_dir)
-    generate_outline(project_dir, config, brief, ledger, provider)
+    generate_outline(
+        project_dir,
+        config,
+        brief,
+        ledger,
+        provider,
+        max_output_tokens=settings.max_output_tokens,
+    )
 
 
 def _stage_generate(
@@ -102,9 +110,16 @@ def _stage_generate(
     registry = load_registry(project_dir)
     if registry is None:
         raise ValidationFailure("source registry missing; run the ingest stage first")
-    generate_public_content(project_dir, config, outline, ledger, registry, provider)
-    generate_speaker_script(project_dir, config, outline, ledger, provider)
-    generate_reading_edition(project_dir, config, outline, ledger, registry, provider)
+    budget = settings.max_output_tokens
+    generate_public_content(
+        project_dir, config, outline, ledger, registry, provider, max_output_tokens=budget
+    )
+    generate_speaker_script(
+        project_dir, config, outline, ledger, provider, max_output_tokens=budget
+    )
+    generate_reading_edition(
+        project_dir, config, outline, ledger, registry, provider, max_output_tokens=budget
+    )
 
 
 def _stage_build(
@@ -232,7 +247,12 @@ def run_pipeline(
                 provider = build_provider(settings, fallback_name)
                 run_id = store.start_stage(task_id, stage, provider.name, provider.model)
                 outcome = _STAGE_FUNCS[stage](project_dir, config, settings, provider)
-            usage = provider.last_result.usage.as_dict() if provider.last_result else {}
+            if provider.structured_usage.total_tokens:
+                usage = provider.structured_usage.as_dict()
+            elif provider.last_result:
+                usage = provider.last_result.usage.as_dict()
+            else:
+                usage = {}
             store.finish_stage(run_id, status="pass", usage=usage)
             completed.append(stage)
             store.log_event(task_id, "info", f"stage {stage} completed")

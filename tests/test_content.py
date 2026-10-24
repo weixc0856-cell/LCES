@@ -16,7 +16,7 @@ from content_studio.models import (
     SourceRecord,
     SourceRegistry,
 )
-from content_studio.providers.base import ModelProvider
+from content_studio.providers.base import DEFAULT_MAX_TOKENS, ModelProvider
 
 
 class _StubProvider(ModelProvider):
@@ -116,6 +116,33 @@ def test_existing_figure_blocks_are_kept(tmp_path):
         "paragraph",
         "figure",
     ]
+
+
+def test_output_budget_is_passed_to_the_provider(tmp_path):
+    provider = _StubProvider(_content("assets/missing.png"))
+    generate_public_content(
+        tmp_path,
+        _config(),
+        _outline(),
+        EvidenceLedger(project_id="figure-test"),
+        _registry(),
+        provider,
+        max_output_tokens=8192,
+    )
+    assert provider.requests[0].max_tokens == 8192
+
+
+def test_output_budget_falls_back_to_the_contract_default(tmp_path):
+    provider = _StubProvider(_content("assets/missing.png"))
+    generate_public_content(
+        tmp_path,
+        _config(),
+        _outline(),
+        EvidenceLedger(project_id="figure-test"),
+        _registry(),
+        provider,
+    )
+    assert provider.requests[0].max_tokens == DEFAULT_MAX_TOKENS
 
 
 def test_prompt_forbids_internal_ids_in_source_ids(tmp_path):

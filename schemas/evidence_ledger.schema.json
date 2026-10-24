@@ -13,6 +13,11 @@
           "title": "Source Id",
           "type": "string"
         },
+        "chunk_id": {
+          "default": "",
+          "title": "Chunk Id",
+          "type": "string"
+        },
         "claim_id": {
           "title": "Claim Id",
           "type": "string"
@@ -23,6 +28,7 @@
             "data",
             "figure",
             "table",
+            "formula",
             "experiment",
             "official_statement",
             "analysis"
@@ -68,6 +74,39 @@
           "title": "Verification Status",
           "type": "string"
         },
+        "quote_status": {
+          "default": "unverified",
+          "enum": [
+            "unverified",
+            "verified_exact",
+            "verified_normalized",
+            "verified_structured"
+          ],
+          "title": "Quote Status",
+          "type": "string"
+        },
+        "formula": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FormulaEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "table": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TableEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "reviewer": {
           "default": "",
           "title": "Reviewer",
@@ -100,6 +139,89 @@
         "support_relation"
       ],
       "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "FormulaEvidence": {
+      "additionalProperties": false,
+      "description": "A formula proposed as evidence.\n\nThe program can check the paper element, locator and symbol presence. It\ncannot prove the algebra, so a formula never becomes ``verified_exact``.",
+      "properties": {
+        "formula_id": {
+          "default": "",
+          "title": "Formula Id",
+          "type": "string"
+        },
+        "expression": {
+          "default": "",
+          "title": "Expression",
+          "type": "string"
+        },
+        "symbols": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Symbols",
+          "type": "array"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "title": "FormulaEvidence",
+      "type": "object"
+    },
+    "TableEvidence": {
+      "additionalProperties": false,
+      "description": "One table cell/row proposed as evidence.",
+      "properties": {
+        "scope": {
+          "default": "row",
+          "enum": [
+            "cell",
+            "row",
+            "prose"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "table_id": {
+          "default": "",
+          "title": "Table Id",
+          "type": "string"
+        },
+        "row_label": {
+          "default": "",
+          "title": "Row Label",
+          "type": "string"
+        },
+        "column_label": {
+          "default": "",
+          "title": "Column Label",
+          "type": "string"
+        },
+        "value": {
+          "default": "",
+          "title": "Value",
+          "type": "string"
+        },
+        "unit": {
+          "default": "",
+          "title": "Unit",
+          "type": "string"
+        },
+        "variant": {
+          "default": "",
+          "title": "Variant",
+          "type": "string"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "title": "TableEvidence",
       "type": "object"
     }
   },

@@ -16,6 +16,13 @@ from content_studio.content import (
     load_public_content,
     load_speaker_script,
 )
+from content_studio.course_audit import (
+    CourseAuditReport,
+    audit_is_current,
+    load_audit,
+    run_course_audit,
+    write_audit,
+)
 from content_studio.errors import ValidationFailure
 from content_studio.evidence import is_contradicted, review_state
 from content_studio.ingestion import load_registry, load_source_text
@@ -36,8 +43,23 @@ from content_studio.paths import (
     symlink_components,
     symlinks_in_tree,
 )
+from content_studio.planning import (
+    coverage_gaps,
+    load_course_master,
+    load_coverage_matrix,
+    load_paper_map,
+    paper_map_sha256,
+    unknown_paper_items,
+)
 from content_studio.research import load_evidence_ledger, load_research_brief
-from content_studio.utils import sha256_file, write_json
+from content_studio.structured_review import (
+    default_review_path,
+    load_review,
+    unacknowledged_conflicts,
+    unsigned_items,
+    validate_review_links,
+)
+from content_studio.utils import normalize_quote, sha256_file, write_json
 from content_studio.video_qa import verify_video_against_manifest
 from content_studio.visual_acceptance import acceptance_problem
 
@@ -232,15 +254,6 @@ def _browser_result_checks(result: BrowserQAResult) -> list[CheckResult]:
     return checks
 
 
-_QUOTE_TRANSLATION = str.maketrans(
-    {"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", " ": " "}
-)
-
-
-def _normalize_quote(text: str) -> str:
-    return re.sub(r"\s+", " ", text.translate(_QUOTE_TRANSLATION)).strip().lower()
-
-
 def _evidence_quote_checks(project_dir: Path, ledger: EvidenceLedger) -> list[CheckResult]:
     """A quoted excerpt should exist in the source text; otherwise flag it.
 
@@ -266,12 +279,12 @@ def _evidence_quote_checks(project_dir: Path, ledger: EvidenceLedger) -> list[Ch
         if not source:
             unverifiable.append(f"{record.evidence_id}(来源文本不可用)")
             continue
-        normalized = _normalize_quote(excerpt)
+        normalized = normalize_quote(excerpt)
         if len(normalized) < 12:
             unverifiable.append(f"{record.evidence_id}(摘录过短)")
             continue
         compared += 1
-        if normalized not in _normalize_quote(source):
+        if normalized not in normalize_quote(source):
             unmatched.append(record.evidence_id)
     if not ledger.records:
         return []
@@ -354,6 +367,257 @@ def _claim_review_checks(
             )
         )
     return checks
+
+
+def _coverage_checks(project_dir: Path) -> list[CheckResult]:
+    """Check that required paper elements have a teaching unit.
+
+    A project without a PaperMap/CourseMaster/coverage matrix reports
+    ``not_run``: the absence of planning data is not evidence of coverage.
+    """
+
+    paper_map = load_paper_map(project_dir)
+    master = load_course_master(project_dir)
+    matrix = load_coverage_matrix(project_dir)
+    if paper_map is None or master is None or matrix is None:
+        return [
+            _check(
+                "gate_2_content",
+                "coverage_matrix_complete",
+                "not_run",
+                "未找到 PaperMap、CourseMaster 或覆盖矩阵，覆盖完整性未检查",
+                blocking=False,
+            )
+        ]
+
+    current = paper_map_sha256(project_dir)
+    if matrix.paper_map_sha256 and matrix.paper_map_sha256 != current:
+        return [
+            _check(
+                "gate_2_content",
+                "coverage_matrix_complete",
+                "fail",
+                "覆盖矩阵基于另一版 PaperMap 构建；重新运行 plan-coverage",
+            )
+        ]
+
+    problems: list[str] = []
+    unknown = unknown_paper_items(paper_map, master)
+    if unknown:
+        problems.append("教学单元引用了不存在的论文要素：" + ", ".join(unknown))
+    gaps = coverage_gaps(paper_map, matrix)
+    if gaps:
+        problems.append("必需要素没有教学单元：" + ", ".join(gaps))
+
+    if problems:
+        return [
+            _check(
+                "gate_2_content",
+                "coverage_matrix_complete",
+                "fail",
+                "；".join(problems),
+            )
+        ]
+    required = sum(1 for element in paper_map.elements if element.required)
+    return [
+        _check(
+            "gate_2_content",
+            "coverage_matrix_complete",
+            "pass",
+            f"{len(paper_map.elements)} 个论文要素中 {required} 个必需要素均有教学单元",
+        )
+    ]
+
+
+def _course_audit_checks(project_dir: Path) -> list[CheckResult]:
+    """Gate 2: the shown numbers/formulas must match the reviewed evidence."""
+
+    if not (project_dir / "content" / "public_content.json").is_file():
+        return [
+            _check(
+                "gate_2_content",
+                "course_content_audit",
+                "not_run",
+                "没有公开课程内容，内容一致性审计未运行（未运行不代表通过）",
+                blocking=False,
+            )
+        ]
+    report = run_course_audit(project_dir)
+    write_audit(project_dir, report)
+    if report.decision in {"blocked", "needs_correction"}:
+        details = [
+            f"{finding.severity}/{finding.check_type}@{finding.location}"
+            for finding in [*report.blockers, *report.majors]
+        ]
+        return [
+            _check(
+                "gate_2_content",
+                "course_content_audit",
+                "fail",
+                f"课程内容与复核证据不一致（{report.decision}）：" + "; ".join(details),
+            )
+        ]
+    return [
+        _check(
+            "gate_2_content",
+            "course_content_audit",
+            "pass",
+            f"课程版本 {report.course_version[:12]} 的数值与公式一致（"
+            f"blocker=0, major=0, advisory={report.summary.get('advisory', 0)}）",
+        )
+    ]
+
+
+def _course_release_checks(project_dir: Path, release_root: Path) -> list[CheckResult]:
+    """Gate 4: signatures, conflict disclosure and the audited version."""
+
+    review_path = default_review_path(project_dir)
+    has_content = (project_dir / "content" / "public_content.json").is_file()
+    if not has_content and not review_path.is_file():
+        return []
+
+    checks: list[CheckResult] = []
+    ledger = load_evidence_ledger(project_dir)
+    structured = [
+        record for record in ledger.records if record.evidence_type in {"formula", "table"}
+    ]
+    if review_path.is_file():
+        try:
+            document = load_review(review_path)
+            validate_review_links(project_dir, document)
+        except ValidationFailure as exc:
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "structured_evidence_review_valid",
+                    "fail",
+                    f"结构化证据复核记录不可用：{exc}",
+                )
+            )
+        else:
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "structured_evidence_review_valid",
+                    "pass",
+                    f"{len(document.items)} 条结构化证据复核记录均可追溯",
+                )
+            )
+            unsigned = unsigned_items(document)
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "structured_evidence_signed",
+                    "fail" if unsigned else "pass",
+                    "结构化证据缺少人工结论："
+                    + ", ".join(f"{item.review_id}={item.conclusion}" for item in unsigned)
+                    if unsigned
+                    else "结构化证据均有人工结论",
+                )
+            )
+            conflicts = unacknowledged_conflicts(document)
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "source_conflicts_acknowledged",
+                    "fail" if conflicts else "pass",
+                    "来源冲突未显式确认：" + ", ".join(item.review_id for item in conflicts)
+                    if conflicts
+                    else "来源冲突均已确认或不存在",
+                )
+            )
+    elif structured:
+        checks.append(
+            _check(
+                "gate_4_release",
+                "structured_evidence_review_valid",
+                "fail",
+                "存在结构化公式/表格证据，但没有复核记录；未复核证据不得发布",
+            )
+        )
+
+    report = load_audit(project_dir)
+    if report is None:
+        checks.append(
+            _check(
+                "gate_4_release",
+                "course_content_audit_current",
+                "fail",
+                "缺少课程内容审计报告；先运行 `lces audit-course`",
+            )
+        )
+    else:
+        stale = audit_is_current(project_dir, report)
+        checks.append(
+            _check(
+                "gate_4_release",
+                "course_content_audit_current",
+                "fail" if stale else "pass",
+                "课程内容在审计后已变更，旧审计结论不再适用：" + ", ".join(stale)
+                if stale
+                else f"审计对应当前课程版本 {report.course_version[:12]}",
+            )
+        )
+        checks.append(
+            _check(
+                "gate_4_release",
+                "course_content_audit_passed",
+                "fail" if report.decision in {"blocked", "needs_correction"} else "pass",
+                (
+                    f"课程内容审计结论：{report.decision}；"
+                    + "; ".join(
+                        f"{finding.severity}/{finding.check_type}@{finding.location}"
+                        for finding in [*report.blockers, *report.majors]
+                    )
+                )
+                if report.decision in {"blocked", "needs_correction"}
+                else f"课程内容审计通过（版本 {report.course_version[:12]}）",
+            )
+        )
+        checks.append(_release_matches_audit(release_root, report))
+    return checks
+
+
+def _release_matches_audit(release_root: Path, report: CourseAuditReport) -> CheckResult:
+    audited = {item.path: item.sha256 for item in report.files if item.path.startswith("build/")}
+    problems: list[str] = []
+    mapping = {
+        "slides/index.html": "build/slides/index.html",
+        "reading_edition.html": "build/reading_edition.html",
+    }
+    for released, built in mapping.items():
+        path = release_root / released
+        if not path.is_file():
+            continue
+        if built not in audited:
+            problems.append(f"{released}(未审计)")
+        elif sha256_file(path) != audited[built]:
+            problems.append(f"{released}(与审计版本不一致)")
+    return _check(
+        "gate_4_release",
+        "release_matches_audited_content",
+        "fail" if problems else "pass",
+        "发布资产不是被审计的课程版本：" + ", ".join(problems)
+        if problems
+        else "发布资产与被审计版本一致",
+    )
+
+
+SIGNATURE_CHECK_IDS = {
+    "structured_evidence_signed",
+    "source_conflicts_acknowledged",
+}
+
+
+def release_decision(checks: list[CheckResult], *, conflict_disclosed: bool = False) -> str:
+    """Classify a release without hiding why it was refused."""
+
+    failures = [item for item in checks if item.status == "fail" and item.blocking]
+    if not failures:
+        return "approved_with_disclosures" if conflict_disclosed else "approved"
+    if all(item.check_id in SIGNATURE_CHECK_IDS for item in failures):
+        return "needs_human_review"
+    return "blocked"
 
 
 def run_validation(
@@ -621,6 +885,9 @@ def run_validation(
     if outline is None:
         checks.append(_check("gate_2_content", "outline_exists", "fail", "课程大纲缺失"))
 
+    checks.extend(_coverage_checks(project_dir))
+    checks.extend(_course_audit_checks(project_dir))
+
     # --- Gate 3 -------------------------------------------------------
     html_path = project_dir / "build" / "slides" / "index.html"
     if not html_path.exists():
@@ -869,6 +1136,8 @@ def run_release_checks(
             )
         )
 
+    if project_dir is not None:
+        checks.extend(_course_release_checks(project_dir, release_root))
     checks.extend(_media_checks(release_root, project_dir=project_dir))
     return checks
 

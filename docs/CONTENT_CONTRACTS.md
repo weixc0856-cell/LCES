@@ -8,6 +8,204 @@ Phase 2 separates three things that used to live in one HTML template:
 3. **Renderers** — `renderers.py` turn a spec into an artifact and own their
    escaping, validation, and version.
 
+## Source maps and sectioned research (P0-B2)
+
+`SourceMap` (`internal/source_map.json`) records how each stored source text is
+tiled. Every `SourceChunk` carries a stable `chunk_id` (`source-001:b0007`), a
+page number (PDF only), the section label, and exact `char_start`/`char_end`.
+Chunks are contiguous, never exceed 2000 characters, never cross a PDF page
+boundary, and together cover the whole text. The stored `.txt` remains the
+quote source of truth; the map only records where each slice came from.
+
+Ingestion writes the map while page numbers are still available. Older
+projects are backfilled by `ensure_source_map`; page texts that do not
+reconstruct the stored text raise an error instead of producing wrong offsets.
+
+Research no longer truncates the head of a source. `run_research` packs whole
+chunks into windows bounded by `LCES_LOCAL_PROMPT_CHAR_BUDGET` (or
+`LCES_PROMPT_CHAR_BUDGET` for cloud providers), sends one `SectionAnalysis`
+call per window, and merges the results. Windows are also focused by section:
+a new section segment opens a new window once the current one has at least
+`max(3000, budget // 3)` characters and two segments. A table of contents does
+not poison this count because the packer counts segment changes, not unique
+labels.
+
+- Bibliography, acknowledgement and author-affiliation sections are not sent
+  to the model. Their chunks are recorded in `excluded_chunks` with a reason,
+  so "not sent" is distinguishable from "silently lost".
+- claim/evidence IDs are assigned globally (`claim-001`, `evidence-001`) and
+  the local IDs from each call are remapped. A duplicate statement collapses
+  to one claim, while its distinct evidence rows are kept.
+- evidence that names an unknown source or claim is dropped and counted; the
+  locator comes from the chunk header (section or page).
+- every excerpt is checked against the window text after whitespace, case and
+  typography normalization. A non-verbatim excerpt is kept but flagged in
+  `notes` and counted in `non_verbatim_evidence`; it is never presented as a
+  verified quote. Gate 1 still reports it.
+- paper elements found in a window are merged into
+  `internal/plan/paper_map.extracted.json`. `paper_map.json` is written only
+  when no human-authored blueprint exists, so a blueprint is never replaced by
+  model output.
+
+`internal/research_checkpoint.json` is rewritten after every completed window
+with the calls, claims, evidence, paper elements, exclusions and counters so
+far. It is evidence of progress, not a resume contract yet: a later window can
+fail (timeout, truncation) without erasing what earlier windows produced.
+
+`research_analysis.json` records `research_calls`: one entry per model call
+with chunk range, section, pages, provider, model, usage, `finish_reason`,
+`request_id` and the non-verbatim evidence IDs, plus `usage` totals,
+`merged_claims`, `non_verbatim_evidence` and `excluded_chunks`. A response
+stopped by the output budget still raises `OutputTruncatedError` and is never
+merged.
+
+## Deterministic evidence locator (P0-B2.2)
+
+The model proposes a quote; it does not produce formal evidence. `evidence_locator.py` checks every
+`QuoteCandidate` against the current window:
+
+- The candidate can name a `chunk_id`, a `section_id`, or a section in `locator`
+  (`§3.2.1 ...`). When it names a section, the locator searches that section's chunks but
+  accepts only a quote that fits wholly inside **one** chunk; the accepted record stores the
+  resolved `chunk_id` and `resolved=True`. It never searches another section and never joins
+  chunks. Ambiguous or missing matches stay `needs_review`.
+- The claim must exist in the same `SectionAnalysis`, and the source must exist in the registry;
+  otherwise the candidate is `rejected` with a reason.
+- Exact match → `verified_exact`; typography-only normalized match → `verified_normalized`;
+  not found, ambiguous, or shorter than 12 normalized characters → `needs_review`.
+- The formal `source_excerpt` is sliced from the source text at the located offsets. The model's
+  candidate text is never copied into the ledger.
+- Only verified candidates enter `evidence_ledger.csv`; `quote_status` records `verified_exact` or
+  `verified_normalized`. Review and rejected candidates go to `internal/qa/quote_audit.json` with
+  their reason and candidate text.
+- There is no fuzzy acceptance. Math symbols, table reordering, ellipses and cross-chunk joins do
+  not pass; they go to review.
+
+`EvidenceRecord` now carries `chunk_id` and `quote_status`; rows from older projects default to
+`unverified`. The research trace records per-call `quote_audit` counts, and
+`research_analysis.json` carries the merged `quote_audit` summary.
+
+## Structured formula and table evidence (stage B)
+
+Free-text quotes cannot represent a formula or a table row reliably: the source
+text keeps subscripts, duplicated LaTeX fragments and table layout that no
+contiguous quote can match. `EvidenceRecord` therefore gains two optional
+structured objects:
+
+| Field | Shape |
+|---|---|
+| `formula` | `formula_id`, `expression`, `symbols[]`, `locator` |
+| `table` | `table_id`, `row_label`, `column_label`, `value`, `unit`, `variant`, `locator` |
+
+Validation (`structured_evidence.py`):
+
+- `formula_id` / `table_id` must resolve to a `PaperMap` element of the matching
+  kind (`equation` / `table`); without a PaperMap the candidate is
+  `needs_review` (`no_paper_map`).
+- A **table** candidate carries `scope` (`cell` / `row` / `prose`),
+  `table_id`, `row_label`, `column_label`, `value`, `unit`, `variant` and
+  `locator`. A row label and value in one chunk with a span ≤120 characters is
+  only a **structural** check; it is recorded as `needs_review` with
+  `column_semantics_unverified`. A row split across chunks is
+  `needs_review` (`table_row_split_or_missing_value`); a wide label→value span
+  is `needs_review` (`table_row_span_too_wide`); `scope=prose` is
+  `needs_review` (`prose_not_table_cell`). `verified_structured` is reserved
+  for a future cell-column parser that maps the table header to the cell; the
+  current program does not emit it for tables.
+- The excerpt is still sliced from the source for review, but no table evidence
+  enters the formal ledger on row/span alone.
+- A **formula** checks the element, expression and symbol presence only. It
+  never becomes `verified_structured`; it is `needs_review`
+  (`formula_semantics_manual` or `formula_symbols_not_found`). The algebra must
+  be reviewed by a human.
+- `verified_structured` is the only additional value accepted in the evidence
+  ledger's `quote_status`; review/rejected structured candidates are written to
+  `internal/qa/structured_evidence_audit.json`.
+- The evidence CSV stores the structured object in `structured_json` so the
+  ledger remains one file.
+
+`verified_structured` means "the named element exists and the row/values are in
+one source chunk", not "the table semantics are correct". Formula semantics and
+table meaning remain human review.
+
+## Human review records (P2)
+
+`ReviewDocument` / `ReviewItem` in `structured_review.py` store the human
+review of structured evidence. They deliberately separate three layers:
+
+| Layer | Field | Meaning |
+|---|---|---|
+| Program location | `EvidenceRecord.quote_status` | `verified_exact` / `verified_normalized` / `verified_structured`; a deterministic check, not truth |
+| Research verification | `ResearchVerification.research_finding` | `verified` / `needs_review` / `source_conflict` / `incorrect` / `not_verifiable` against an external source |
+| Human signature | `ReviewItem.conclusion` + `reviewer` + `reviewed_at` + `basis` | The only field that counts as a human decision |
+
+Rules enforced by `lces review-evidence` and `structured_review.py`:
+
+- A signed item needs `reviewer`, `reviewed_at`, `conclusion` and `basis`; missing
+  any field is rejected.
+- The item must link to a real `source_id` + `chunk_id`, and to a `claim_id` or a
+  window-local `claim_ref`; a `paper_id` must exist in the paper map.
+- A `source_conflict` item cannot pass without `conflict_acknowledged=True`.
+  Competing values are preserved with their sources and locators; the program
+  never picks one automatically.
+- `research_finding=verified` never changes `reviewed_by_human` or the human
+  conclusion. Formula research records keep the original expression,
+  transcription, symbol/dimension/derivation checks and limitations.
+- Writes are atomic and append `internal/qa/evidence_review_audit.jsonl` with
+  before/after conclusion, reviewer and basis.
+
+## Coverage planning and the Gate 2 check
+
+`lces plan-coverage <project>` derives `internal/plan/coverage_matrix.json`
+from `PaperMap` + `CourseMaster`. Each unit's `paper_item_ids` becomes
+`covered_by`; a required element with no unit becomes `missing`; notes from a
+previous matrix are preserved. The matrix is pinned to the paper map by
+SHA-256.
+
+Gate 2 adds `coverage_matrix_complete`:
+
+- `PASS` when every required paper element is covered and the hash matches.
+- `FAIL` when a required element has no unit, a unit names an unknown paper
+  item, or the matrix was built against a different paper map.
+- `NOT_RUN` when any of the three planning files is absent — absence of
+  planning data is not evidence of coverage.
+
+## Course planning contracts (P0-A)
+
+Four internal contracts describe *what a course must teach* before any unit
+text is generated. They are exported by `lces export-schemas` as
+`paper_map`, `coverage_matrix`, `learning_unit`, and `course_master`.
+
+| Contract | Purpose | Stored under |
+|---|---|---|
+| `PaperMap` | Paper sections, formulas, figures, tables, experiments, results, ablations, limitations and conclusions, each with a locator, `required` flag and status | `internal/plan/paper_map.json` |
+| `CoverageMatrix` | Maps every paper element to the units that teach it; pinned to the exact paper map by SHA-256 | `internal/plan/coverage_matrix.json` |
+| `LearningUnit` | The unit of generation and review: objectives, key concepts, public blocks, narration, evidence/claim refs, visual needs, status and revision | merged into `internal/course_master.json`; per-unit drafts are a later phase |
+| `CourseMaster` | Single internal course source: chapters, ordered units, coverage, sources and references | `internal/course_master.json` |
+
+Rules:
+
+- A paper element is never silently dropped. `PaperElement.status` separates
+  `verified`, `unverified`, `not_found`, `not_applicable` and `needs_review`;
+  a model finding nothing must record `not_found`, not omit the element.
+- `CoverageEntry.status` must match `covered_by`: `covered`/`partial` need at
+  least one unit, `missing`/`not_applicable` name none.
+- A `LearningUnit` is not a slide. One unit may span several slides and one
+  simple conclusion may occupy a single unit. Only units in
+  `generated`/`validating`/`approved` status may carry a body.
+- `CourseMaster.chapters` order and `unit_ids` must match `units` exactly;
+  coverage entries may only reference units that exist in the same master.
+- `LearningUnit` is internal: `body` is public, `narration` and the
+  evidence/claim references are not. The assembler splits it into
+  `PublicContent` and `SpeakerScript`; no template receives a unit directly.
+  Deriving those files from the master is a later phase, not implemented yet.
+
+The `Attention Is All You Need` blueprint is frozen as a tracked fixture under
+`tests/fixtures/course_plan/attention/`. It has 12 chapters, 25 planned units
+(81 minutes), 30 paper elements and complete required coverage. All units are
+`planned` with empty bodies and all paper elements are `unverified`; it is
+planning data, not generated course content.
+
 ## Asset, scene, and video contracts (PRD 2 module 1)
 
 Three additional contracts describe rendered artifacts and video builds. JSON

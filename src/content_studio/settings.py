@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     max_retries: int = Field(default=3, ge=1, le=8)
     temperature: float = Field(default=0.2, ge=0, le=2)
     max_output_tokens: int = Field(default=8192, ge=256, le=65536)
+    # Research emits a structured record per window; a larger ceiling mostly
+    # buys generation time (and timeout risk) without more useful content.
+    research_max_output_tokens: int = Field(default=4096, ge=256, le=65536)
 
     # Accept both LCES_-prefixed and conventional vendor variable names.
     deepseek_api_key: str = Field(

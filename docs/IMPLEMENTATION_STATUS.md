@@ -13,11 +13,71 @@ Status meanings: **Implemented** = code exists and is covered by written tests;
 no code path exists; **Config only** = configuration placeholder, not consumed
 by a working code path.
 
+## Course production track (2026-10-23)
+
+The course-production work follows
+[`docs/design/course-production-plan-v1-2026-10-23.md`](design/course-production-plan-v1-2026-10-23.md).
+The P0-B2 review and the next-phase order (real research trial before P0-B3)
+are archived at
+[`docs/design/course-production-review-v2-2026-10-23.md`](design/course-production-review-v2-2026-10-23.md).
+Those documents are plans, not implementation claims. This table records what
+is actually in the tree; anything absent stays **Not implemented**.
+
+| Plan item | Status | Evidence |
+|---|---|---|
+| P0-A planning contracts (`PaperMap`, `CoverageMatrix`, `LearningUnit`, `CourseMaster`) | Implemented | `models.py`; six new tests in `tests/test_contracts.py`; schemas exported |
+| P0-A Attention blueprint | Implemented (planning data only) | `tests/fixtures/course_plan/attention/`; `tests/test_course_plan.py` (12 chapters, 25 units, 30 elements, complete required coverage) |
+| P0-B1 output budget reaches every model stage | Implemented | `orchestrator.py` passes `Settings.max_output_tokens`; `tests/test_content.py` |
+| P0-B1 `finish_reason` retained, truncation rejected | Implemented | `GenerationResult.finish_reason`/`request_id`; OpenAI-compatible and Anthropic adapters; `OutputTruncatedError` before repair; `tests/test_providers.py`, `tests/test_local_provider.py` |
+| P0-B1 generation trace records the stop reason | Implemented | `content.py::_trace` writes `finish_reason` and `request_id` |
+| P0-B1 model capability registry / cloud provider admission | Not implemented | — |
+| P0-B2 source map (pages, sections, contiguous chunks) | Implemented | `source_map.py`; written during ingest and backfilled for old projects; `tests/test_source_map.py` |
+| P0-B2 sectioned research (no head truncation) | Implemented | one `SectionAnalysis` call per chunk window; global ID merge and call trace; `tests/test_sectioned_research.py` |
+| P0-B2 coverage planning from the paper map | Implemented | `planning.py` + `lces plan-coverage`; regenerated matrix keeps notes and is pinned to the paper map hash |
+| P0-B2 Gate 2 `coverage_matrix_complete` | Implemented | blocks required gaps and stale hashes; `NOT_RUN` without planning data; `tests/test_planning.py` |
+| P0-B2 outline planned from the coverage matrix | Not implemented | the outline prompt still decides chapter granularity |
+| P0-B2.1 real research trial (Coder 30B, Qwen3-Coder-30B-A3B-Instruct-Q4_K_M) | **Fail** | [`docs/design/research-trial-2026-10-23.md`](design/research-trial-2026-10-23.md): input coverage PASS (62/62 chunks); content FAIL (core mechanisms, Table 3, limitations missing; 5/24 exact quotes; 2 misrepresentations). P0-B3 is not cleared |
+| Post-trial research hardening | Implemented | bibliography exclusion, section-focused windows, per-window verbatim flagging, prompt rules 8–11, shared `normalize_quote`, per-stage usage aggregation, `research_checkpoint.json` after each window; tested |
+| Second research trial after hardening | Failed (timeout) | 5 focused windows, bibliography excluded; `ProviderError: local request timed out after 2 attempts` at 300 s. Fixed afterwards: 900 s local timeout and a 4,096-token research output cap (`LCES_RESEARCH_MAX_OUTPUT_TOKENS`); rerun pending |
+| Third research trial | Failed (truncated) | `OutputTruncatedError` at 4,096 tokens after ~330 s; no partial result accepted. Fixed afterwards: 6,144-token research cap and per-window output limits (10 claims / 10 evidence / 10 elements) |
+| Fourth research trial | Completed (partial) | 5 calls, 55 teachable chunks, 0 reference claims, 40 claims / 40 evidence; core mechanisms and Table 1/2/3 now covered. Evidence still fails: 25/40 non-verbatim, remaining base/big and regularization-classification errors, all claims marked `fact`, 37/40 key. Not cleared for P0-B3 |
+| Post-run locator/prompt hardening | Implemented | chunk-ID locators mapped to section/page; rules 12–14 (key cap, base/big qualifier, no ellipsis/table dump/new categories); checkpoint after each window; tested |
+| Fifth research trial (Instruct model) | Completed (partial) | 22 claims / 33 evidence, 3 unsupported key claims, 8 dropped evidence, 4/33 exact quotes; base/big and regularization now correct, locators map to sections/tables. Neither local model passes evidence discipline |
+| P0-B2.2 deterministic quote locator | Implemented | `evidence_locator.py`: chunk-scoped exact/normalized location, source-sliced excerpts, `needs_review`/`rejected` audit; only verified evidence enters the ledger; `tests/test_evidence_locator.py` and research integration tests |
+| Two-window locator validation (§3.2.1/§3.2.2, §6.1/§6.2) | Completed (safety PASS, yield FAIL) | [`docs/design/quote-locator-trial-2026-10-24.md`](design/quote-locator-trial-2026-10-24.md): 18 candidates, 6 exact, 0 normalized, 12 needs_review, 0 rejected; 0 cross-chunk/invalid/math-rewrite accepted. Key formula/Table 2/3 claims have no located evidence |
+| Section-level chunk resolution | Implemented and revalidated | Same 18-candidate batch, no model calls: exact 6 → 7 (+1 section-resolved, `b0052` → `b0053`), needs_review 12 → 11, 0 new false accepts. See `docs/design/quote-locator-trial-2026-10-24.md` §9 |
+| Structured formula/table contracts | Implemented | `FormulaEvidence` / `TableEvidence`, `verified_structured`, `structured_json` CSV column; `tests/test_structured_evidence.py` and a table integration test |
+| Structured formula/table validator | Implemented | PaperMap ID resolution, table row+value in one chunk, formula symbols only with manual-review status; `structured_evidence.py` |
+| Stage B two-window trial | Mechanism accepted (limited); semantic verification pending | [`docs/design/structured-evidence-trial-2026-10-24.md`](design/structured-evidence-trial-2026-10-24.md): after the strict column rule, **0 table/formula auto-passes and 6 needs_review**. Row/span is structural only; column and formula semantics remain human review. P0-B3 stays closed |
+| Structured evidence human review worksheet | Created (all pending) | [`docs/design/structured-evidence-review-2026-10-24.md`](design/structured-evidence-review-2026-10-24.md) and `structured-evidence-review-2026-10-24.json`: 7 items (Table 2 big EN-FR split into EN-DE 28.4 and a 41.0/41.8 source-conflict item) with source/chunk/locator, claim, program status, research verification, reviewer/date/conclusion `pending`; no fabricated review |
+| Research verification vs human signature | Implemented | `ResearchVerification` records external source, locator, transcribed formula, symbol/dimension/derivation checks and `research_finding=verified/source_conflict/...`; `reviewed_by_human` stays false and conclusions stay pending |
+| Evidence review write-back CLI | Implemented | `lces review-evidence` validates reviewer/conclusion/basis, source/chunk/claim/paper linkage and conflict acknowledgement, writes atomically and appends `internal/qa/evidence_review_audit.jsonl`; tests cover pass/conflict/unknown IDs; no record is pre-signed |
+| Real project review-link validation | Passed | `scripts/validate-review-record.py projects/attention-is-all-you-need`: 7/7 items link to real source/chunk/claim/paper data; all human conclusions pending |
+| Formula normalization / ID scope | Implemented/documented | `unicode-math/v1` matching only (original expression preserved, no status promotion); window-local candidate ids, global ledger renumbering, reviews carry source/chunk/locator/scope |
+| Structured table span check | Implemented | `MAX_TABLE_ROW_SPAN=120`; a wide label→value span becomes `needs_review`; revalidation moved one Table 3 caption false positive to review |
+| AI substantive review layer | Implemented | `SubstantiveReview` (`reviewer_kind=ai`), `lces review-evidence-ai`, `tests/test_course_audit.py`; the writer never changes `conclusion`, `reviewer`, `reviewed_at` or `reviewed_by_human`, and Pydantic rejects `reviewer_kind=human` |
+| Seven-record real claim/chunk correction | Implemented | Review records rechecked against the current source map: Table 2 rows `b0050`→`b0048`, Table 3 rows `b0052`→`b0051`; the EN-FR conflict now records local Table 2 = 41.8, abstract = 41.8 and §6.1 = 41.0 alongside the NeurIPS 41.0. AI substantive reviews recorded for all seven; human conclusions stay `pending` |
+| Course content consistency audit | Implemented | `course_audit.py` + `lces audit-course`: BLEU values must be reviewed, conflicts disclosed, Table 3 dev conditions kept, formulas compared after `latex-tokens/v1`; report bound to file hashes; `tests/test_course_audit.py` (26 tests) |
+| Release gate: evidence signature, conflicts, audited version | Implemented | Gate 4 `structured_evidence_review_valid`, `structured_evidence_signed`, `source_conflicts_acknowledged`, `course_content_audit_current`, `course_content_audit_passed`, `release_matches_audited_content`; `build_release` refreshes the audit; refusals print `blocked` / `needs_human_review` / `approved_with_disclosures` / `approved` |
+| Real course audit result (2026-10-24) | **Blocked** | [`docs/design/release-acceptance-2026-10-24.md`](design/release-acceptance-2026-10-24.md): current content omits both reviewed formulas (2 major); published `release/v1` states 41.8 without the 41.0 conflict disclosure and shows an unreviewed positional-encoding formula (3 blockers). Gate 1 also fails on claims 001-003 having no ledger evidence. P0-B3 stays closed |
+| Research routing decision | **Local locator first** | Coder and Instruct both failed free-text evidence. The deterministic locator is implemented and is the next validation target; cloud research is deferred pending keys and data-policy approval. P0-B3 remains not cleared |
+| P0-B3 unit queue, resume, master-derived outputs | Not implemented | `LearningUnit` exists as a contract only |
+| P1 deck renderer and per-page browser QA | Not implemented | — |
+
+A response whose `finish_reason` is `length` or `max_tokens` is rejected
+immediately instead of entering the repair loop: the same request would hit the
+same cap. Callers must raise the budget or split the unit.
+
+Sectioned research covers every chunk of the stored text; the per-call budget
+limits a window, not the document. The Attention blueprint's coverage is
+checked by Gate 2 when the three planning files are present; projects without
+them report `coverage_matrix_complete = NOT_RUN`, never `PASS`.
+
 | Capability | Status | Notes |
 |---|---|---|
 | Python 3.13 pin / project `.venv` | Implemented | `.python-version`, `requires-python`, `scripts/bootstrap.*`, VS Code interpreter path |
 | Dependency groups + lock workflow | Implemented | `dev` group installed by `uv sync`; regenerate `uv.lock` locally after changes |
-| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `export-schemas`, `render-spec`, `review-claims`, `media-check`, `mcp-serve`, `eval`, `usage`, `supply-chain-check`) | Implemented | |
+| CLI (`doctor`, `init-project`, `ingest`, `research`, `outline`, `generate`, `build`, `validate`, `release-check`, `approve`, `release`, `status`, `run`, `plan-coverage`, `export-schemas`, `render-spec`, `review-claims`, `review-evidence`, `review-evidence-ai`, `audit-course`, `media-check`, `mcp-serve`, `eval`, `usage`, `supply-chain-check`) | Implemented | |
 | Unified Pydantic contracts | Implemented | `models.py`; JSON Schema export command |
 | SQLite task/stage/asset/approval records | Implemented | `storage.py`; state machine values from PRD |
 | DeepSeek adapter (OpenAI-compatible) | Implemented | `httpx`, timeout, bounded retry, usage extraction |
@@ -109,7 +169,7 @@ Executed on the development machine (Windows 11, Python 3.13.12, project
 | `lces usage --pricing config/pricing.yaml` | local: 4 calls, 12,777 in / 4,808 out tokens, reported as 未核算 (not zero) |
 | Stage fallback routing | local `ProviderError` retried with `mock`; `stage_runs` records one fail then one pass |
 | `lces run --only build` (asset contract) | `visual_assets.json`: `slide-003-block-01`, `table`, `html.table 1.0.0`, source + output sha256, status `rendered` |
-| `lces export-schemas` | 16 schemas, including `visual_asset`, `scene_contract`, `video_contract` |
+| `lces export-schemas` | 26 schemas, including `visual_asset`, `scene_contract`, `video_contract`, `source_map`, `section_analysis`, `quote_candidate`, `quote_audit`, `paper_map`, `coverage_matrix`, `learning_unit`, `course_master` |
 | `lces doctor` (local) | `Mermaid: 可用 — vendored 12.2.0`; `Graphviz: 不可用 — ... winget ... 16.1.0` |
 | CI `test` / `browser-qa` / `graphviz` | all green (run `39740736404`); mypy passes without optional extras |
 | CI Graphviz evidence | `dot - graphviz version 2.43.0`; 14 tests, 0 failures; artifact `graphviz-evidence` uploaded |

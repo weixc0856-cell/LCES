@@ -24,7 +24,7 @@ is considered passing because the code exists.
 | `lces eval --provider local` | 7/8 on the fixed 8-task set; report written to `var/evals/` |
 | `lces usage --pricing config/pricing.yaml` | token/failure/time figures from `stage_runs`; local marked 未核算 |
 | fallback routing | provider error retries once with the configured fallback; both attempts recorded |
-| `lces export-schemas` | 16 schemas, including asset/scene/video contracts |
+| `lces export-schemas` | 26 schemas, including asset/scene/video, source-map, quote-audit and course-planning contracts |
 | `lces run --only build` | `internal/qa/visual_assets.json` records renderer version, source/output hashes, and QA status |
 | `lces doctor` | reports the vendored Mermaid runtime and Graphviz availability |
 | Mermaid/Graphviz adapters | offline SVG rendering, invalid input, missing dependency, timeout, and unsafe output all fail explicitly |
@@ -184,3 +184,64 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   excerpt which does not appear in the extracted source is flagged, while
   whitespace/case variants pass and a missing source text skips the check.
   The local course trial's six quotes pass this check against the paper text.
+
+- Source maps (P0-B2): `tests/test_source_map.py` covers contiguous chunk
+  tiling, the 2000-character limit, page numbers, rejection of page texts that
+  do not reconstruct the stored source, backfill for old projects, CRLF
+  robustness, heading detection in single-newline HTML extracts, false
+  positives (figure labels, author blocks, table values), and a placeholder
+  chunk for scanned PDFs with no extractable text.
+- Sectioned research (P0-B2): `tests/test_sectioned_research.py` asserts every
+  chunk is sent whole exactly once, no truncation marker appears, claim and
+  evidence IDs are renumbered and remapped, duplicate statements collapse
+  while their evidence is kept, every model call is traced with
+  `finish_reason`/usage, and a human-authored `paper_map.json` is not
+  overwritten.
+- Coverage planning (P0-B2): `tests/test_planning.py` rebuilds the Attention
+  coverage matrix from the blueprint, detects required gaps and unknown paper
+  items, and covers the Gate 2 `pass` / `fail` / `not_run` branches.
+  `lces plan-coverage` writes the matrix and exits non-zero when a required
+  element has no teaching unit.
+
+- Research trial report (P0-B2.1): `scripts/analyze-research-trial.py` is a
+  read-only summary of one real run: calls and chunk ranges, exactly-once
+  chunk coverage, claim/evidence linkage, quote checks against the stored
+  text, evidence per section, key-fact string presence, and claim types. It
+  does not modify the project and is not a substitute for human review.
+
+- Research hardening (post-trial): `tests/test_sectioned_research.py` covers
+  bibliography exclusion (`excluded_chunks` and no References chunk sent),
+  section-focused windows, unlocatable candidates staying out of the ledger,
+  merged-claim counting and per-call traces. `tests/test_providers.py` covers
+  usage summed across every structured call in a stage.
+- Two-window locator trial: `scripts/trial-quote-locator.py` sends only §3.2.x and
+  §6.1/§6.2 to the model and writes a candidate/status/audit report under
+  `var/quote-locator-trial/` without modifying the project.
+- Structured formula/table evidence: `tests/test_structured_evidence.py`
+  covers table row structural checks, column-semantics review, prose scope,
+  wide spans, split rows, missing values, unknown table IDs, no PaperMap,
+  formula normalization without semantic pass, missing symbols, and audit
+  merging; `tests/test_sectioned_research.py` checks that table rows stay out of
+  the formal ledger without column semantics, and that structured fields survive
+  the CSV round-trip.
+- Section-level resolution: `tests/test_evidence_locator.py` covers a wrong
+  chunk with the correct section resolving to the actual chunk, and a quote
+  spanning two chunks in the named section staying `needs_review` (no joins).
+- Deterministic quote locator (P0-B2.2): `tests/test_evidence_locator.py`
+  covers exact and normalized matches with source-sliced excerpts, ambiguity,
+  short candidates, cross-chunk joins, unknown claim/source/chunk rejection,
+  math-symbol mismatches going to review, and audit counts/reasons. Research
+  integration asserts only verified evidence reaches `evidence_ledger.csv` and
+  that failures land in `internal/qa/quote_audit.json`.
+
+- Course content audit and release gate (2026-10-24): `tests/test_course_audit.py`
+  covers undisclosed 41.0/41.8 conflicts, unreviewed BLEU values, Table 3
+  `BLEU (dev)` mislabelled as a test-set result, formula denominator and
+  transpose changes, `\frac`/`√` normalisation, unreviewed and absent formulas,
+  missing source text, missing locators, stable finding IDs, audit staleness
+  after a content edit, release refusal while evidence is unsigned, release
+  refusal for an undisclosed conflict, release success after a human signature,
+  and the AI review layer never becoming a human signature. The real project's
+  acceptance record is
+  [`docs/design/release-acceptance-2026-10-24.md`](design/release-acceptance-2026-10-24.md).
+

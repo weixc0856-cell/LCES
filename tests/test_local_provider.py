@@ -111,6 +111,8 @@ def test_local_provider_roundtrip(fake_llama_server):
     result = provider.generate(GenerationRequest(messages=[Message("user", "hi")], max_tokens=16))
     assert result.text == "OK"
     assert result.usage.total_tokens == 8
+    assert result.finish_reason == "stop"
+    assert result.request_id == "chatcmpl-test"
     provider.close()
 
 

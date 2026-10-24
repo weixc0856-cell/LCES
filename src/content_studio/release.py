@@ -15,6 +15,7 @@ from pathlib import Path
 
 from content_studio import __version__
 from content_studio.content import load_public_content, load_reading_edition
+from content_studio.course_audit import run_course_audit, write_audit
 from content_studio.errors import ConfigurationError, ValidationFailure
 from content_studio.models import (
     ApprovalRecord,
@@ -25,8 +26,9 @@ from content_studio.models import (
 )
 from content_studio.paths import BUILD_MARKER, symlink_components, symlinks_in_tree
 from content_studio.storage import TaskStore
+from content_studio.structured_review import default_review_path, load_review
 from content_studio.utils import sha256_file, write_json, write_text
-from content_studio.validation import run_release_checks
+from content_studio.validation import release_decision, run_release_checks
 
 VERSION_PATTERN = re.compile(r"^v[0-9]{1,3}$")
 
@@ -132,6 +134,19 @@ def _qa_dir(project_dir: Path) -> Path:
     qa_dir = project_dir / "internal" / "qa"
     _reject_link_path(qa_dir, project_dir, what="internal/qa")
     return qa_dir
+
+
+def _conflict_disclosed(project_dir: Path) -> bool:
+    """True when a conflict item was signed with an explicit acknowledgement."""
+
+    path = default_review_path(project_dir)
+    if not path.is_file():
+        return False
+    try:
+        document = load_review(path)
+    except ValidationFailure:
+        return False
+    return any(item.conflict_acknowledged for item in document.items)
 
 
 def _reject_symlinks(root: Path, *, stage: str) -> None:
@@ -269,6 +284,10 @@ def build_release(
     _stage(project_dir, config, staging)
     _reject_symlinks(staging, stage="release staging tree")
 
+    # The audit is refreshed against the build being packaged, so a release can
+    # never inherit an audit of an older course version.
+    write_audit(project_dir, run_course_audit(project_dir))
+
     files = _manifest_files(staging)
     content_hash = ""
     public_path = project_dir / "content" / "public_content.json"
@@ -298,9 +317,10 @@ def build_release(
     )
     failures = [item for item in checks if item.status == "fail" and item.blocking]
     if failures:
+        decision = release_decision(checks, conflict_disclosed=_conflict_disclosed(project_dir))
         shutil.rmtree(staging)
         details = "; ".join(f"{item.check_id}: {item.message}" for item in failures)
-        raise ValidationFailure(f"release gate failed: {details}")
+        raise ValidationFailure(f"release gate failed ({decision}): {details}")
 
     gate4 = (
         "fail"
@@ -354,6 +374,9 @@ def verify_release(
         project_dir=project_dir,
     )
     errors = [f"{item.check_id}: {item.message}" for item in checks if item.status == "fail"]
+    if errors:
+        decision = release_decision(checks, conflict_disclosed=_conflict_disclosed(project_dir))
+        errors.insert(0, f"decision={decision}")
     return manifest, errors
 
 

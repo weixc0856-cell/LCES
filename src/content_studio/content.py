@@ -24,7 +24,12 @@ from content_studio.models import (
     SourceRegistry,
     SpeakerScript,
 )
-from content_studio.providers.base import GenerationRequest, Message, ModelProvider
+from content_studio.providers.base import (
+    DEFAULT_MAX_TOKENS,
+    GenerationRequest,
+    Message,
+    ModelProvider,
+)
 from content_studio.utils import truncate, utc_now, write_json, write_text
 
 # Chinese narration pace used for estimates. It is an estimate, not a measured
@@ -118,6 +123,8 @@ def generate_outline(
     brief: ResearchBrief,
     ledger: EvidenceLedger,
     provider: ModelProvider,
+    *,
+    max_output_tokens: int | None = None,
 ) -> ContentOutline:
     prompt = (
         f"项目: {config.title}（{config.project_id}）\n"
@@ -132,6 +139,7 @@ def generate_outline(
     )
     request = GenerationRequest(
         messages=[Message("system", OUTLINE_SYSTEM), Message("user", prompt)],
+        max_tokens=max_output_tokens or DEFAULT_MAX_TOKENS,
         metadata={
             "project_id": config.project_id,
             "title": config.title,
@@ -163,6 +171,8 @@ def generate_public_content(
     ledger: EvidenceLedger,
     registry: SourceRegistry,
     provider: ModelProvider,
+    *,
+    max_output_tokens: int | None = None,
 ) -> PublicContent:
     prompt = (
         f"项目: {config.title}（{config.project_id}）\n"
@@ -178,6 +188,7 @@ def generate_public_content(
     )
     request = GenerationRequest(
         messages=[Message("system", PUBLIC_SYSTEM), Message("user", prompt)],
+        max_tokens=max_output_tokens or DEFAULT_MAX_TOKENS,
         metadata={
             "project_id": config.project_id,
             "title": config.title,
@@ -240,6 +251,8 @@ def generate_speaker_script(
     outline: ContentOutline,
     ledger: EvidenceLedger,
     provider: ModelProvider,
+    *,
+    max_output_tokens: int | None = None,
 ) -> SpeakerScript:
     prompt = (
         f"项目: {config.title}（{config.project_id}）\n"
@@ -253,6 +266,7 @@ def generate_speaker_script(
     )
     request = GenerationRequest(
         messages=[Message("system", SCRIPT_SYSTEM), Message("user", prompt)],
+        max_tokens=max_output_tokens or DEFAULT_MAX_TOKENS,
         metadata={
             "project_id": config.project_id,
             "title": config.title,
@@ -299,6 +313,8 @@ def generate_reading_edition(
     ledger: EvidenceLedger,
     registry: SourceRegistry,
     provider: ModelProvider,
+    *,
+    max_output_tokens: int | None = None,
 ) -> ReadingEdition:
     prompt = (
         f"项目: {config.title}（{config.project_id}）\n"
@@ -314,6 +330,7 @@ def generate_reading_edition(
     )
     request = GenerationRequest(
         messages=[Message("system", READING_SYSTEM), Message("user", prompt)],
+        max_tokens=max_output_tokens or DEFAULT_MAX_TOKENS,
         metadata={
             "project_id": config.project_id,
             "title": config.title,
@@ -385,13 +402,16 @@ def _trace(
                 entries = existing
         except ValueError:
             entries = []
-    usage = provider.last_result.usage.as_dict() if provider.last_result else {}
+    last = provider.last_result
+    usage = last.usage.as_dict() if last else {}
     entry: dict[str, object] = {
         "stage": stage,
         "schema": schema_name,
         "provider": provider.name,
         "model": provider.model,
         "usage": usage,
+        "finish_reason": last.finish_reason if last else "",
+        "request_id": last.request_id if last else "",
         "generated_at": utc_now().isoformat(),
     }
     if extra:

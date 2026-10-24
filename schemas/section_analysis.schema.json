@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "pattern": "^claim-[0-9]{3,}$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "claim_type": {
+          "enum": [
+            "fact",
+            "inference",
+            "assumption",
+            "prediction",
+            "opinion",
+            "unknown",
+            "disputed"
+          ],
+          "title": "Claim Type",
+          "type": "string"
+        },
+        "importance": {
+          "default": "supporting",
+          "enum": [
+            "key",
+            "supporting"
+          ],
+          "title": "Importance",
+          "type": "string"
+        },
+        "verification_status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "supported",
+            "partially_supported",
+            "contradicted",
+            "insufficient_evidence",
+            "not_applicable",
+            "unverified",
+            "verified",
+            "conflict",
+            "unverifiable"
+          ],
+          "title": "Verification Status",
+          "type": "string"
+        },
+        "reviewer": {
+          "default": "",
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "statement",
+        "claim_type"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "EvidenceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "pattern": "^evidence-[0-9]{3,}$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "chunk_id": {
+          "default": "",
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "evidence_type": {
+          "enum": [
+            "quote",
+            "data",
+            "figure",
+            "table",
+            "formula",
+            "experiment",
+            "official_statement",
+            "analysis"
+          ],
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        },
+        "source_excerpt": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Source Excerpt",
+          "type": "string"
+        },
+        "support_relation": {
+          "enum": [
+            "supports",
+            "refutes",
+            "partially_supports",
+            "background"
+          ],
+          "title": "Support Relation",
+          "type": "string"
+        },
+        "verification_status": {
+          "default": "unverified",
+          "enum": [
+            "pending",
+            "supported",
+            "partially_supported",
+            "contradicted",
+            "insufficient_evidence",
+            "not_applicable",
+            "unverified",
+            "verified",
+            "conflict",
+            "unverifiable"
+          ],
+          "title": "Verification Status",
+          "type": "string"
+        },
+        "quote_status": {
+          "default": "unverified",
+          "enum": [
+            "unverified",
+            "verified_exact",
+            "verified_normalized",
+            "verified_structured"
+          ],
+          "title": "Quote Status",
+          "type": "string"
+        },
+        "formula": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FormulaEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "table": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TableEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reviewer": {
+          "default": "",
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "checked_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checked At"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source_id",
+        "claim_id",
+        "evidence_type",
+        "support_relation"
+      ],
+      "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "FormulaEvidence": {
+      "additionalProperties": false,
+      "description": "A formula proposed as evidence.\n\nThe program can check the paper element, locator and symbol presence. It\ncannot prove the algebra, so a formula never becomes ``verified_exact``.",
+      "properties": {
+        "formula_id": {
+          "default": "",
+          "title": "Formula Id",
+          "type": "string"
+        },
+        "expression": {
+          "default": "",
+          "title": "Expression",
+          "type": "string"
+        },
+        "symbols": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Symbols",
+          "type": "array"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "title": "FormulaEvidence",
+      "type": "object"
+    },
+    "PaperElementDraft": {
+      "additionalProperties": false,
+      "description": "One paper element found by the model inside a chunk window.\n\nThe program assigns ``paper_item_id`` when merging, so IDs stay unique\nacross calls and a model cannot overwrite an existing element.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "section",
+            "equation",
+            "figure",
+            "table",
+            "experiment",
+            "result",
+            "ablation",
+            "complexity",
+            "limitation",
+            "conclusion"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "title"
+      ],
+      "title": "PaperElementDraft",
+      "type": "object"
+    },
+    "TableEvidence": {
+      "additionalProperties": false,
+      "description": "One table cell/row proposed as evidence.",
+      "properties": {
+        "scope": {
+          "default": "row",
+          "enum": [
+            "cell",
+            "row",
+            "prose"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "table_id": {
+          "default": "",
+          "title": "Table Id",
+          "type": "string"
+        },
+        "row_label": {
+          "default": "",
+          "title": "Row Label",
+          "type": "string"
+        },
+        "column_label": {
+          "default": "",
+          "title": "Column Label",
+          "type": "string"
+        },
+        "value": {
+          "default": "",
+          "title": "Value",
+          "type": "string"
+        },
+        "unit": {
+          "default": "",
+          "title": "Unit",
+          "type": "string"
+        },
+        "variant": {
+          "default": "",
+          "title": "Variant",
+          "type": "string"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "title": "TableEvidence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Model output for one sectioned-research window (not the whole paper).",
+  "properties": {
+    "section": {
+      "default": "",
+      "title": "Section",
+      "type": "string"
+    },
+    "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceRecord"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "paper_elements": {
+      "items": {
+        "$ref": "#/$defs/PaperElementDraft"
+      },
+      "title": "Paper Elements",
+      "type": "array"
+    },
+    "unknowns": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unknowns",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "source_conflicts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Conflicts",
+      "type": "array"
+    }
+  },
+  "title": "SectionAnalysis",
+  "type": "object"
+}

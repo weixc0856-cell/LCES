@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One model-proposed quote, before any deterministic check.",
+  "properties": {
+    "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "claim_id": {
+      "title": "Claim Id",
+      "type": "string"
+    },
+    "source_id": {
+      "title": "Source Id",
+      "type": "string"
+    },
+    "chunk_id": {
+      "default": "",
+      "title": "Chunk Id",
+      "type": "string"
+    },
+    "section_id": {
+      "default": "",
+      "title": "Section Id",
+      "type": "string"
+    },
+    "locator": {
+      "default": "",
+      "title": "Locator",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "claim_id",
+    "source_id",
+    "text"
+  ],
+  "title": "QuoteCandidate",
+  "type": "object"
+}

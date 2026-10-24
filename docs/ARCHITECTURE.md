@@ -31,10 +31,12 @@ end-to-end path; it does not attempt a general agent platform.
 
 ```
 input/ ──ingest──> internal/source_registry.json + internal/sources/*.txt
+                         │                    + internal/source_map.json
                          │
-                    research (model)
+                    research (model, one call per chunk window)
                          ▼
         internal/research_analysis.json, evidence_ledger.csv, research_brief.md
+        internal/plan/paper_map.extracted.json (paper_map.json if no blueprint)
                          │
                      outline (model)
                          ▼
@@ -54,6 +56,13 @@ input/ ──ingest──> internal/source_registry.json + internal/sources/*.tx
                          ▼
               release/v1/ + build/artifacts/*.zip
 ```
+
+Ingestion writes a `SourceMap` (`internal/source_map.json`) with page, section
+and chunk boundaries while the raw document is still available. Research packs
+whole chunks into windows and makes one model call per window; no stage
+truncates the source head. `SectionAnalysis` results are merged deterministically
+(global claim/evidence IDs, deduplicated statements) and every call is recorded
+in `research_analysis.json`.
 
 ## Public/private boundary
 
@@ -77,10 +86,31 @@ only entry points used by business code. The base class adds JSON instructions,
 parses fenced/prose-wrapped JSON, validates with Pydantic, and makes one repair
 attempt. Adapters own transport, auth, timeouts, retries, and usage extraction.
 
+Every generation request carries an explicit output budget. The orchestrator
+passes `Settings.max_output_tokens` into research, outline, public content,
+speaker script, and reading edition. Responses keep the provider's
+`finish_reason` and request id; a `length`/`max_tokens` stop raises
+`OutputTruncatedError` before the JSON repair loop, because retrying the same
+request would truncate at the same point. The caller must raise the budget or
+split the unit.
+
 The local adapter targets llama.cpp `llama-server` (OpenAI-compatible `/v1`),
 discovers the loaded model from `/v1/models`, supports an optional `--api-key`,
 and never sends loopback traffic through the OS proxy. Model routing is opt-in
 and stage-scoped; deterministic stages never construct a model provider.
+
+## Course planning contracts
+
+`PaperMap`, `CoverageMatrix`, `LearningUnit`, and `CourseMaster` describe what
+a course must cover before any unit text exists. They are internal-only
+(`internal/plan/` and `internal/course_master.json`) because they carry evidence
+and claim references; a `LearningUnit` may hold both public blocks and
+narration, and the assembler — not a template — splits it. The Attention
+blueprint is frozen under `tests/fixtures/course_plan/attention/`; all units
+are `planned` with empty bodies and all paper elements stay `unverified` until
+research or a human records evidence. Unit-level generation, the unit queue,
+and the derivation of `PublicContent`/`SpeakerScript` from `CourseMaster` are
+not implemented yet.
 
 ## Content and visual contracts
 

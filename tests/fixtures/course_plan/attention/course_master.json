@@ -1,0 +1,1260 @@
+{
+  "schema_version": "1.0",
+  "project_id": "attention-is-all-you-need",
+  "title": "Attention Is All You Need：论文精读课程",
+  "language": "zh-CN",
+  "audience": "具备 Python 与基础深度学习背景的学习者",
+  "prerequisites": [
+    "Python",
+    "基础深度学习",
+    "序列模型（建议）"
+  ],
+  "chapters": [
+    {
+      "chapter_id": "chapter-001",
+      "title": "课程导览与问题定义",
+      "objectives": [
+        "说明论文要解决的问题",
+        "建立课程学习路径"
+      ],
+      "unit_ids": [
+        "unit-001",
+        "unit-002"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-002",
+      "title": "研究背景与设计动机",
+      "objectives": [
+        "理解序列建模的既有路线",
+        "说明本文的设计动机"
+      ],
+      "unit_ids": [
+        "unit-003",
+        "unit-004"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-003",
+      "title": "论文的核心贡献",
+      "objectives": [
+        "区分架构、训练与实验贡献"
+      ],
+      "unit_ids": [
+        "unit-005"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-004",
+      "title": "Transformer 总体架构",
+      "objectives": [
+        "描述整体数据流",
+        "解释子层组成"
+      ],
+      "unit_ids": [
+        "unit-006",
+        "unit-007"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-005",
+      "title": "Scaled Dot-Product Attention",
+      "objectives": [
+        "解释 Q/K/V",
+        "完成数值演算",
+        "说明掩码作用"
+      ],
+      "unit_ids": [
+        "unit-008",
+        "unit-009",
+        "unit-010"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-006",
+      "title": "Multi-Head Attention",
+      "objectives": [
+        "说明多头计算",
+        "比较单头与多头"
+      ],
+      "unit_ids": [
+        "unit-011",
+        "unit-012"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-007",
+      "title": "位置编码与顺序信息",
+      "objectives": [
+        "解释位置编码公式",
+        "说明顺序信息的必要性"
+      ],
+      "unit_ids": [
+        "unit-013",
+        "unit-014"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-008",
+      "title": "编码器、解码器与训练机制",
+      "objectives": [
+        "解释因果掩码",
+        "区分训练与推理"
+      ],
+      "unit_ids": [
+        "unit-015",
+        "unit-016"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-009",
+      "title": "训练设置",
+      "objectives": [
+        "复述数据、硬件与优化配置"
+      ],
+      "unit_ids": [
+        "unit-017",
+        "unit-018"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-010",
+      "title": "实验设计与结果",
+      "objectives": [
+        "解释实验设置",
+        "解读 Table 2",
+        "判断结论边界"
+      ],
+      "unit_ids": [
+        "unit-019",
+        "unit-020",
+        "unit-021"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-011",
+      "title": "模型变体、消融与复杂度",
+      "objectives": [
+        "解读 Table 3",
+        "比较不同层类型的成本"
+      ],
+      "unit_ids": [
+        "unit-022",
+        "unit-023"
+      ],
+      "source_ids": []
+    },
+    {
+      "chapter_id": "chapter-012",
+      "title": "贡献、局限与总结",
+      "objectives": [
+        "区分论文结论与后续影响",
+        "形成复现与讨论清单"
+      ],
+      "unit_ids": [
+        "unit-024",
+        "unit-025"
+      ],
+      "source_ids": []
+    }
+  ],
+  "units": [
+    {
+      "unit_id": "unit-001",
+      "chapter_id": "chapter-001",
+      "title": "问题背景：RNN/CNN 序列建模的瓶颈",
+      "unit_type": "concept",
+      "objectives": [
+        "解释论文要解决的序列转换问题",
+        "说明循环与卷积架构的顺序依赖"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "序列到序列学习",
+        "顺序计算",
+        "长距离依赖"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-002"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-002",
+      "chapter_id": "chapter-001",
+      "title": "课程导览与学习目标",
+      "unit_type": "concept",
+      "objectives": [
+        "说明课程范围与阅读顺序",
+        "区分论文事实、作者解释与课程解释"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "课程范围",
+        "资料类型",
+        "证据标记"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-001"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-003",
+      "chapter_id": "chapter-002",
+      "title": "相关工作：注意力如何进入序列模型",
+      "unit_type": "concept",
+      "objectives": [
+        "说明注意力在本文之前的用法",
+        "指出本文与既有工作的差异"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "RNN",
+        "CNN",
+        "注意力机制"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-003"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-004",
+      "chapter_id": "chapter-002",
+      "title": "设计动机：并行性、路径长度与可学习性",
+      "unit_type": "concept",
+      "objectives": [
+        "解释选择自注意力的三条动机",
+        "说明动机与架构选择的关系"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "并行计算",
+        "路径长度",
+        "归纳偏置"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-002",
+        "paper-015"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-005",
+      "chapter_id": "chapter-003",
+      "title": "论文贡献清单与全文路线",
+      "unit_type": "concept",
+      "objectives": [
+        "列出架构、训练与实验结果三类贡献",
+        "建立后续章节的阅读地图"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "贡献分类",
+        "论文结构"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-001",
+        "paper-002"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-006",
+      "chapter_id": "chapter-004",
+      "title": "编码器—解码器总体数据流",
+      "unit_type": "concept",
+      "objectives": [
+        "描述输入到输出的完整路径",
+        "解释编码器与解码器的分工"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "编码器堆叠",
+        "解码器堆叠",
+        "自回归生成"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-004",
+        "paper-005",
+        "paper-017"
+      ],
+      "visual_requirements": [
+        "SVG 架构图：编码器/解码器、子层与数据流"
+      ],
+      "estimated_minutes": 5.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-007",
+      "chapter_id": "chapter-004",
+      "title": "子层连接：残差、层归一化与前馈网络",
+      "unit_type": "concept",
+      "objectives": [
+        "说明每个子层的组成",
+        "解释残差与层归一化的作用"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "残差连接",
+        "层归一化",
+        "逐位置前馈网络",
+        "嵌入与 Softmax"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-011",
+        "paper-012"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-008",
+      "chapter_id": "chapter-005",
+      "title": "Query、Key、Value 的直觉与来源",
+      "unit_type": "concept",
+      "objectives": [
+        "解释 Q/K/V 各自承担的角色",
+        "说明它们如何由同一输入线性投影得到"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "Query",
+        "Key",
+        "Value",
+        "线性投影"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-006"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-009",
+      "chapter_id": "chapter-005",
+      "title": "缩放点积公式与数值演算",
+      "unit_type": "formula",
+      "objectives": [
+        "逐项解释公式",
+        "用一个 3×3 的小例子完成一次完整演算"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "点积相似度",
+        "缩放因子",
+        "Softmax",
+        "加权求和"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-006",
+        "paper-007"
+      ],
+      "visual_requirements": [
+        "公式分步揭示：QKᵀ → 缩放 → Softmax → 乘 V"
+      ],
+      "estimated_minutes": 5.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-010",
+      "chapter_id": "chapter-005",
+      "title": "掩码与 Softmax 的作用",
+      "unit_type": "formula",
+      "objectives": [
+        "说明 padding mask 与 causal mask 的区别",
+        "解释掩码如何改变权重"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "Padding mask",
+        "Causal mask",
+        "负无穷填充"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-006",
+        "paper-010"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-011",
+      "chapter_id": "chapter-006",
+      "title": "多头的拆分、并行计算、拼接与投影",
+      "unit_type": "formula",
+      "objectives": [
+        "解释多头如何拆分与合并",
+        "核对张量维度变化"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "头维度",
+        "拼接",
+        "输出投影"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-008",
+        "paper-009"
+      ],
+      "visual_requirements": [
+        "张量维度示意图 + 分步动画"
+      ],
+      "estimated_minutes": 4.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-012",
+      "chapter_id": "chapter-006",
+      "title": "多头与单头的区别及三种应用位置",
+      "unit_type": "comparison",
+      "objectives": [
+        "比较多头与单头的表示能力",
+        "说明三种注意力用法"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "表示子空间",
+        "编码器—解码器注意力",
+        "自注意力"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-008",
+        "paper-010"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-013",
+      "chapter_id": "chapter-007",
+      "title": "正弦位置编码公式",
+      "unit_type": "formula",
+      "objectives": [
+        "解释公式中每一项",
+        "说明不同频率的作用"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "正弦/余弦",
+        "频率",
+        "绝对位置"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-013",
+        "paper-014"
+      ],
+      "visual_requirements": [
+        "位置编码热力图（程序化生成）"
+      ],
+      "estimated_minutes": 4.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-014",
+      "chapter_id": "chapter-007",
+      "title": "为什么需要位置信息",
+      "unit_type": "concept",
+      "objectives": [
+        "说明自注意力的排列等变性",
+        "解释无位置编码时丢失了什么"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "排列等变",
+        "顺序信息"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-013"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 2.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-015",
+      "chapter_id": "chapter-008",
+      "title": "子层连接与因果掩码",
+      "unit_type": "concept",
+      "objectives": [
+        "说明解码器为何需要遮蔽未来位置",
+        "检查训练与推理的差异"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "因果掩码",
+        "teacher forcing",
+        "自回归推理"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-005",
+        "paper-010"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 4.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-016",
+      "chapter_id": "chapter-008",
+      "title": "训练目标与推理流程",
+      "unit_type": "concept",
+      "objectives": [
+        "说明交叉熵目标",
+        "描述推理解码过程"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "交叉熵",
+        "共享嵌入",
+        "beam search"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-012"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-017",
+      "chapter_id": "chapter-009",
+      "title": "数据、批处理与硬件",
+      "unit_type": "experiment",
+      "objectives": [
+        "复述训练数据与批大小",
+        "说明硬件与训练时长"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "WMT 2014",
+        "batch size",
+        "8×P100"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-019",
+        "paper-020",
+        "paper-021"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-018",
+      "chapter_id": "chapter-009",
+      "title": "优化器与正则化",
+      "unit_type": "experiment",
+      "objectives": [
+        "说明 Adam 参数与 warmup",
+        "说明 dropout 与标签平滑"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "Adam",
+        "warmup",
+        "dropout",
+        "label smoothing"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-022",
+        "paper-023"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-019",
+      "chapter_id": "chapter-010",
+      "title": "WMT 2014 实验设计与评价指标",
+      "unit_type": "experiment",
+      "objectives": [
+        "说明任务、数据与 BLEU",
+        "识别可比较与不可比较的基线"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "EN-DE",
+        "EN-FR",
+        "BLEU",
+        "基线"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-024"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-020",
+      "chapter_id": "chapter-010",
+      "title": "Table 2 结果解读",
+      "unit_type": "experiment",
+      "objectives": [
+        "解释 28.4 / 41.8 BLEU 的含义",
+        "限定结论的适用范围"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "BLEU 对比",
+        "训练成本",
+        "集成模型"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-024",
+        "paper-025",
+        "paper-001"
+      ],
+      "visual_requirements": [
+        "Vega-Lite 柱状图：Transformer 与基线 BLEU 对比"
+      ],
+      "estimated_minutes": 4.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-021",
+      "chapter_id": "chapter-010",
+      "title": "英语成分句法分析",
+      "unit_type": "experiment",
+      "objectives": [
+        "说明该任务的设置与结果",
+        "判断它支持哪条泛化结论"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "WSJ",
+        "半监督设置",
+        "F1"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-028"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 2.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-022",
+      "chapter_id": "chapter-011",
+      "title": "Table 3 模型变体与消融",
+      "unit_type": "experiment",
+      "objectives": [
+        "逐项解释变体如何影响 BLEU",
+        "区分单变量改动与组合改动"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "头数",
+        "维度",
+        "dropout",
+        "位置编码变体"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-026",
+        "paper-027"
+      ],
+      "visual_requirements": [
+        "Vega-Lite 表格或点图：变体与 BLEU 变化"
+      ],
+      "estimated_minutes": 4.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-023",
+      "chapter_id": "chapter-011",
+      "title": "复杂度、路径长度与并行性",
+      "unit_type": "comparison",
+      "objectives": [
+        "比较自注意力、循环层与卷积层",
+        "说明序列长度增长时的成本"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "每层复杂度",
+        "最小路径长度",
+        "并行操作数"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-015",
+        "paper-016"
+      ],
+      "visual_requirements": [
+        "Table 1 重排版 + 复杂度曲线"
+      ],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-024",
+      "chapter_id": "chapter-012",
+      "title": "论文结论、局限与后续影响",
+      "unit_type": "concept",
+      "objectives": [
+        "区分论文结论与后续影响",
+        "列出论文未回答的问题"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "结论边界",
+        "外部补充",
+        "后续研究"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-029",
+        "paper-030"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    },
+    {
+      "unit_id": "unit-025",
+      "chapter_id": "chapter-012",
+      "title": "复现清单与讨论问题",
+      "unit_type": "application",
+      "objectives": [
+        "列出复现所需的关键配置",
+        "提出可继续验证的问题"
+      ],
+      "prerequisites": [],
+      "key_concepts": [
+        "复现清单",
+        "开放问题"
+      ],
+      "body": [],
+      "narration": "",
+      "evidence_ids": [],
+      "claim_ids": [],
+      "paper_item_ids": [
+        "paper-019",
+        "paper-022",
+        "paper-023"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 2.0,
+      "status": "planned",
+      "revision": 0,
+      "generated_at": null,
+      "notes": ""
+    }
+  ],
+  "coverage": [
+    {
+      "paper_item_id": "paper-001",
+      "required": true,
+      "covered_by": [
+        "unit-002",
+        "unit-005",
+        "unit-020"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": "摘要中的问题与结果分别在贡献清单与结果解读中讲解。"
+    },
+    {
+      "paper_item_id": "paper-002",
+      "required": true,
+      "covered_by": [
+        "unit-001",
+        "unit-004",
+        "unit-005"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-003",
+      "required": false,
+      "covered_by": [
+        "unit-003"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-004",
+      "required": true,
+      "covered_by": [
+        "unit-006"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-005",
+      "required": true,
+      "covered_by": [
+        "unit-006",
+        "unit-015"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-006",
+      "required": true,
+      "covered_by": [
+        "unit-008",
+        "unit-009",
+        "unit-010"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-007",
+      "required": true,
+      "covered_by": [
+        "unit-009"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-008",
+      "required": true,
+      "covered_by": [
+        "unit-011",
+        "unit-012"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-009",
+      "required": true,
+      "covered_by": [
+        "unit-011"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-010",
+      "required": true,
+      "covered_by": [
+        "unit-010",
+        "unit-012",
+        "unit-015"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-011",
+      "required": true,
+      "covered_by": [
+        "unit-007"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-012",
+      "required": true,
+      "covered_by": [
+        "unit-007",
+        "unit-016"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-013",
+      "required": true,
+      "covered_by": [
+        "unit-013",
+        "unit-014"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-014",
+      "required": true,
+      "covered_by": [
+        "unit-013"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-015",
+      "required": true,
+      "covered_by": [
+        "unit-004",
+        "unit-023"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-016",
+      "required": true,
+      "covered_by": [
+        "unit-023"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-017",
+      "required": true,
+      "covered_by": [
+        "unit-006"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-018",
+      "required": false,
+      "covered_by": [],
+      "status": "not_applicable",
+      "evidence_ids": [],
+      "notes": "注意力可视化为可选素材，不单独承担教学单元。"
+    },
+    {
+      "paper_item_id": "paper-019",
+      "required": true,
+      "covered_by": [
+        "unit-017",
+        "unit-025"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-020",
+      "required": true,
+      "covered_by": [
+        "unit-017"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-021",
+      "required": true,
+      "covered_by": [
+        "unit-017"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-022",
+      "required": true,
+      "covered_by": [
+        "unit-018",
+        "unit-025"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-023",
+      "required": true,
+      "covered_by": [
+        "unit-018",
+        "unit-025"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-024",
+      "required": true,
+      "covered_by": [
+        "unit-019",
+        "unit-020"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-025",
+      "required": true,
+      "covered_by": [
+        "unit-020"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-026",
+      "required": true,
+      "covered_by": [
+        "unit-022"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-027",
+      "required": true,
+      "covered_by": [
+        "unit-022"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-028",
+      "required": true,
+      "covered_by": [
+        "unit-021"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-029",
+      "required": true,
+      "covered_by": [
+        "unit-024"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-030",
+      "required": true,
+      "covered_by": [
+        "unit-024"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": "论文没有独立局限章节；unit-024 必须把归纳内容标注为课程解释。"
+    }
+  ],
+  "source_ids": [
+    "source-001"
+  ],
+  "references": [
+    "source-001"
+  ],
+  "status": "draft"
+}
