@@ -26,8 +26,8 @@
 
 ### 推送基线与课程版本
 
-- 代码分支：`feat/course-content-audit-release-gate`；本轮报告入库的代码提交为
-  `5bdeafe603bff74f373ba0a602f408e21f186adc` 及其后的文档提交。
+- 代码分支：`feat/course-content-audit-release-gate`；本轮报告入库的代码起点为
+  `5bdeafe603bff74f373ba0a602f408e21f186adc`，其后还有 P4 修正、模板与文档提交。
 - 干净工作树 `git worktree add --detach ../LECS-pushed-p4 5bdeafe`：
   568 passed / 49 skipped，ruff、format（118 files）、mypy（52 files）全部通过。
 - **课程版本不能由 git 提交重建**：`projects/` 被 `.gitignore` 排除，当前课程版本
