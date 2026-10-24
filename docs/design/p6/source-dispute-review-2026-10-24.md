@@ -150,20 +150,20 @@ Table 2/3 的行列语义与脚注由真实审核者确认；冲突项按 B1 处
 | 训练成本是当时最佳模型的一小部分 | 摘要“a small fraction of the training costs of the best models”；§6.1 base 模型“at a fraction of the training cost” | slide-001、口播 | 有来源，表述限定为“论文摘要/§6.1 口径”，可接受 |
 | 3.5 天、8 块 P100 | §6.1（`b0050`）；evidence-026 | slide-007、口播 | 有证据行 |
 | 标签平滑 0.1、dropout 0.1/0.3 | §5.4 Regularization（`b0047`）、§6.1（`b0050`）；evidence-023 | 口播 | 有部分证据行 |
-| Adam beta1=0.9、beta2=0.98、eps=1e-9、warmup 4000、EN-FR P_drop=0.1 | §5.3 Optimizer、§6.1（`b0050`）存在原文；warmup 位于 `b0045`/`b0046` 附近（section 标签有漂移），但**证据台账没有对应行** | 口播 | **证据链缺口**：课程说了台账未覆盖的具体数值 |
+| Adam beta1=0.9、beta2=0.98、eps=1e-9、warmup 4000、EN-FR P_drop=0.1 | §5.3 Optimizer、§6.1（`b0050`）；已补 evidence-035/036/037 与 claim-024/025 | 口播 | **P6 已补证据**；仍需人工核验 |
 | 句法分析 92.7 F1；Dyer 93.3 | Table 4；evidence-031、evidence-032 | slide-005/008、口播 | 有证据行；“接近”表述准确 |
 
-### 建议修订
+### 建议修订（已执行）
 
-- 为 §5.3 的优化器设置与 EN-FR 的 `P_drop=0.1` 增加真实证据行（从原文切片）和对应 claim；
-  或从口播稿删除这些具体数值，避免“课程有、台账无”的缺口。
-- 本轮不代填证据；这是 P6-C 的 F-01。
+- 已新增 claim-024（优化器与 warmup）、claim-025（EN-FR dropout），以及 evidence-035/036/037
+  （原文切片）。证据台账从 34 行增至 37 行，`evidence_quotes_in_source` 仍为 pass。
+- 口播内容未改；课程证据链现在覆盖这些数值。
 
 ### 尚待人工决定
 
-是否保留这些超参数细节；若保留，先补证据链再由人工核验。
+三条新证据与两个新 claim 仍需人工核验；`claim-024/025` 的 `verification_status` 保持 pending。
 
-**状态：已发现缺口；待整改与人工核验。**
+**状态：P6 已补证据；待人工核验。**
 
 ## 总结
 
@@ -173,6 +173,6 @@ Table 2/3 的行列语义与脚注由真实审核者确认；冲突项按 B1 处
 | claim-001 / claim-023 | 完成 | **pending** |
 | 三个公式 | 完成 | **pending** |
 | Table 2 / Table 3 行列 | 本地原文核对完成 | **pending**（列语义） |
-| 优化器/EN-FR dropout 细节 | **证据链缺口** | 待整改 |
+| 优化器/EN-FR dropout 细节 | **P6 已补证据**（035/036/037） | 待人工核验 |
 
 本轮没有裁决任何冲突，没有修改任何 `conclusion`，也没有把 AI 核对写成人工签署。

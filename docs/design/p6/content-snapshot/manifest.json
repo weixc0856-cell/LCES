@@ -18,14 +18,14 @@
     {
       "path": "outline.json",
       "source_path": "content/outline.json",
-      "sha256": "4bfc6d8d3326014e8d3521940d4761789b67da1bbbcff32ef864161946e6ac23",
-      "size_bytes": 4563
+      "sha256": "3574dc56f2eb8b6a46dd4ad17345a9c45deab9034684bfb867e34cb1079870c6",
+      "size_bytes": 4638
     },
     {
       "path": "course_contract.json",
       "source_path": "internal/plan/course_contract.json",
-      "sha256": "4470dd4faf53a82556716a4ddae414b0a3f0836dcf0ff53358db738b7f975b09",
-      "size_bytes": 4266
+      "sha256": "fe793b6f4db1727caf0444f60b2caa7be924f9ac2cf22b039ff3d37226423f3a",
+      "size_bytes": 4499
     },
     {
       "path": "timing_evidence.json",
@@ -36,13 +36,13 @@
     {
       "path": "course_content_audit.json",
       "source_path": "internal/qa/course_content_audit.json",
-      "sha256": "db470a5b3d72a859099f41e96a41be43e00035fc5610c4dad9819c2ea4cc4f41",
+      "sha256": "440d1e00b37c1f28da96dfac72214333149836a9ecdfe27dd2c30a56e5e849a4",
       "size_bytes": 1154
     },
     {
       "path": "course_quality_audit.json",
       "source_path": "internal/qa/course_quality_audit.json",
-      "sha256": "016743027b55e9698efa80f67636d472834c2e4227b04915d4d13c61c2558950",
+      "sha256": "0ace6b7f650f1a26e3c0c36f6747f8494c6371c2c96b5282825ddf75a91942f0",
       "size_bytes": 2142
     },
     {
@@ -74,7 +74,7 @@
   ],
   "versions": {
     "course_version": "7bf523070d2686570844a3194092af8e9f0f71cd526d2748592f803c71df08db",
-    "content_version": "249d2f580996a0dafb4dfda0d1fcc0275b628c845e7ebc96170dcf214c99bfe8",
+    "content_version": "fffaba7009e725ee07713b618f8dbb21469694d3758cbb489bf8e19600cc5cd3",
     "contract_version": "1.0",
     "contract_status": "draft",
     "review_file_sha256": "1060f134131716167e99649daf34ebbb8bef8a887d5c99aa9f4667bbbcb0d7ea",

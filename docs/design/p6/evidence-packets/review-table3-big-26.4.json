@@ -1,8 +1,8 @@
 {
   "packet_version": "1.0",
-  "packet_sha256": "0bf6dad5b76c81a5c152e1a12e5fb2fb9623e042804f490553dfa14101966052",
+  "packet_sha256": "57aec707644df88bfaa7cc4fa004b81e75c2da77be6ef9a0e1fa867e0e9a7d84",
   "review_id": "review-table3-big-26.4",
-  "generated_at": "2026-10-24T03:44:02.901986Z",
+  "generated_at": "2026-10-24T04:03:51.926404Z",
   "claim": "Table 3 big 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 26.4",
   "evidence_kind": "table",
   "paper_id": "paper-027",
@@ -29,7 +29,7 @@
     "char_end": 29968,
     "excerpt": "5\n80\n256\n32\n32\n5.75\n24.5\n28\n1024\n128\n128\n4.66\n26.0\n168\n1024\n5.12\n25.4\n53\n4096\n4.75\n26.2\n90\n(D)\n0.0\n5.77\n24.6\n0.2\n4.95\n25.5\n0.0\n4.67\n25.3\n0.2\n5.47\n25.7\n(E)\npositional embedding instead of sinusoids\n4.92\n25.7\nbig\n6\n1024\n4096\n16\n0.3\n300K\n4.33\n26.4\n213\nTo evaluate the importance of different components of the Transformer, we varied our base model in different ways, measuring the change in performance on English-to-German translation on the development set, newstest2013. We used beam search as described in the previous section, but no checkpoint averaging. We present these results in Table\n3\n.\nIn Table\n3\nrows (A), we vary the number of attention heads and t",
     "excerpt_sha256": "41d0da6c2a50d1cd0e2bbee2444961073e4771e7216897a17472a1420e0eb8ce",
-    "source_text_sha256": "b8b257114db8c8cf49ed44c9f15dac0ceb0dc8959576a8a09772d209f836dddc",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
     "unresolved": false,
     "note": "excerpt sliced from the stored source around the reviewed locator"
   },

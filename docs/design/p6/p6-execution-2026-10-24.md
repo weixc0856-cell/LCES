@@ -21,6 +21,8 @@
 | 视觉审核表 | [`visual-review-2026-10-24.md`](visual-review-2026-10-24.md)、`.json` |
 | 候选内容快照 + 哈希清单 | [`content-snapshot/manifest.json`](content-snapshot/manifest.json) |
 | 证据整改逐条记录 | [`../evidence-remediation-2026-10-24.json`](../evidence-remediation-2026-10-24.json) |
+| 哈希口径说明 | [`hash-lineage-2026-10-24.md`](hash-lineage-2026-10-24.md) |
+| 计时音频说明 | [`timing-audio-2026-10-24.md`](timing-audio-2026-10-24.md) |
 
 ## 1. P6-A：证据审核包
 
@@ -36,14 +38,14 @@
 
 | review_id | 包 SHA-256（前 12） | 人工结论 |
 |---|---|---|
-| review-table2-base-27.3 | `ab6f20f646ef` | pending |
-| review-table2-big-ende-28.4 | `8fbc72ff2cea` | pending |
-| review-table2-big-enfr-conflict | `6f522d99e4a5` | pending |
-| review-table3-big-26.4 | `0bf6dad5b76c` | pending |
-| review-table3-base-25.8 | `7f01d71e3576` | pending |
-| review-formula-attention | `dc6e884253b5` | pending |
-| review-formula-multihead | `2daa8ba1ade9` | pending |
-| review-formula-positional | `b9d9428f00e1` | pending |
+| review-table2-base-27.3 | `a1f1326edf96` | pending |
+| review-table2-big-ende-28.4 | `19764ef18417` | pending |
+| review-table2-big-enfr-conflict | `1696e7dcf36e` | pending |
+| review-table3-big-26.4 | `57aec707644d` | pending |
+| review-table3-base-25.8 | `ebddc411f908` | pending |
+| review-formula-attention | `1255f3ab4454` | pending |
+| review-formula-multihead | `d71ff2084b86` | pending |
+| review-formula-positional | `770eb3abc871` | pending |
 
 局限：本轮没有重新下载 NeurIPS PDF；外部版本信息来自既有研究核验记录。
 
@@ -58,7 +60,7 @@
 | claim-023 摒弃卷积 | evidence-034（摘要）直接支持 | 待人工核验 |
 | 三个公式 | 与 §3.2.1/§3.2.2/§3.5 逐项一致 | 待人工签署 |
 | Table 2/3 行列 | 本地表行/脚注已核对 | 待人工确认列语义 |
-| 优化器/EN-FR dropout 细节 | 原文存在，但**证据台账无对应行** | 发现缺口，待整改 |
+| 优化器/EN-FR dropout 细节 | 原文存在；P6 已补 evidence-035/036/037、claim-024/025 | 待人工核验 |
 
 没有自动裁决冲突，没有修改任何 `conclusion`。
 
@@ -67,7 +69,7 @@
 详见 [course-content-review-2026-10-24.md](course-content-review-2026-10-24.md)。8 节均可审读，
 公式解释、实验口径与局限达到结构完整；发现：
 
-- **F-01（major）**：口播含 Adam/ warmup/ EN-FR `P_drop` 等台账未覆盖的具体数值。
+- **F-01（major，已补证据）**：口播曾含 Adam/warmup/EN-FR `P_drop` 等台账未覆盖的数值；已补 evidence-035/036/037 与 claim-024/025，待人工核验。
 - **F-02（minor）**：幻灯片未写 `d_model=512`/`d_ff=2048`，口播写了。
 - **F-03（minor）**：口播“正弦编码不参与梯度更新”未在证据中点明。
 - **F-04（minor）**：课程只写“arXiv 版本”，未写 `v7`。
@@ -98,13 +100,15 @@
 - 候选内容快照：`content-snapshot/` 含公开内容、阅读版、大纲、契约、计时、内容审计、
   Gate B 审计、复核记录与构建 HTML；`manifest.json` 记录逐文件 SHA-256 与版本：
   - `course_version`：`7bf523070d268657…`
-  - `content_version`：`249d2f580996a0da…`
-  - 契约 `1.0`，状态 `draft`
+  - `content_version`：`fffaba7009e725ee…`
+  - 契约 `1.0`，状态 `draft`；交付形态明确为“可滚动 HTML 课程页（非逐页 16:9 deck）”
   - 复核记录 SHA-256：`1060f13413171616…`
   - 来源文本 SHA-256：`c27a7d19619add42…`
   - 构建 HTML SHA-256：`slides 05f6a1068b61…`，`reading 78934d5891b7…`
 - **讲解稿 `internal/speaker_script.json` 不进入快照**（公开/内部边界），只记录其
   SHA-256 `1d54ef0a5158…` 与大小；恢复时需单独保管并校验。
+- 计时音频：原始 WAV 52.8 MB（`f0cae619…`，1197.62 s）；核验包提供 64 kbps MP3 试听副本
+  （9.58 MB，`20516f37…`，时长相同）。MP3 不是原始计时证据，`timing_evidence.json` 仍绑定 WAV。
 - 明确：`projects/` 不进入 Git，快照是候选版本的恢复辅助，不是 Git 可重建的替代品。
 
 ## 6. P6-F：回归验证
@@ -138,8 +142,7 @@ Gate B 的 2 个人工项：契约未批准、课程产品验收记录缺失。
 1. **产品契约批准**：`lces approve-course-contract --by <产品负责人>`；当前 `draft`。
 2. **八条证据签署**：真实审核者逐条核对审核包后运行 `lces review-evidence`；
    冲突项必须 `--conflict-ack` 并写明 41.0 口径。
-3. **F-01 整改**：为 §5.3 优化器设置与 EN-FR `P_drop=0.1` 补证据，或从口播删除；
-   F-02/F-03/F-04 同步修订。
+3. **F-02/F-03/F-04 修订**：补 512/2048、位置编码备注、arXiv v7 标签；F-01 已补证据，待人工核验。
 4. **真实学习者试测**：至少一名真实参与者按 `learner-trial/README.md` 执行，填写真实数据。
 5. **人工视觉确认**：逐项审核 10 张截图，确认后更新基线。
 6. **Gate B 验收**：`lces accept-course --by <验收人> --timing-confirmed --visual-confirmed --checks-confirmed`。
@@ -153,3 +156,20 @@ Gate B 的 2 个人工项：契约未批准、课程产品验收记录缺失。
   回归结果均可复核。
 - 工程与自动化层通过；证据与课程产品层仍待人工；没有任何签署或学习者数据。
 - **最终状态：NO-GO。**
+
+## 10. 独立校检后的修订（2026-10-24）
+
+针对独立校检报告中的 P1/P2 项：
+
+| 问题 | 处理 | 验证 |
+|---|---|---|
+| P1 ZIP 内相对链接失效 | 核验包内的执行报告/视觉表链接改写为包内扁平路径 | 12 个链接全部可解析 |
+| P1 PowerShell 命令不是有效语法 | `04-commands.md` 改为 `$env:PYTHONIOENCODING = "utf-8"` + `.\.venv\Scripts\...` | 静态检查通过；未实际执行 |
+| P1 F-01 证据链缺口 | 新增 claim-024/025 与 evidence-035/036/037（原文切片）；台账 34→37 行 | `evidence_quotes_in_source=pass`；`audit-course` 0/0/0 |
+| P2 计时音频不在包内 | 原始 WAV 保留；包内增加 64 kbps MP3 试听副本（9.58 MB）；两者均 1197.62 s | `07-audits/timing-audio/`；哈希见说明 |
+| P2 来源哈希对象不清 | 新增 `07-audits/hash-lineage.md`；证据包 `source_text_sha256` 改为文件字节哈希 | 8/8 包 = `c27a7d19…` |
+| P2 “幻灯片”交付形态未定义 | 契约交付物改为“可滚动 HTML 课程页（非逐页 16:9 deck）” | 契约 `1.0` draft 已更新 |
+| 修订包自检 | CRC、25 个 JSON、8 个包哈希、10 个快照哈希、66 行包校验和 | 全部通过 |
+
+仍未解决：8/8 证据签署、Gate B 人工验收、学习者试测、10/10 视觉确认、F-02/F-03/F-04。
+发布仍为 **NO-GO**。

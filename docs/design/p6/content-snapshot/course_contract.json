@@ -145,12 +145,12 @@
     }
   ],
   "deliverables": [
-    "幻灯片",
-    "阅读版",
-    "口播稿",
+    "可滚动 HTML 课程页（slides/index.html，非逐页 16:9 deck）",
+    "阅读版 HTML（reading_edition.html）",
+    "口播稿（internal）",
     "3 个公式及解释",
     "Table 2/3 结果表",
-    "学习检查",
+    "学习检查（可折叠）",
     "来源标注"
   ],
   "required_formula_count": 3,
@@ -162,5 +162,5 @@
     "学习检查确认",
     "证据人工签署"
   ],
-  "notes": "P5-A: default product definition is a 20-minute technical close-reading course; no downgrade without product-owner approval."
+  "notes": "P5-A: default product definition is a 20-minute technical close-reading course; no downgrade without product-owner approval. 交付形态：可滚动 HTML 章节页，不是逐页演示 deck；若需要 deck，应另行定义并验收。"
 }

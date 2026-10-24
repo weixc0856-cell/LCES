@@ -222,6 +222,7 @@ def _source_evidence(project_dir: Path, item: ReviewItem) -> SourceEvidence:
                     break
     source_path = project_dir / "internal" / "sources" / f"{item.source_id}.txt"
     source_text = source_path.read_text(encoding="utf-8") if source_path.is_file() else ""
+    source_file_hash = _sha256_file(source_path) if source_path.is_file() else ""
     title = record.title if record is not None else item.source_id
     origin = record.origin if record is not None else ""
     version = ""
@@ -237,7 +238,7 @@ def _source_evidence(project_dir: Path, item: ReviewItem) -> SourceEvidence:
             locator=item.locator,
             version=version,
             chunk_id=item.chunk_id,
-            source_text_sha256=_sha256_text(source_text),
+            source_text_sha256=source_file_hash,
             unresolved=True,
             note="source text or chunk not found; reviewer must locate the source manually",
         )
@@ -265,7 +266,7 @@ def _source_evidence(project_dir: Path, item: ReviewItem) -> SourceEvidence:
         char_end=chunk.char_end,
         excerpt=excerpt,
         excerpt_sha256=_sha256_text(excerpt),
-        source_text_sha256=_sha256_text(source_text),
+        source_text_sha256=source_file_hash,
         unresolved=False,
         note="excerpt sliced from the stored source around the reviewed locator"
         if matched

@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0",
-  "audit_id": "course-quality-546f721e5d61",
+  "audit_id": "course-quality-e22fe1fc73d0",
   "project_id": "attention-is-all-you-need",
   "contract_version": "1.0",
-  "content_version": "249d2f580996a0dafb4dfda0d1fcc0275b628c845e7ebc96170dcf214c99bfe8",
-  "generated_at": "2026-10-24T03:43:23.069015Z",
+  "content_version": "fffaba7009e725ee07713b618f8dbb21469694d3758cbb489bf8e19600cc5cd3",
+  "generated_at": "2026-10-24T04:04:06.650373Z",
   "files": [
     {
       "path": "internal/plan/course_contract.json",
-      "sha256": "4470dd4faf53a82556716a4ddae414b0a3f0836dcf0ff53358db738b7f975b09"
+      "sha256": "fe793b6f4db1727caf0444f60b2caa7be924f9ac2cf22b039ff3d37226423f3a"
     },
     {
       "path": "content/public_content.json",
@@ -20,7 +20,7 @@
     },
     {
       "path": "content/outline.json",
-      "sha256": "4bfc6d8d3326014e8d3521940d4761789b67da1bbbcff32ef864161946e6ac23"
+      "sha256": "3574dc56f2eb8b6a46dd4ad17345a9c45deab9034684bfb867e34cb1079870c6"
     },
     {
       "path": "internal/speaker_script.json",

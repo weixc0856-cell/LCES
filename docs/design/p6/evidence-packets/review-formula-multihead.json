@@ -1,8 +1,8 @@
 {
   "packet_version": "1.0",
-  "packet_sha256": "2daa8ba1ade9e55b61f05fe39776fe9412a1f1b6d4ada39de64fd6854cf8870c",
+  "packet_sha256": "d71ff2084b8667750a0fccec1dea2cf04d1ed176221108d916e7d0a2cfc7aedf",
   "review_id": "review-formula-multihead",
-  "generated_at": "2026-10-24T03:44:02.911071Z",
+  "generated_at": "2026-10-24T04:03:51.935903Z",
   "claim": "Multi-Head Attention（§3.2.2）：MultiHead(Q,K,V)=Concat(head_1,…,head_h)W^O；head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)",
   "evidence_kind": "formula",
   "paper_id": "paper-009",
@@ -29,7 +29,7 @@
     "char_end": 15023,
     "excerpt": "ng in the final values, as depicted in Figure\n2\n.\nMulti-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.\nMultiHead\n⁡\n(\nQ\n,\nK\n,\nV\n)\n\\displaystyle\\mathrm{MultiHead}(Q,K,V)\n=\nConcat\n⁡\n(\nhead\n1\n,\n…\n,\nhead\nh\n)\n​\nW\nO\n\\displaystyle=\\mathrm{Concat}(\\mathrm{head_{1}},...,\\mathrm{head_{h}})W^{O}\nwhere\n​\nhead\ni\n\\displaystyle\\text{where}~\\mathrm{head_{i}}\n=\nAttention\n⁡\n(\nQ\n​\nW\ni\nQ\n,\nK\n​\nW\ni\nK\n,\nV\n​\nW\ni\nV\n)\n\\displaystyle=\\mathrm{Attention}(QW^{Q}_{i},KW^{K}_{i},VW^{V}_{i})\nWhere the projections are parameter matrices\nW\ni\nQ\n∈\nℝ\nd\nmod",
     "excerpt_sha256": "c58f31c090e0022cfc54b0530c063911a4a477bbbe21cba406f1fc636980904f",
-    "source_text_sha256": "b8b257114db8c8cf49ed44c9f15dac0ceb0dc8959576a8a09772d209f836dddc",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
     "unresolved": false,
     "note": "excerpt sliced from the stored source around the reviewed locator"
   },
