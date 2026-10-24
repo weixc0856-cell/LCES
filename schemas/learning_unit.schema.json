@@ -122,6 +122,39 @@
       "title": "ChartBlock",
       "type": "object"
     },
+    "CheckBlock": {
+      "additionalProperties": false,
+      "description": "A learning check with an answer and the reasoning behind it.",
+      "properties": {
+        "type": {
+          "const": "check",
+          "default": "check",
+          "title": "Type",
+          "type": "string"
+        },
+        "question": {
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "answer": {
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "rationale": {
+          "default": "",
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question",
+        "answer"
+      ],
+      "title": "CheckBlock",
+      "type": "object"
+    },
     "CodeBlock": {
       "additionalProperties": false,
       "properties": {
@@ -425,6 +458,7 @@
             "bullets": "#/$defs/BulletsBlock",
             "callout": "#/$defs/CalloutBlock",
             "chart": "#/$defs/ChartBlock",
+            "check": "#/$defs/CheckBlock",
             "code": "#/$defs/CodeBlock",
             "diagram": "#/$defs/DiagramBlock",
             "figure": "#/$defs/FigureBlock",
@@ -469,6 +503,9 @@
           },
           {
             "$ref": "#/$defs/CalloutBlock"
+          },
+          {
+            "$ref": "#/$defs/CheckBlock"
           },
           {
             "$ref": "#/$defs/QuoteBlock"

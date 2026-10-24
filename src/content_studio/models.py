@@ -559,6 +559,15 @@ class CalloutBlock(StrictModel):
     text: str = Field(min_length=1)
 
 
+class CheckBlock(StrictModel):
+    """A learning check with an answer and the reasoning behind it."""
+
+    type: Literal["check"] = "check"
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
+    rationale: str = ""
+
+
 class QuoteBlock(StrictModel):
     type: Literal["quote"] = "quote"
     text: str = Field(min_length=1)
@@ -578,6 +587,7 @@ PublicBlock = Annotated[
         GraphBlock,
         AnimationBlock,
         CalloutBlock,
+        CheckBlock,
         QuoteBlock,
     ],
     Field(discriminator="type"),

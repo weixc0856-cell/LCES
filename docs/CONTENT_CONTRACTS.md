@@ -462,3 +462,25 @@ or axis semantics are correct; that remains part of human review.
    rejected at startup.
 3. Add tests for the happy path, invalid data, and unknown types.
 4. Add a regression test comparing its output with any renderer it replaces.
+
+
+## Learning checks and the product contract (P5)
+
+`CheckBlock` (`type: "check"`) carries a question, an answer and the reasoning
+behind the answer. The course template renders it as a `<details>` element so
+the answer is available for self-checking without being shown by default. The
+block is part of `PublicContent`, so it is exported in the public schema and
+cannot carry speaker notes or internal fields.
+
+A course that freezes a product definition writes
+`internal/plan/course_contract.json` (`CourseContract`): audience,
+prerequisites, target duration and timing rule, verifiable objectives mapped
+to slide IDs, modules, deliverables, required formula/check counts and the
+manual Gate B items. `lces audit-product` checks the delivered content against
+that contract, including measured timing evidence and a human course
+acceptance record. A project without a contract reports Gate B `NOT_RUN`,
+never `PASS`; an approved contract makes Gate B blocking at release time.
+
+`course_content_audit` remains a separate rule set: it checks that shown
+numbers and formulas match reviewed evidence. It never implies that the course
+product is accepted.
