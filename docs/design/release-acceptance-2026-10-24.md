@@ -6,22 +6,35 @@
 课程内容本身仍有未修复的高风险问题，七条记录仍缺正式人工签署。
 
 > 本文只记录本轮实际执行过的命令与产物。模板、脚本和测试通过不等于课程事实正确。
-> 本轮没有提交、推送、重建或覆盖 `release/v1`。
+> 代码变更已提交并推送到 `feat/course-content-audit-release-gate`（`0f421db`），
+> 推送后在干净工作树重新跑过工程回归。**没有重建、覆盖或撤回 `release/v1`**，
+> 也没有提交任何课程工作区数据（`projects/` 被忽略）。
 
 ## 一、执行环境与结果
 
 | 命令 | 结果 |
 |---|---|
-| `pytest --no-header` | **568 passed, 49 skipped** |
-| `ruff check src tests` | passed |
-| `ruff format --check`（改动文件） | passed |
-| `mypy src` | passed（52 个源文件） |
+| `pytest --no-header`（推送基线干净工作树） | **568 passed, 49 skipped** |
+| `ruff check src tests scripts`（推送基线） | passed |
+| `ruff format --check`（推送基线） | 118 files already formatted |
+| `mypy src`（推送基线） | passed（52 个源文件） |
 | `lces review-evidence-ai` ×7 | 七条 AI 实质复核写入；人工结论保持 `pending` |
 | `scripts/validate-review-record.py` | 7/7 链接有效；`pending human conclusions: 7/7` |
 | `lces audit-course`（当前课程） | `needs_correction`：blocker=0, major=2, advisory=8 |
 | `lces audit-course --scan release/v1` | `blocked`：blocker=3, major=1, advisory=12 |
 | `lces validate` | **exit 1**：2 项阻断（Gate 1 证据缺口 + Gate 2 课程审计） |
 | `lces release-check --version v1` | **exit 1**：`decision=blocked`，4 项阻断 |
+
+### 推送基线
+
+- 分支：`feat/course-content-audit-release-gate`
+- 提交：`0f421dba6d2bbea82a50c6dec64e8796f426a2d7`（本地 HEAD 与 `origin` 一致）
+- 干净工作树：`git worktree add --detach ../LECS-pushed-baseline 0f421db`，在该工作树中执行
+  全量测试、ruff、format 与 mypy，结果见上表。
+- 真实课程复跑在推送提交的同一代码树上执行（`projects/` 被 `.gitignore` 排除，
+  课程工作区不属于提交内容）。`validate`、`audit-course`、`release-check` 的结果与
+  提交前一致，没有出现只在本地通过的偏差。
+
 
 产物：
 
