@@ -1,0 +1,71 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "b9d9428f00e1181aa4713846f4596437081ed973e5771403669b70c451cfeb65",
+  "review_id": "review-formula-positional",
+  "generated_at": "2026-10-24T03:44:02.914133Z",
+  "claim": "位置编码（§3.5）：PE_{(pos,2i)}=sin(pos/10000^{2i/d_model})；PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+  "evidence_kind": "formula",
+  "paper_id": "paper-014",
+  "paper_title": "正弦位置编码公式",
+  "paper_locator": "§3.5 公式",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0040",
+  "locator": "§3.5 Positional Encoding",
+  "program_status": "needs_review",
+  "program_reason": "formula_semantics_manual",
+  "research_finding": "verified",
+  "external_source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+  "external_source_version": "NeurIPS 2017 proceedings",
+  "external_source_locator": "§3.5, p.6",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§3.5 Positional Encoding",
+    "chunk_id": "source-001:b0040",
+    "chunk_section": "3.5 Positional Encoding",
+    "char_start": 17854,
+    "char_end": 19737,
+    "excerpt": "}=sin(pos/10000^{2i/d_{\\text{model}}})\nP\n​\nE\n(\np\n​\no\n​\ns\n,\n2\n​\ni\n+\n1\n)\n=\nc\n​\no\n​\ns\n​\n(\np\n​\no\n​\ns\n/\n10000\n2\n​\ni\n/\nd\nmodel\n)\n\\displaystyle PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_{\\text{model}}})\nwhere\np\n​\no\n​\ns\npos\nis the position and\ni\ni\nis the dimension. That is, each dimension of the positional encoding corresponds to a sinusoid. The wavelengths form a geometric progression from\n2\n​\nπ\n2\\pi\nto\n10000\n⋅\n2\n​\nπ\n10000\\cdot 2\\pi\n. We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions, since for ",
+    "excerpt_sha256": "c9d4bf1ef6a9358f9a56e753c078127381c9bbd5861436793b9b977351be52cb",
+    "source_text_sha256": "b8b257114db8c8cf49ed44c9f15dac0ceb0dc8959576a8a09772d209f836dddc",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-005:formula[1]",
+      "text": "PE_{(pos,2i)}=\\sin\\left(pos/10000^{2i/d_{model}}\\right);\\ PE_{(pos,2i+1)}=\\cos\\left(pos/10000^{2i/d_{model}}\\right)"
+    }
+  ],
+  "support_scope": "research_finding=verified；program=needs_review/formula_semantics_manual",
+  "counter_evidence": "",
+  "limitations": "The paper argues this design allows extrapolation to longer sequences but reports no long-sequence experiment; that part is the authors' interpretation.",
+  "ambiguities": [
+    "正式人工签署；课程是否展示并解释该公式由课程内容审计检查。",
+    "P4-B 补充：位置编码公式不在 stage B 候选批次中，程序未自动定位；区块 b0040 含 §3.5 公式，语义仍需人工核对。"
+  ],
+  "reviewer_questions": [
+    "公式的转录、符号、上下标、运算符和维度是否与原文逐项一致？",
+    "课程对该公式的解释是否超出原文支持范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-formula-positional --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

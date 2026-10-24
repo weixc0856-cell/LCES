@@ -1,0 +1,170 @@
+{
+  "project_id": "attention-is-all-you-need",
+  "title": "Transformer 论文精读：从自注意力到实验边界",
+  "audience": "具备 Python 与基础深度学习背景、希望理解 Transformer 原始论文的学习者",
+  "prerequisites": [],
+  "sections": [
+    {
+      "slide_id": "slide-001",
+      "title": "论文要解决的问题",
+      "learning_objectives": [
+        "解释序列建模的并行化与长距离依赖问题",
+        "说明 Transformer 的出发点与代价"
+      ],
+      "key_points": [
+        "顺序依赖限制并行",
+        "路径长度 O(1)",
+        "代价 O(n²·d)"
+      ],
+      "evidence_ids": [
+        "evidence-033",
+        "evidence-034",
+        "evidence-001"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 2.0
+    },
+    {
+      "slide_id": "slide-002",
+      "title": "Transformer 总体架构",
+      "learning_objectives": [
+        "描述编码器—解码器的数据流",
+        "解释残差、层归一化与掩码的作用"
+      ],
+      "key_points": [
+        "N=6 层",
+        "残差与层归一化",
+        "解码器掩码"
+      ],
+      "evidence_ids": [
+        "evidence-002",
+        "evidence-003",
+        "evidence-010",
+        "evidence-011"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0
+    },
+    {
+      "slide_id": "slide-003",
+      "title": "缩放点积注意力",
+      "learning_objectives": [
+        "解释 Q/K/V、缩放项、softmax 与输出形状",
+        "说明为什么需要缩放"
+      ],
+      "key_points": [
+        "QK^T",
+        "√d_k 缩放",
+        "softmax 逐行归一化"
+      ],
+      "evidence_ids": [
+        "evidence-004",
+        "evidence-005"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 4.0
+    },
+    {
+      "slide_id": "slide-004",
+      "title": "多头注意力",
+      "learning_objectives": [
+        "解释多头投影、拼接与输出投影的维度",
+        "说明多头的设计动机边界"
+      ],
+      "key_points": [
+        "h=8",
+        "d_k=d_v=64",
+        "W^O 投影"
+      ],
+      "evidence_ids": [
+        "evidence-007",
+        "evidence-008",
+        "evidence-005"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 2.0
+    },
+    {
+      "slide_id": "slide-005",
+      "title": "位置编码",
+      "learning_objectives": [
+        "解释正弦/余弦位置编码的构造",
+        "区分设计动机与已验证的外推能力"
+      ],
+      "key_points": [
+        "sin/cos",
+        "几何级数波长",
+        "外推仍是作者解释"
+      ],
+      "evidence_ids": [
+        "evidence-013"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 1.0
+    },
+    {
+      "slide_id": "slide-006",
+      "title": "复杂度、并行性与长序列成本",
+      "learning_objectives": [
+        "比较自注意力、循环层与卷积层的复杂度",
+        "解释并行度与计算量的区别"
+      ],
+      "key_points": [
+        "O(n²·d) vs O(n·d²)",
+        "顺序操作数",
+        "n < d 条件"
+      ],
+      "evidence_ids": [
+        "evidence-014",
+        "evidence-015",
+        "evidence-016",
+        "evidence-017"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0
+    },
+    {
+      "slide_id": "slide-007",
+      "title": "翻译实验、消融与来源口径",
+      "learning_objectives": [
+        "正确解读 27.3/28.4/25.8/26.4",
+        "核对 41.0/41.8 的来源口径"
+      ],
+      "key_points": [
+        "27.3 / 28.4",
+        "25.8 / 26.4 是 dev",
+        "41.0 / 41.8 冲突"
+      ],
+      "evidence_ids": [
+        "evidence-021",
+        "evidence-022",
+        "evidence-024",
+        "evidence-026",
+        "evidence-027"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 3.0
+    },
+    {
+      "slide_id": "slide-008",
+      "title": "局限、结论与学习检查",
+      "learning_objectives": [
+        "说出结论的适用边界",
+        "完成核心概念的学习检查"
+      ],
+      "key_points": [
+        "长序列成本",
+        "跨任务边界",
+        "学习检查"
+      ],
+      "evidence_ids": [
+        "evidence-025",
+        "evidence-030",
+        "evidence-032"
+      ],
+      "visual_requirements": [],
+      "estimated_minutes": 2.0
+    }
+  ],
+  "total_minutes": 20.0
+}

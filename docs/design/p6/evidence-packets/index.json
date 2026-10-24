@@ -1,0 +1,65 @@
+{
+  "packet_version": "1.0",
+  "project_id": "attention-is-all-you-need",
+  "generated_at": "2026-10-24T03:44:02.916515Z",
+  "review_file_sha256": "1060f134131716167e99649daf34ebbb8bef8a887d5c99aa9f4667bbbcb0d7ea",
+  "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+  "packets": [
+    {
+      "review_id": "review-table2-base-27.3",
+      "claim": "Transformer (base) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 27.3（Table 2，base 行）",
+      "packet_path": "review-table2-base-27.3.json",
+      "packet_sha256": "ab6f20f646efe1f6abd7e7f8906dcb1db11d53e72df9dbb18ab422abf71a2a51",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table2-big-ende-28.4",
+      "claim": "Transformer (big) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 28.4（Table 2，big 行）",
+      "packet_path": "review-table2-big-ende-28.4.json",
+      "packet_sha256": "8fbc72ff2ceacf116d75010a9d4ab6ad897581f10caeeefc902dd638fc57e3bb",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table2-big-enfr-conflict",
+      "claim": "Transformer (big) EN-FR BLEU 存在未裁决的来源冲突：本地 arXiv 源 Table 2 行 = 41.8、摘要 = 41.8、§6.1 正文 = 41.0；NeurIPS 2017 会议版 Table 2/§6.1 = 41.0。",
+      "packet_path": "review-table2-big-enfr-conflict.json",
+      "packet_sha256": "6f522d99e4a56756199fbb025aa6bac0d8bab7f7d8806fe3952d1751530b5057",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table3-big-26.4",
+      "claim": "Table 3 big 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 26.4",
+      "packet_path": "review-table3-big-26.4.json",
+      "packet_sha256": "0bf6dad5b76c81a5c152e1a12e5fb2fb9623e042804f490553dfa14101966052",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table3-base-25.8",
+      "claim": "Table 3 base 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 25.8（同值也出现在 (A) 组 16 头变体，base 行是表的第一行）",
+      "packet_path": "review-table3-base-25.8.json",
+      "packet_sha256": "7f01d71e3576140f0f403629b86d67644fd53a30e77657a10c29f1f22b4bc8ec",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-attention",
+      "claim": "Scaled Dot-Product Attention（Eq. 1）：Attention(Q,K,V)=softmax(QK^T/√d_k)V；符号 Q/K/V、d_k",
+      "packet_path": "review-formula-attention.json",
+      "packet_sha256": "dc6e884253b5bba558a96f70fd8f66b41a684d7ff3164260db7bda51bf2c814d",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-multihead",
+      "claim": "Multi-Head Attention（§3.2.2）：MultiHead(Q,K,V)=Concat(head_1,…,head_h)W^O；head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)",
+      "packet_path": "review-formula-multihead.json",
+      "packet_sha256": "2daa8ba1ade9e55b61f05fe39776fe9412a1f1b6d4ada39de64fd6854cf8870c",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-positional",
+      "claim": "位置编码（§3.5）：PE_{(pos,2i)}=sin(pos/10000^{2i/d_model})；PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+      "packet_path": "review-formula-positional.json",
+      "packet_sha256": "b9d9428f00e1181aa4713846f4596437081ed973e5771403669b70c451cfeb65",
+      "current_conclusion": "pending"
+    }
+  ]
+}

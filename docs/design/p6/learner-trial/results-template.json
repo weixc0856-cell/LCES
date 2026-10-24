@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "status": "not_executed",
+  "data_source": "real participants only; do not populate with simulated data",
+  "participants": [],
+  "summary": null,
+  "limitations": [
+    "No participant data exists yet.",
+    "The 7-point observation line is a proposal, not a validated cutoff.",
+    "Session timing must be recorded per participant, not inferred from TTS."
+  ]
+}

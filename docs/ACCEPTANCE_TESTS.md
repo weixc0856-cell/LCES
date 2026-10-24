@@ -253,3 +253,9 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   blocking, the contract-less `NOT_RUN` path, and the `CheckBlock` rendering.
   The real-course result is
   [`docs/design/course-product-qualification-2026-10-24.md`](design/course-product-qualification-2026-10-24.md).
+
+- Human acceptance preparation (P6): `tests/test_review_packets.py` covers
+  packet source slices and `unresolved` handling, course-usage matching,
+  stable content hashes, the index, empty signature fields and the
+  `export-review-packets` CLI. The P6 execution report is
+  [`docs/design/p6/p6-execution-2026-10-24.md`](design/p6/p6-execution-2026-10-24.md).

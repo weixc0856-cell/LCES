@@ -1,0 +1,91 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "8fbc72ff2ceacf116d75010a9d4ab6ad897581f10caeeefc902dd638fc57e3bb",
+  "review_id": "review-table2-big-ende-28.4",
+  "generated_at": "2026-10-24T03:44:02.895283Z",
+  "claim": "Transformer (big) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 28.4（Table 2，big 行）",
+  "evidence_kind": "table",
+  "paper_id": "paper-025",
+  "paper_title": "Table 2：BLEU 与训练成本对比",
+  "paper_locator": "§6.1 Table 2",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0048",
+  "locator": "§6.1 Machine Translation",
+  "program_status": "needs_review",
+  "program_reason": "column_semantics_unverified",
+  "research_finding": "verified",
+  "external_source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+  "external_source_version": "NeurIPS 2017 proceedings",
+  "external_source_locator": "Table 2, p.7; §6.1",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§6.1 Machine Translation",
+    "chunk_id": "source-001:b0048",
+    "chunk_section": "5.4 Regularization",
+    "char_start": 26271,
+    "char_end": 26927,
+    "excerpt": "\n41.16\n1.8\n⋅\n10\n20\n1.8\\cdot 10^{20}\n1.1\n⋅\n10\n21\n1.1\\cdot 10^{21}\nConvS2S Ensemble\n[\n9\n]\n26.36\n41.29\n7.7\n⋅\n10\n19\n7.7\\cdot 10^{19}\n1.2\n⋅\n10\n21\n1.2\\cdot 10^{21}\nTransformer (base model)\n27.3\n38.1\n3.3\n⋅\n𝟏𝟎\n𝟏𝟖\n3.3\\cdot 10^{18}\nTransformer (big)\n28.4\n41.8\n2.3\n⋅\n10\n19\n2.3\\cdot 10^{19}\nOn the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big) in Table\n2\n) outperforms the best previously reported models (including ensembles) by more than\n2.0\n2.0\nBLEU, establishing a new state-of-the-art BLEU score of\n28.4\n28.4\n. The configuration of this model is listed in the bottom line of Table\n3\n. Training took\n3.5\n3.5\ndays on\n",
+    "excerpt_sha256": "48e1badc6c54e59eadceb793e329ecf883ca59b6e27098f708d02944a595ffb5",
+    "source_text_sha256": "b8b257114db8c8cf49ed44c9f15dac0ceb0dc8959576a8a09772d209f836dddc",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-007:table[0]",
+      "text": "Transformer (big) | WMT 2014 EN-DE / newstest2014 | 28.4 | Table 2"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-007:bullets[1]",
+      "text": "Transformer (big) 在 EN-DE 上取得 28.4 BLEU，比此前最佳结果（含集成模型）高 2 BLEU 以上。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-008:bullets[1]",
+      "text": "比较结论：28.4 与 41.0/41.8 都带有任务、数据、模型规模与来源口径。"
+    },
+    {
+      "path": "content/reading_edition.json",
+      "location": "content/reading_edition.json#slide-007:paragraph[0]",
+      "text": "WMT 2014 EN-DE（newstest2014）：Transformer (base) 27.3 BLEU，Transformer (big) 28.4 BLEU，后者比此前最佳结果（含集成模型）高 2 BLEU 以上。"
+    },
+    {
+      "path": "internal/speaker_script.json",
+      "location": "internal/speaker_script.json#slide-007:narration",
+      "text": "现在看实验，但先讲口径。Table 2 在 WMT 2014 的 newstest2014 测试集上报告翻译质量。英德方向，base 模型是 27.3 BLEU，big 模型是 28.4 BLEU，后者比此前最佳结果、包括集成模型，高 2 BLEU 以上。英法方向有一个必须披露的来源冲突：论文第六点一节正文和 NeurIPS 会议版 Table 2 写 41.0，而本地 arXiv 版本的 Table 2 和摘要写 41.8。本课程采用 41.0 作为 Table 2 口径，同时保留 41.8，不取平均，也不静默择一。这个选择需要人工审核签署确认；在签署前，我们只声明采用哪个来源，不宣称哪个数字是作者的真实意图。训练设置方面，big 模型在 8 块 P100 上训练 3.5 天；英法方向用 P_drop 等于 0.1，英德方向用 0.3；使用 Adam，beta1 等于 0.9，beta2 等于 0.98，warmup 4000 步，标签平滑 0.1。Table 3 是消融，在英德开发集 newstest2013 上报告 BLEU dev：base 行 25.8，big 行 26.4。表里没列出的取值继承 base 行，不能理解成所有参数都相同。Table 2 还列出了训练成本，但本课程不展开具体 FLOPs，避免引入未复核的数值；你只需要理解 big 模型用更多计算换取更好质量。Table 3 的消融逐组改变头数、键维度、模型宽度、dropout 和位置编码；读表时要看每一组改了什么，未列出的值继承 base 行。英法方向的 41.0 与 41.8 冲突来自原始材料内部，不是转录错误；课程的口径是 41.0 并披露 41.8，正式裁决待人工签署。训练细节：Adam beta1 等于 0.9，beta2 等于 0.98，eps 等于 1e-9；warmup 4000 步；标签平滑 0.1；base dropout 0.1，big 0.3，英法 big 0.1。"
+    }
+  ],
+  "support_scope": "research_finding=verified；program=needs_review/column_semantics_unverified",
+  "counter_evidence": "",
+  "limitations": "The project claim-002 is abstract-level and omits 'big'; this review claim is the explicit one. A duplicate claim-017 also states the big result.",
+  "ambiguities": [
+    "正式人工签署；claim-002 本身没有写 big，课程不得把 28.4 归给 base 模型，也不得把 27.3 归给 big 模型。",
+    "原记录指向 b0050；当前 source map 把该行切在 b0048。程序状态保持 needs_review，未重新自动通过。"
+  ],
+  "reviewer_questions": [
+    "该数值是否确实属于该行、该列、该模型规模、该语言方向和该数据集？",
+    "表格脚注或正文是否改变了这个数值的适用范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-table2-big-ende-28.4 --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

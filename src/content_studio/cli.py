@@ -97,6 +97,7 @@ from content_studio.renderers import (
     graphviz_status,
     mermaid_status,
 )
+from content_studio.review_packets import build_packets
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.structured_review import record_review, record_substantive_review
@@ -433,6 +434,29 @@ def audit_product(project_dir: Path = typer.Argument(..., exists=True, file_okay
     if report.decision == "not_run":
         _exit("Gate B 未运行", code=0)
     typer.echo("Gate B 课程产品验收通过。")
+
+
+@app.command("export-review-packets")
+@guarded
+def export_review_packets(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    output: Path | None = typer.Option(
+        None, "--output", help="审核包输出目录（默认 internal/qa/review_packets）"
+    ),
+) -> None:
+    """Export read-only evidence review packets for a human reviewer."""
+
+    root, _config = _project(project_dir)
+    destination = output or (root / "internal" / "qa" / "review_packets")
+    entries, index = build_packets(root, destination)
+    typer.echo(f"审核包: {destination}")
+    typer.echo(
+        f"记录: {len(entries)} | review sha256: {index.review_file_sha256[:16]}"
+        f" | source sha256: {index.source_text_sha256[:16]}"
+    )
+    unresolved = [entry.review_id for entry in entries if entry.current_conclusion == "pending"]
+    typer.echo(f"待人工结论: {len(unresolved)}/{len(entries)}")
+    typer.echo("提示: 审核包只读；签署仍须由真实审核者通过 `lces review-evidence` 完成。")
 
 
 @app.command("approve-course-contract")

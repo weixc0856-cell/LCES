@@ -1,0 +1,481 @@
+{
+  "schema_version": "1.0",
+  "project_id": "attention-is-all-you-need",
+  "status": "pending_human_review",
+  "note": "研究核验（外部来源）、AI 实质复核（substantive_review）与正式人工签署（reviewer/reviewed_at/conclusion）三层分开存储。AI 复核的 reviewer_kind 固定为 ai，永远不是签署，也不会改变 conclusion。八条记录的 claim 与 chunk 已在 2026-10-24 的实质复核中按当前 source map 与真实原文修正；Table 2 行位于 source-001:b0048，Table 3 行位于 source-001:b0051，摘要 41.8 位于 b0026，§6.1 的 41.0 位于 b0050。",
+  "items": [
+    {
+      "review_id": "review-table2-base-27.3",
+      "local_evidence_id": "evidence-001",
+      "window": "B_results",
+      "paper_id": "paper-025",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0048",
+      "locator": "§6.1 Machine Translation",
+      "evidence_kind": "table",
+      "claim_id": "",
+      "claim_ref": "B_results:claim-001",
+      "claim": "Transformer (base) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 27.3（Table 2，base 行）",
+      "program_status": "needs_review",
+      "program_reason": "column_semantics_unverified",
+      "program_precheck": "原记录指向 b0050；当前 source map 把 Table 2 的 Transformer 行切在 b0048（该区块的 section 标签仍是 5.4）。程序状态保持 needs_review，未重新自动通过。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-025",
+          "formula_id": "",
+          "research_finding": "verified",
+          "details": "NeurIPS Table 2 base row: EN-DE 27.3, EN-FR 38.1; local source Table 2 row (arXiv extraction, b0048) also reads 27.3.",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "Table 2, p.7",
+          "transcribed_expression": "",
+          "symbol_definitions": {},
+          "dimension_check": "",
+          "derivation_check": "",
+          "limitations": "External source confirms the value and column; the program cannot prove the column mapping. Human signature still required.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:22.643494Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "Table 2 row 'Transformer (base model) 27.3 38.1' sits at source-001:b0048; the EN-DE column is confirmed by the NeurIPS 2017 Table 2.",
+        "limitations": "Course wording is checked by the course content audit, not by this record."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；确认课程以 Table 2 / newstest2014 口径引用 27.3，而不是把 27.3 当作 big 模型结果。"
+    },
+    {
+      "review_id": "review-table2-big-ende-28.4",
+      "local_evidence_id": "evidence-002",
+      "window": "B_results",
+      "paper_id": "paper-025",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0048",
+      "locator": "§6.1 Machine Translation",
+      "evidence_kind": "table",
+      "claim_id": "claim-002",
+      "claim_ref": "B_results:claim-002",
+      "claim": "Transformer (big) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 28.4（Table 2，big 行）",
+      "program_status": "needs_review",
+      "program_reason": "column_semantics_unverified",
+      "program_precheck": "原记录指向 b0050；当前 source map 把该行切在 b0048。程序状态保持 needs_review，未重新自动通过。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-025",
+          "formula_id": "",
+          "research_finding": "verified",
+          "details": "NeurIPS Table 2 and §6.1: Transformer (big) EN-DE 28.4. Local source Table 2 row (b0048) and §6.1 prose (b0050) both read 28.4.",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "Table 2, p.7; §6.1",
+          "transcribed_expression": "",
+          "symbol_definitions": {},
+          "dimension_check": "",
+          "derivation_check": "",
+          "limitations": "The project claim-002 is abstract-level and omits 'big'; this review claim is the explicit one. A duplicate claim-017 also states the big result.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:23.294001Z",
+        "finding": "partial",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "Table 2 row 'Transformer (big) 28.4 41.8' (b0048) and §6.1 prose (b0050) confirm 28.4. The linked ledger claim-002 does not name the big model, so the claim link is only partially aligned.",
+        "limitations": "The course must attribute 28.4 to Transformer (big), not to the base model."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；claim-002 本身没有写 big，课程不得把 28.4 归给 base 模型，也不得把 27.3 归给 big 模型。"
+    },
+    {
+      "review_id": "review-table2-big-enfr-conflict",
+      "local_evidence_id": "evidence-002",
+      "window": "B_results",
+      "paper_id": "paper-025",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0048",
+      "locator": "§6.1 Machine Translation",
+      "evidence_kind": "table",
+      "claim_id": "claim-003",
+      "claim_ref": "B_results:claim-002",
+      "claim": "Transformer (big) EN-FR BLEU 存在未裁决的来源冲突：本地 arXiv 源 Table 2 行 = 41.8、摘要 = 41.8、§6.1 正文 = 41.0；NeurIPS 2017 会议版 Table 2/§6.1 = 41.0。",
+      "program_status": "needs_review",
+      "program_reason": "column_semantics_unverified",
+      "program_precheck": "原记录指向 b0050；Table 2 行在当前 source map 中位于 b0048，§6.1 的 41.0 正文位于 b0050，摘要的 41.8 位于 b0026。冲突是数据，不由程序裁决。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-025",
+          "formula_id": "",
+          "research_finding": "source_conflict",
+          "details": "Local arXiv extraction: Table 2 row (b0048) 41.8, abstract (b0026) 41.8, §6.1 prose (b0050) 41.0. NeurIPS 2017 proceedings: Table 2/§6.1 state 41.0. The conflict is inside the primary materials and is preserved.",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "Table 2 (b0048); §6.1 (b0050); Abstract (b0026); NeurIPS Table 2, p.7",
+          "transcribed_expression": "",
+          "symbol_definitions": {},
+          "dimension_check": "",
+          "derivation_check": "",
+          "limitations": "Do not silently choose one value. A course describing Table 2 or §6.1 must use 41.0; a course quoting the abstract may state 41.8 only with the conflict disclosed.",
+          "sources": [
+            {
+              "source_id": "neurips-2017-original",
+              "url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+              "locator": "Table 2, p.7; §6.1"
+            },
+            {
+              "source_id": "arxiv-1706.03762",
+              "url": "https://arxiv.org/abs/1706.03762",
+              "locator": "Abstract"
+            }
+          ],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:23.946068Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "Local arXiv extraction: Table 2 41.8 (b0048), abstract 41.8 (b0026), §6.1 prose 41.0 (b0050); NeurIPS Table 2/§6.1 41.0. The record preserves both values and does not choose a winner.",
+        "limitations": "Conflict remains unresolved. The existing release/v1 HTML states 41.8 without disclosure; the course audit and release gate must block or require disclosure."
+      },
+      "conflict_status": "source_conflict",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "人工决定课程采用 Table 2/正文口径（41.0）还是摘要口径（41.8），并在同一教学单元披露另一数值；pass 需要 --conflict-ack 与写明口径的 basis。"
+    },
+    {
+      "review_id": "review-table3-big-26.4",
+      "local_evidence_id": "evidence-005",
+      "window": "B_results",
+      "paper_id": "paper-027",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0051",
+      "locator": "§6.2 Model Variations",
+      "evidence_kind": "table",
+      "claim_id": "",
+      "claim_ref": "B_results:claim-003",
+      "claim": "Table 3 big 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 26.4",
+      "program_status": "needs_review",
+      "program_reason": "column_semantics_unverified",
+      "program_precheck": "原记录指向 b0052；Table 3 的行数据在当前 source map 中位于 b0051，跨区块边界。程序状态保持 needs_review，未重新自动通过。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-027",
+          "formula_id": "",
+          "research_finding": "verified",
+          "details": "NeurIPS Table 3 big row: BLEU (dev) 26.4; the table note says metrics are on the EN-DE development set newstest2013; unlisted values inherit the base row. Local source Table 3 rows are in b0051.",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "Table 3, p.8",
+          "transcribed_expression": "",
+          "symbol_definitions": {},
+          "dimension_check": "",
+          "derivation_check": "",
+          "limitations": "The table note must be explained; omitted values are not 'all parameters equal'. The dev/test distinction must survive into the course.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:24.606625Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription"
+        ],
+        "basis": "Table 3 big row in source-001:b0051 reads 26.4 under the dev columns; the table note says metrics are on the EN-DE development set newstest2013.",
+        "limitations": "The course must keep the dev/newstest2013 condition; the audit checks that separately."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；确认课程把 26.4 标为 BLEU (dev)、EN-DE、newstest2013，不能写成测试集结果。"
+    },
+    {
+      "review_id": "review-table3-base-25.8",
+      "local_evidence_id": "evidence-004",
+      "window": "B_results",
+      "paper_id": "paper-027",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0051",
+      "locator": "§6.2 Model Variations",
+      "evidence_kind": "table",
+      "claim_id": "",
+      "claim_ref": "B_results:claim-003",
+      "claim": "Table 3 base 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 25.8（同值也出现在 (A) 组 16 头变体，base 行是表的第一行）",
+      "program_status": "needs_review",
+      "program_reason": "table_row_span_too_wide",
+      "program_precheck": "原记录的原因 table_row_span_too_wide 来自旧版 source map；当前 source map 把该行放在 b0051。重新定位不构成通过，程序状态保持 needs_review。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-027",
+          "formula_id": "",
+          "research_finding": "verified",
+          "details": "NeurIPS Table 3 base row: BLEU (dev) 25.8. The same 25.8 also appears in row (A) for h=16; the base row is the first data row. Local source rows are in b0051.",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "Table 3, p.8",
+          "transcribed_expression": "",
+          "symbol_definitions": {},
+          "dimension_check": "",
+          "derivation_check": "",
+          "limitations": "A duplicate value in the ablation table means row identity, not the number alone, must be reviewed.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:29.254433Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription"
+        ],
+        "basis": "The first Table 3 data row (base) in source-001:b0051 reads 25.8; the same value also appears in row (A) for h=16, so row identity was checked, not only the number.",
+        "limitations": "The course must use the base row, not the h=16 ablation row."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；确认 25.8 取的是 base 行第一行，而不是 (A) 组里同值的 16 头变体。"
+    },
+    {
+      "review_id": "review-formula-attention",
+      "local_evidence_id": "evidence-002",
+      "window": "A_attention",
+      "paper_id": "paper-007",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0033",
+      "locator": "§3.2.1 Scaled Dot-Product Attention",
+      "evidence_kind": "formula",
+      "claim_id": "",
+      "claim_ref": "A_attention:claim-002",
+      "claim": "Scaled Dot-Product Attention（Eq. 1）：Attention(Q,K,V)=softmax(QK^T/√d_k)V；符号 Q/K/V、d_k",
+      "program_status": "needs_review",
+      "program_reason": "formula_semantics_manual",
+      "program_precheck": "Formula element found; Q/K/V/d_k symbols match after unicode-math/v1 normalization; algebra not verified.",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-007",
+          "formula_id": "paper-007",
+          "research_finding": "verified",
+          "details": "Matches paper Eq. (1): Attention(Q,K,V)=softmax(QK^T/sqrt(d_k))V.",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "§3.2.1 Eq. (1), pp.3-4",
+          "transcribed_expression": "Attention(Q,K,V)=softmax(QK^T/sqrt(d_k))V",
+          "symbol_definitions": {
+            "Q": "queries",
+            "K": "keys",
+            "V": "values",
+            "d_k": "key/query dimension",
+            "d_v": "value dimension"
+          },
+          "dimension_check": "Q,K: d_k; V: d_v; QK^T yields n x n scores; softmax rows sum to 1; output weights V.",
+          "derivation_check": "Definition, not a derivation. The sqrt(d_k) scaling controls dot-product variance before softmax.",
+          "limitations": "Softmax weights are not human importance; the course explanation and HTML rendering were not reviewed.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:29.895656Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "Eq. (1) in source-001:b0033 reads Attention(Q,K,V)=softmax(QK^T/sqrt(d_k))V; symbol definitions and the dimension check match the paper.",
+        "limitations": "Whether the course displays and explains this formula is checked by the course content audit, not by the evidence record."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；课程是否展示并正确解释该公式由课程内容审计单独检查。"
+    },
+    {
+      "review_id": "review-formula-multihead",
+      "local_evidence_id": "evidence-003",
+      "window": "A_attention",
+      "paper_id": "paper-009",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0035",
+      "locator": "§3.2.2 Multi-Head Attention",
+      "evidence_kind": "formula",
+      "claim_id": "claim-006",
+      "claim_ref": "A_attention:claim-003",
+      "claim": "Multi-Head Attention（§3.2.2）：MultiHead(Q,K,V)=Concat(head_1,…,head_h)W^O；head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)",
+      "program_status": "needs_review",
+      "program_reason": "formula_semantics_manual",
+      "program_precheck": "Formula element found; Q/K/V/WO symbols matched; projection dimensions and concatenation order not verified by the program.",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-009",
+          "formula_id": "paper-009",
+          "research_finding": "verified",
+          "details": "Matches §3.2.2: MultiHead(Q,K,V)=Concat(head_1,...,head_h)W^O; head_i=Attention(QW_i^Q,KW_i^K,VW_i^V).",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "§3.2.2, p.4",
+          "transcribed_expression": "MultiHead(Q,K,V)=Concat(head_1,...,head_h)W^O; head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)",
+          "symbol_definitions": {
+            "h": "number of attention heads",
+            "W_i^Q": "query projection for head i",
+            "W_i^K": "key projection for head i",
+            "W_i^V": "value projection for head i",
+            "W^O": "output projection after concatenation"
+          },
+          "dimension_check": "W_i^Q,W_i^K: d_model x d_k; W_i^V: d_model x d_v; W^O: h*d_v x d_model.",
+          "derivation_check": "Per-head projections, parallel attention, concatenation, then output projection; h=8 and d_k=d_v=d_model/h=64 in the base model.",
+          "limitations": "The course must explain the purpose and the dimensions; displaying the formula is not understanding.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:20:30.524279Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "§3.2.2 in source-001:b0035 reads MultiHead(Q,K,V)=Concat(head_1,...,head_h)W^O with head_i=Attention(QW_i^Q,KW_i^K,VW_i^V); W^O is h*d_v x d_model.",
+        "limitations": "Whether the course displays and explains the projections is checked by the course content audit, not by the evidence record."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；课程是否展示并解释投影维度由课程内容审计单独检查。"
+    },
+    {
+      "review_id": "review-formula-positional",
+      "local_evidence_id": "evidence-006",
+      "window": "A_position",
+      "paper_id": "paper-014",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0040",
+      "locator": "§3.5 Positional Encoding",
+      "evidence_kind": "formula",
+      "claim_id": "claim-009",
+      "claim_ref": "A_position:claim-001",
+      "claim": "位置编码（§3.5）：PE_{(pos,2i)}=sin(pos/10000^{2i/d_model})；PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+      "program_status": "needs_review",
+      "program_reason": "formula_semantics_manual",
+      "program_precheck": "P4-B 补充：位置编码公式不在 stage B 候选批次中，程序未自动定位；区块 b0040 含 §3.5 公式，语义仍需人工核对。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-014",
+          "formula_id": "paper-014",
+          "research_finding": "verified",
+          "details": "Matches §3.5: PE_{(pos,2i)}=sin(pos/10000^{2i/d_model}), PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model}).",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "§3.5, p.6",
+          "transcribed_expression": "PE_{(pos,2i)}=sin(pos/10000^{2i/d_model}); PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+          "symbol_definitions": {
+            "pos": "position in the sequence",
+            "i": "dimension index",
+            "d_model": "embedding/model dimension"
+          },
+          "dimension_check": "PE has the same dimension as the embeddings (d_model); even dimensions use sin, odd dimensions use cos.",
+          "derivation_check": "Definition, not a derivation. Wavelengths form a geometric progression from 2π to 10000·2π.",
+          "limitations": "The paper argues this design allows extrapolation to longer sequences but reports no long-sequence experiment; that part is the authors' interpretation.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:37:50.106008Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "§3.5 in source-001:b0040 gives PE_{(pos,2i)}=sin(pos/10000^{2i/d_model}) and PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model}); the symbol definitions and dimension statement match the paper.",
+        "limitations": "The paper's extrapolation rationale is an author claim, not an experiment; course usage is checked by the course audit."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；课程是否展示并解释该公式由课程内容审计检查。"
+    }
+  ]
+}

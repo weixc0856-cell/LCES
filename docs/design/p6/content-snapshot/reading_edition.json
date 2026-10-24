@@ -1,0 +1,99 @@
+{
+  "project_id": "attention-is-all-you-need",
+  "title": "Transformer 论文精读：从自注意力到实验边界",
+  "abstract": "本课程用约 20 分钟按论文结构讲清 Transformer：问题与贡献、总体架构、缩放点积注意力、多头注意力、位置编码、复杂度与并行性、翻译实验与消融、局限与学习检查。课程区分论文事实、作者解释与课程解释，并显式披露 EN-FR 41.0/41.8 的来源冲突。",
+  "sections": [
+    {
+      "slide_id": "slide-001",
+      "title": "论文要解决的问题",
+      "paragraphs": [
+        "序列转换模型把输入序列映射为输出序列。循环网络按时间步递归计算，样本内部难以并行；卷积网络可以并行，但长距离依赖需要更多层。",
+        "Transformer 只用注意力，把任意两位置的路径长度变成常数，代价是每层 O(n²·d)。路径长度与复杂度是论文性质；并行收益取决于硬件与实现。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-002",
+      "title": "Transformer 总体架构",
+      "paragraphs": [
+        "编码器与解码器各由 N=6 个相同层堆叠。编码器每层是多头自注意力加逐位置前馈网络；解码器多一个编码器—解码器注意力，并对自注意力做掩码。每个子层都有残差连接与层归一化。",
+        "输入词嵌入与位置编码相加；输出经线性层与 softmax 得到下一个符号的分布。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-003",
+      "title": "缩放点积注意力",
+      "paragraphs": [
+        "Attention(Q,K,V)=softmax(QK^T/√d_k)V。长度为 n 时，Q、K 是 n×d_k，V 是 n×d_v；QK^T 是 n×n，softmax 沿键方向逐行归一化，输出是 n×d_v。",
+        "除以 √d_k 控制点积方差，避免 softmax 过于尖锐、梯度变小。softmax 权重不等于人类语义重要性。点积注意力在实践中比加性注意力更快，因为可以用矩阵乘法实现。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-004",
+      "title": "多头注意力",
+      "paragraphs": [
+        "MultiHead 把 Q、K、V 投影到 h 组子空间并行计算注意力，拼接后由 W^O 投影回 d_model。base 模型 h=8、d_k=d_v=d_model/h=64。",
+        "每个头输出 d_v 维，拼接后 h·d_v 维，W^O 为 h·d_v×d_model。每个头维度降低，总成本与单头全维度相近。单头会平均掉不同子空间的信息；这是论文的设计动机说明，不是对所有任务的实验保证。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-005",
+      "title": "位置编码",
+      "paragraphs": [
+        "位置编码把顺序信息加到词嵌入上：偶数维用 sin、奇数维用 cos。论文描述波长成几何级数（约从 2π 到 10000·2π，端点取决于 d_model 与维度索引）。",
+        "不同频率的组合让模型能表示相对位置。论文认为该设计有助于外推到更长序列，但没有给出超长序列实验；论文也比较了可学习的位置嵌入，结果与正弦编码几乎相同。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-006",
+      "title": "复杂度、并行性与长序列成本",
+      "paragraphs": [
+        "自注意力每层 O(n²·d)、顺序操作数 O(1)、最大路径长度 O(1)；循环层 O(n·d²)、O(n)、O(n)；卷积层 O(k·n·d²)、O(1)、O(log_k n)。",
+        "自注意力的优势来自并行度和常数路径长度，不是更低计算量。论文的条件是 n 小于 d 时自注意力比循环层更快；n 很大时二次项主导成本，这是后续稀疏/线性注意力工作的动机。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-007",
+      "title": "翻译实验、消融与来源口径",
+      "paragraphs": [
+        "WMT 2014 EN-DE（newstest2014）：Transformer (base) 27.3 BLEU，Transformer (big) 28.4 BLEU，后者比此前最佳结果（含集成模型）高 2 BLEU 以上。",
+        "WMT 2014 EN-FR 存在来源冲突：论文 §6.1 与 NeurIPS Table 2 为 41.0，本地 arXiv Table 2 与摘要为 41.8。课程采用 41.0 作为 Table 2 口径，同时披露 41.8，不取平均、不静默择一。",
+        "Table 3 在 EN-DE 开发集 newstest2013 上报告 BLEU (dev)：base 25.8，big 26.4。未列值继承 base 行；解码用 beam search，未做 checkpoint averaging。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    },
+    {
+      "slide_id": "slide-008",
+      "title": "局限、结论与学习检查",
+      "paragraphs": [
+        "局限：O(n²·d) 使长序列成本高；实验集中在翻译与句法分析，跨任务泛化需按任务验证；位置编码外推是作者解释；架构优势不等于在所有任务上都更优。",
+        "学习检查覆盖公式过程、41.0/41.8 的核对方法和并行度/计算量的区别；答案用于自测，不替代人工课程验收。"
+      ],
+      "source_ids": [
+        "source-001"
+      ]
+    }
+  ],
+  "references": [
+    "source-001"
+  ]
+}

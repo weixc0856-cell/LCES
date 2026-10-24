@@ -1,0 +1,12 @@
+{
+  "project_id": "attention-is-all-you-need",
+  "method": "tts_readthrough",
+  "measured_seconds": 1197.62,
+  "target_minutes": 20.0,
+  "script_sha256": "1d54ef0a51585d2a1804d1cef1349a774cdcc1da9c44db3fd73f8a36c7d08be3",
+  "audio_path": "var/timing/narration.wav",
+  "audio_sha256": "f0cae6195c3bf1609e84badbe9d004aafdbf171be2fad6c2f3833af95b6919a9",
+  "voice": "Microsoft Huihui Desktop",
+  "generated_at": "2026-10-24T03:15:43.899876Z",
+  "notes": "TTS read-through of the full narration. This is a measured audio duration, not a human performance; human acceptance must confirm timing."
+}

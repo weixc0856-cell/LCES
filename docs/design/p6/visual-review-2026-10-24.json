@@ -1,0 +1,200 @@
+{
+  "status": "pending_human_review",
+  "items": [
+    {
+      "page": "slides",
+      "viewport": "desktop",
+      "screenshot": "internal/qa/screenshots/slides-desktop.png",
+      "screenshot_sha256": "3e66830097bfcd54162db2f529b96cb745d21e39faa59dc68112bb4a0f97ad7c",
+      "baseline": "internal/qa/baselines/slides-desktop.png",
+      "baseline_sha256": "9d08d29c2967c668d465e43fccd091cd70af59b234ec5eac360b45f2bc043913",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "slides",
+      "viewport": "mobile",
+      "screenshot": "internal/qa/screenshots/slides-mobile.png",
+      "screenshot_sha256": "aa2165793bb4572b791598efa389dba50f8c83f8ff3d96369d3f136e1ee5e9b2",
+      "baseline": "internal/qa/baselines/slides-mobile.png",
+      "baseline_sha256": "23d7ec6f0198b65308a348eab2f923fdf2927f6f90390c774a8ea601b0e39bf8",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "slides",
+      "viewport": "hd_16_9",
+      "screenshot": "internal/qa/screenshots/slides-hd_16_9.png",
+      "screenshot_sha256": "758046a50d20039615c7ff64e893c3b42b3a47d6f308e68e1340f415478c4174",
+      "baseline": "internal/qa/baselines/slides-hd_16_9.png",
+      "baseline_sha256": "7a1921d01faf306156ca1dfccc49dfe5537c10146bee792381307f77ef1d89f6",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "slides",
+      "viewport": "qhd_16_9",
+      "screenshot": "internal/qa/screenshots/slides-qhd_16_9.png",
+      "screenshot_sha256": "e5b63dd3da5cc9ef565874543df1d8aa4674dd46b918b4bfacf410d62defcdde",
+      "baseline": "internal/qa/baselines/slides-qhd_16_9.png",
+      "baseline_sha256": "f6d49070b4e5717189dc93023d47d80a4d618f33a99357be7587b2aefa554ad1",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "slides",
+      "viewport": "uhd_16_9",
+      "screenshot": "internal/qa/screenshots/slides-uhd_16_9.png",
+      "screenshot_sha256": "e9b811ffb30bb2be2b16cac7c510f9c30e09aeea8fc1d6e8ed7b590932553f8d",
+      "baseline": "internal/qa/baselines/slides-uhd_16_9.png",
+      "baseline_sha256": "b526db553477619059202c2234c88b664758db0fe29a32d19c2f0d38e0ca2f0e",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "reading",
+      "viewport": "desktop",
+      "screenshot": "internal/qa/screenshots/reading-desktop.png",
+      "screenshot_sha256": "1fed76a06f7271cde7af60c69c65487ef12865939c6f8627e1a7580276ff367e",
+      "baseline": "internal/qa/baselines/reading-desktop.png",
+      "baseline_sha256": "90a66d877931ee458868e44d4ae251534a8a80052d4e99699043cdf78a4e749d",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "reading",
+      "viewport": "mobile",
+      "screenshot": "internal/qa/screenshots/reading-mobile.png",
+      "screenshot_sha256": "70977b71cc044103e2aacaa3f6e2e458330b58468795184cf95d71130cd6b89f",
+      "baseline": "internal/qa/baselines/reading-mobile.png",
+      "baseline_sha256": "3dd9dbf5d9b68d3eb2eb7f590e617d47941302c7d5feb77072a6518f0c518413",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "reading",
+      "viewport": "hd_16_9",
+      "screenshot": "internal/qa/screenshots/reading-hd_16_9.png",
+      "screenshot_sha256": "fe6a50221107e51a45a73616c3b93ddc18d48f24dffa974f4532347de6eb4d8d",
+      "baseline": "internal/qa/baselines/reading-hd_16_9.png",
+      "baseline_sha256": "d3a21a95b01e7cf57b05b3f82cfbf00b5185051c787f82e966d04caa0b820161",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "reading",
+      "viewport": "qhd_16_9",
+      "screenshot": "internal/qa/screenshots/reading-qhd_16_9.png",
+      "screenshot_sha256": "f70c25696c6ef0498923657812d23d6c9358f30d732fe27bb25386c2c6763a8a",
+      "baseline": "internal/qa/baselines/reading-qhd_16_9.png",
+      "baseline_sha256": "65b1a4883433fa4afa190fc7ca58084180279c4168977d42d576d262f1788383",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    },
+    {
+      "page": "reading",
+      "viewport": "uhd_16_9",
+      "screenshot": "internal/qa/screenshots/reading-uhd_16_9.png",
+      "screenshot_sha256": "7c413bf58d93c3a59f37c4f888252676721df2418007324ff7eeaa69bcd87714",
+      "baseline": "internal/qa/baselines/reading-uhd_16_9.png",
+      "baseline_sha256": "d52f060038e5af6b75212916f97377091b345d530799c28ee5a9f846ec5af1e0",
+      "automated_status": {
+        "pages_load": "pass",
+        "no_js_errors": "pass",
+        "resources_loaded": "pass",
+        "layout_no_overflow": "pass",
+        "visual_regression": "warn"
+      },
+      "human_conclusion": "pending",
+      "reviewer": "",
+      "reviewed_at": "",
+      "notes": "内容已重构；与旧基线不同，需人工确认后更新基线"
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "confirmed": 0,
+    "pending": 10
+  }
+}
