@@ -101,6 +101,27 @@ class ProviderResponseError(ProviderError):
     """The provider responded, but not with usable content."""
 
 
+class OutputTruncatedError(ProviderResponseError):
+    """The provider stopped at the output budget, so the content is partial.
+
+    Retrying the identical request will truncate again: the caller must raise
+    the budget or split the work. ``retryable`` stays true only for routing
+    purposes (another provider with a larger budget may succeed).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str = "",
+        model: str = "",
+        finish_reason: str = "",
+    ) -> None:
+        super().__init__(message, retryable=True, provider=provider)
+        self.model = model
+        self.finish_reason = finish_reason
+
+
 class RenderError(LCESError):
     """A renderer failed, or its output failed the renderer's own checks."""
 

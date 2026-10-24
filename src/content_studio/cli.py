@@ -15,16 +15,22 @@ import yaml
 from pydantic import BaseModel
 
 from content_studio import __version__
+from content_studio.course_audit import run_course_audit, write_audit
 from content_studio.errors import ConfigurationError, LCESError, RenderError
 from content_studio.eval import build_report, load_tasks, run_tasks, write_report
 from content_studio.evidence import review_claim
+from content_studio.evidence_locator import QuoteAudit, QuoteCandidate
 from content_studio.ingestion import ingest_project
 from content_studio.media import extract_frames, probe_media
 from content_studio.models import (
     ContentOutline,
+    CourseMaster,
+    CoverageMatrix,
     EvidenceLedger,
     EvidenceRecord,
     FrameManifest,
+    LearningUnit,
+    PaperMap,
     ProjectConfig,
     PublicContent,
     QAReport,
@@ -34,6 +40,8 @@ from content_studio.models import (
     ResearchBrief,
     SceneContract,
     SceneSet,
+    SectionAnalysis,
+    SourceMap,
     SourceRegistry,
     SpeakerScript,
     VideoContract,
@@ -49,6 +57,15 @@ from content_studio.paths import (
     require_project_dir,
     safe_project_id,
     template_dir,
+)
+from content_studio.planning import (
+    build_coverage,
+    coverage_gaps,
+    load_course_master,
+    load_coverage_matrix,
+    load_paper_map,
+    paper_map_sha256,
+    unknown_paper_items,
 )
 from content_studio.providers.base import GenerationRequest, Message
 from content_studio.providers.factory import LOCAL_NAMES, build_provider
@@ -69,6 +86,7 @@ from content_studio.renderers import (
 )
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
+from content_studio.structured_review import record_review, record_substantive_review
 from content_studio.supply_chain import audit_supply_chain
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
 from content_studio.utils import read_json, redact_home, write_json
@@ -319,6 +337,54 @@ def validate(project_dir: Path = typer.Argument(..., exists=True, file_okay=Fals
     if report.blocking_failures:
         _exit(f"验证失败: {len(report.blocking_failures)} 项阻断问题", code=1)
     typer.echo("自动检查通过；科学审查与人工发布审批仍需单独完成。")
+
+
+@app.command("audit-course")
+@guarded
+def audit_course(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    output: Path | None = typer.Option(None, "--output", help="审计报告输出路径"),
+    scan: list[Path] = typer.Option(
+        [], "--scan", help="额外审计的文件或目录（例如某个发布版本），可重复"
+    ),
+) -> None:
+    """Audit course numbers and formulas against the reviewed evidence."""
+
+    root, _config = _project(project_dir)
+    extra: list[Path] = []
+    for path in scan:
+        target = path if path.is_absolute() else (root / path)
+        if target.is_dir():
+            extra.extend(sorted(item for item in target.rglob("*") if item.is_file()))
+        elif target.is_file():
+            extra.append(target)
+        else:
+            _exit(f"审计目标不存在: {target}")
+    report = run_course_audit(root, extra_paths=extra)
+    path = write_audit(root, report, path=output)
+    typer.echo(f"审计报告: {path}")
+    typer.echo(
+        f"课程版本: {report.course_version[:16] or '-'} | 复核记录: {report.items_checked} |"
+        f" blocker={report.summary.get('blocker', 0)}"
+        f" major={report.summary.get('major', 0)}"
+        f" advisory={report.summary.get('advisory', 0)}"
+    )
+    for finding in report.findings:
+        color = {
+            "blocker": typer.colors.RED,
+            "major": typer.colors.YELLOW,
+            "advisory": typer.colors.CYAN,
+        }[finding.severity]
+        typer.secho(
+            f"[{finding.severity}] {finding.check_type} @ {finding.location}: "
+            f"{finding.actual} ({finding.finding_id})",
+            fg=color,
+        )
+    if report.decision in {"blocked", "needs_correction"}:
+        _exit(f"课程内容审计未通过: {report.decision}")
+    if report.decision == "not_run":
+        _exit("没有可审计的课程内容文件", code=0)
+    typer.echo("课程内容审计通过（只覆盖列出的检查项）。")
 
 
 @app.command("release-check")
@@ -648,6 +714,40 @@ def run(
     typer.echo("流水线结束；发布仍需 `lces approve` 与 `lces release`。")
 
 
+@app.command("plan-coverage")
+@guarded
+def plan_coverage(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+) -> None:
+    """Derive internal/plan/coverage_matrix.json from PaperMap + CourseMaster."""
+
+    project = require_project_dir(project_dir)
+    paper_map = load_paper_map(project)
+    master = load_course_master(project)
+    if paper_map is None:
+        _exit("缺少 internal/plan/paper_map.json；先运行 research 或提供课程蓝图")
+    if master is None:
+        _exit("缺少 internal/course_master.json；先提供课程蓝图")
+
+    unknown = unknown_paper_items(paper_map, master)
+    if unknown:
+        _exit("教学单元引用了不存在的论文要素：" + ", ".join(unknown))
+
+    matrix = build_coverage(
+        paper_map,
+        master,
+        paper_map_sha256=paper_map_sha256(project),
+        previous=load_coverage_matrix(project),
+    )
+    path = write_json(project / "internal" / "plan" / "coverage_matrix.json", matrix)
+    typer.echo(f"写入 {path}")
+
+    gaps = coverage_gaps(paper_map, matrix)
+    if gaps:
+        _exit("必需要素没有教学单元：" + ", ".join(gaps))
+    typer.echo(f"覆盖完整：{len(paper_map.elements)} 个论文要素")
+
+
 @app.command("export-schemas")
 @guarded
 def export_schemas(
@@ -660,9 +760,17 @@ def export_schemas(
         "source_registry": SourceRegistry,
         "evidence": EvidenceRecord,
         "evidence_ledger": EvidenceLedger,
+        "quote_candidate": QuoteCandidate,
+        "quote_audit": QuoteAudit,
         "research_brief": ResearchBrief,
         "research_analysis": ResearchAnalysis,
+        "section_analysis": SectionAnalysis,
+        "source_map": SourceMap,
         "content_outline": ContentOutline,
+        "paper_map": PaperMap,
+        "coverage_matrix": CoverageMatrix,
+        "learning_unit": LearningUnit,
+        "course_master": CourseMaster,
         "public_content": PublicContent,
         "speaker_script": SpeakerScript,
         "reading_edition": ReadingEdition,
@@ -863,6 +971,88 @@ def review_claims(
         f" {updated.reviewer} @ {updated.reviewed_at}"
     )
     typer.echo("提示: 重新运行 `lces validate` 让 Gate 1 反映该核验结果。")
+
+
+@app.command("review-evidence")
+@guarded
+def review_evidence(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    review_id: str = typer.Option(..., "--review-id", help="结构化证据复核记录 ID"),
+    by: str = typer.Option(..., "--by", help="复核人"),
+    conclusion: str = typer.Option(
+        ...,
+        "--conclusion",
+        help="pass | fail | needs_revision | blocked",
+    ),
+    basis: str = typer.Option(..., "--basis", help="复核依据"),
+    missing: str = typer.Option("", "--missing", help="仍然缺少的信息"),
+    conflict_ack: bool = typer.Option(
+        False, "--conflict-ack", help="确认来源冲突已披露（冲突项 pass 时必需）"
+    ),
+    review_file: Path | None = typer.Option(
+        None, "--review-file", exists=True, dir_okay=False, help="复核记录 JSON"
+    ),
+) -> None:
+    """Record one human decision for structured evidence (research stays separate)."""
+
+    root, _config = _project(project_dir)
+    item = record_review(
+        root,
+        review_id,
+        by,
+        conclusion,
+        basis,
+        missing=missing,
+        conflict_ack=conflict_ack,
+        review_path=review_file,
+    )
+    typer.echo(f"{item.review_id} -> {item.conclusion} | {item.reviewer} @ {item.reviewed_at}")
+    typer.echo(
+        "提示: 研究核验（research_verification）与人工签署分开；"
+        "此命令不改变证据定位状态，也不自动通过冲突项。"
+    )
+
+
+@app.command("review-evidence-ai")
+@guarded
+def review_evidence_ai(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    review_id: str = typer.Option(..., "--review-id", help="结构化证据复核记录 ID"),
+    by: str = typer.Option(..., "--by", help="AI 复核者标识（不得写成人名冒充签署）"),
+    finding: str = typer.Option(
+        ..., "--finding", help="consistent | inconsistent | partial | not_assessed"
+    ),
+    scope: list[str] = typer.Option(
+        ...,
+        "--scope",
+        help="source_transcription | claim_interpretation | course_usage（可重复）",
+    ),
+    basis: str = typer.Option(..., "--basis", help="复核依据与对照的原文位置"),
+    limitations: str = typer.Option("", "--limitations", help="本次复核不覆盖的范围"),
+    review_file: Path | None = typer.Option(
+        None, "--review-file", exists=True, dir_okay=False, help="复核记录 JSON"
+    ),
+) -> None:
+    """Record an AI substantive review; the human conclusion stays untouched."""
+
+    root, _config = _project(project_dir)
+    item = record_substantive_review(
+        root,
+        review_id,
+        by,
+        finding,
+        list(scope),
+        basis,
+        limitations=limitations,
+        review_path=review_file,
+    )
+    record = item.substantive_review
+    assert record is not None  # the writer above always sets it
+    typer.echo(
+        f"{item.review_id} -> AI {record.finding} ({', '.join(record.scopes)}) |"
+        f" {record.reviewer} @ {record.reviewed_at}"
+    )
+    typer.echo(f"人工结论保持不变: {item.conclusion}（AI 复核不是签署）")
 
 
 @app.command("media-check")

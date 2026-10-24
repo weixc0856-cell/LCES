@@ -1,0 +1,310 @@
+{
+  "project_id": "attention-is-all-you-need",
+  "source_ids": [
+    "source-001"
+  ],
+  "parser": "manual-blueprint/1",
+  "generated_at": "2026-10-23T00:00:00Z",
+  "elements": [
+    {
+      "paper_item_id": "paper-001",
+      "kind": "section",
+      "title": "摘要：研究问题与报告结果",
+      "locator": "Abstract",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-002",
+      "kind": "section",
+      "title": "引言：序列建模的瓶颈与本文贡献",
+      "locator": "§1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-003",
+      "kind": "section",
+      "title": "相关工作：RNN、CNN 与注意力",
+      "locator": "§2",
+      "required": false,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-004",
+      "kind": "section",
+      "title": "模型总体架构",
+      "locator": "§3",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-005",
+      "kind": "section",
+      "title": "编码器与解码器堆叠",
+      "locator": "§3.1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-006",
+      "kind": "section",
+      "title": "缩放点积注意力",
+      "locator": "§3.2.1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-007",
+      "kind": "equation",
+      "title": "注意力公式与缩放因子",
+      "locator": "§3.2.1 公式",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-008",
+      "kind": "section",
+      "title": "多头注意力",
+      "locator": "§3.2.2",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-009",
+      "kind": "equation",
+      "title": "多头注意力的投影与拼接公式",
+      "locator": "§3.2.2 公式",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-010",
+      "kind": "section",
+      "title": "注意力在本模型中的三种用法",
+      "locator": "§3.2.3",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-011",
+      "kind": "section",
+      "title": "逐位置前馈网络",
+      "locator": "§3.3",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-012",
+      "kind": "section",
+      "title": "词嵌入与 Softmax",
+      "locator": "§3.4",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-013",
+      "kind": "section",
+      "title": "位置编码",
+      "locator": "§3.5",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-014",
+      "kind": "equation",
+      "title": "正弦位置编码公式",
+      "locator": "§3.5 公式",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-015",
+      "kind": "section",
+      "title": "为什么选择自注意力",
+      "locator": "§4",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-016",
+      "kind": "table",
+      "title": "Table 1：各层类型的复杂度与路径长度",
+      "locator": "§4 Table 1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-017",
+      "kind": "figure",
+      "title": "Figure 1：Transformer 架构图",
+      "locator": "§3 Figure 1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-018",
+      "kind": "figure",
+      "title": "Figure 2：注意力可视化",
+      "locator": "§3.2.3 Figure 2",
+      "required": false,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-019",
+      "kind": "section",
+      "title": "训练设置总览",
+      "locator": "§5",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-020",
+      "kind": "experiment",
+      "title": "训练数据与批处理",
+      "locator": "§5.1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-021",
+      "kind": "experiment",
+      "title": "硬件与训练时间表",
+      "locator": "§5.2",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-022",
+      "kind": "experiment",
+      "title": "优化器与学习率调度",
+      "locator": "§5.3",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-023",
+      "kind": "experiment",
+      "title": "正则化（残差 dropout、标签平滑）",
+      "locator": "§5.4",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-024",
+      "kind": "result",
+      "title": "WMT 2014 机器翻译结果",
+      "locator": "§6.1",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-025",
+      "kind": "table",
+      "title": "Table 2：BLEU 与训练成本对比",
+      "locator": "§6.1 Table 2",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-026",
+      "kind": "ablation",
+      "title": "模型变体（Table 3）",
+      "locator": "§6.2",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-027",
+      "kind": "table",
+      "title": "Table 3：模型变体结果",
+      "locator": "§6.2 Table 3",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-028",
+      "kind": "experiment",
+      "title": "英语成分句法分析",
+      "locator": "§6.3",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-029",
+      "kind": "conclusion",
+      "title": "结论与后续影响",
+      "locator": "§7",
+      "required": true,
+      "status": "unverified",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-030",
+      "kind": "limitation",
+      "title": "局限与适用边界",
+      "locator": "无独立章节",
+      "required": true,
+      "status": "not_found",
+      "evidence_ids": [],
+      "notes": "论文没有独立的 Limitations 章节；课程须从 §4 复杂度讨论与 §6.2 变体结果归纳，并明确标注为课程解释。"
+    }
+  ]
+}

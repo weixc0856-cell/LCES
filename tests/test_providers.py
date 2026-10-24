@@ -1,12 +1,17 @@
 import pytest
 
-from content_studio.errors import ConfigurationError, ProviderResponseError
+from content_studio.errors import (
+    ConfigurationError,
+    OutputTruncatedError,
+    ProviderResponseError,
+)
 from content_studio.models import ContentOutline
 from content_studio.providers.base import (
     GenerationRequest,
     GenerationResult,
     Message,
     ModelProvider,
+    Usage,
 )
 from content_studio.providers.factory import build_provider
 from content_studio.providers.mock import MockProvider
@@ -39,14 +44,28 @@ class ScriptedProvider(ModelProvider):
     name = "scripted"
     model = "scripted-1"
 
-    def __init__(self, outputs: list[str]) -> None:
+    def __init__(
+        self,
+        outputs: list[str],
+        *,
+        finish_reason: str = "",
+        usage: Usage | None = None,
+    ) -> None:
         self.outputs = list(outputs)
         self.calls = 0
+        self.finish_reason = finish_reason
+        self.usage = usage or Usage()
 
     def generate(self, request: GenerationRequest) -> GenerationResult:
         self.calls += 1
         text = self.outputs.pop(0)
-        self.last_result = GenerationResult(text=text, provider=self.name, model=self.model)
+        self.last_result = GenerationResult(
+            text=text,
+            provider=self.name,
+            model=self.model,
+            usage=self.usage,
+            finish_reason=self.finish_reason,
+        )
         return self.last_result
 
 
@@ -71,6 +90,38 @@ def test_structured_output_fails_after_repair():
     provider = ScriptedProvider(["nope", "still nope"])
     with pytest.raises(ProviderResponseError):
         provider.generate_structured(_request(), ContentOutline)
+
+
+def test_structured_output_rejects_a_truncated_response():
+    provider = ScriptedProvider([VALID_OUTLINE], finish_reason="length")
+
+    with pytest.raises(OutputTruncatedError) as caught:
+        provider.generate_structured(_request(), ContentOutline)
+
+    assert caught.value.finish_reason == "length"
+    assert caught.value.provider == "scripted"
+    assert provider.calls == 1
+
+
+def test_structured_usage_sums_every_call_in_the_stage():
+    provider = ScriptedProvider(
+        [VALID_OUTLINE, VALID_OUTLINE], usage=Usage(input_tokens=1, output_tokens=2)
+    )
+
+    provider.generate_structured(_request(), ContentOutline)
+    provider.generate_structured(_request(), ContentOutline)
+
+    assert provider.structured_usage.input_tokens == 2
+    assert provider.structured_usage.output_tokens == 4
+    assert provider.structured_usage.total_tokens == 6
+
+
+def test_max_tokens_reaches_the_request_unchanged():
+    provider = ScriptedProvider([VALID_OUTLINE])
+    provider.generate_structured(
+        GenerationRequest(messages=[Message("user", "x")], max_tokens=16384), ContentOutline
+    )
+    assert provider.calls == 1
 
 
 def test_extract_json_object_handles_prose():

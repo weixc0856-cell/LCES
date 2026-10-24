@@ -248,6 +248,15 @@ def test_unicode_punctuation_is_normalised(tmp_path):
     assert checks[0].status == "pass"
 
 
+def test_zero_width_characters_are_normalised(tmp_path):
+    checks = _quote_project(
+        tmp_path,
+        "based solely on attention mechanisms",
+        source="The Transformer is based​ solely on attention mechanisms.",
+    )
+    assert checks[0].status == "pass"
+
+
 def test_near_match_with_different_words_fails(tmp_path):
     checks = _quote_project(
         tmp_path,

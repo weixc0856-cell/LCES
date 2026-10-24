@@ -1,0 +1,321 @@
+{
+  "project_id": "attention-is-all-you-need",
+  "paper_map_sha256": "f64fd2da0f6991ba3872c567e2022242a6eb7b59ac2520a3c1bf98c337094dba",
+  "entries": [
+    {
+      "paper_item_id": "paper-001",
+      "required": true,
+      "covered_by": [
+        "unit-002",
+        "unit-005",
+        "unit-020"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": "摘要中的问题与结果分别在贡献清单与结果解读中讲解。"
+    },
+    {
+      "paper_item_id": "paper-002",
+      "required": true,
+      "covered_by": [
+        "unit-001",
+        "unit-004",
+        "unit-005"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-003",
+      "required": false,
+      "covered_by": [
+        "unit-003"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-004",
+      "required": true,
+      "covered_by": [
+        "unit-006"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-005",
+      "required": true,
+      "covered_by": [
+        "unit-006",
+        "unit-015"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-006",
+      "required": true,
+      "covered_by": [
+        "unit-008",
+        "unit-009",
+        "unit-010"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-007",
+      "required": true,
+      "covered_by": [
+        "unit-009"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-008",
+      "required": true,
+      "covered_by": [
+        "unit-011",
+        "unit-012"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-009",
+      "required": true,
+      "covered_by": [
+        "unit-011"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-010",
+      "required": true,
+      "covered_by": [
+        "unit-010",
+        "unit-012",
+        "unit-015"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-011",
+      "required": true,
+      "covered_by": [
+        "unit-007"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-012",
+      "required": true,
+      "covered_by": [
+        "unit-007",
+        "unit-016"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-013",
+      "required": true,
+      "covered_by": [
+        "unit-013",
+        "unit-014"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-014",
+      "required": true,
+      "covered_by": [
+        "unit-013"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-015",
+      "required": true,
+      "covered_by": [
+        "unit-004",
+        "unit-023"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-016",
+      "required": true,
+      "covered_by": [
+        "unit-023"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-017",
+      "required": true,
+      "covered_by": [
+        "unit-006"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-018",
+      "required": false,
+      "covered_by": [],
+      "status": "not_applicable",
+      "evidence_ids": [],
+      "notes": "注意力可视化为可选素材，不单独承担教学单元。"
+    },
+    {
+      "paper_item_id": "paper-019",
+      "required": true,
+      "covered_by": [
+        "unit-017",
+        "unit-025"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-020",
+      "required": true,
+      "covered_by": [
+        "unit-017"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-021",
+      "required": true,
+      "covered_by": [
+        "unit-017"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-022",
+      "required": true,
+      "covered_by": [
+        "unit-018",
+        "unit-025"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-023",
+      "required": true,
+      "covered_by": [
+        "unit-018",
+        "unit-025"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-024",
+      "required": true,
+      "covered_by": [
+        "unit-019",
+        "unit-020"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-025",
+      "required": true,
+      "covered_by": [
+        "unit-020"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-026",
+      "required": true,
+      "covered_by": [
+        "unit-022"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-027",
+      "required": true,
+      "covered_by": [
+        "unit-022"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-028",
+      "required": true,
+      "covered_by": [
+        "unit-021"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-029",
+      "required": true,
+      "covered_by": [
+        "unit-024"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": ""
+    },
+    {
+      "paper_item_id": "paper-030",
+      "required": true,
+      "covered_by": [
+        "unit-024"
+      ],
+      "status": "covered",
+      "evidence_ids": [],
+      "notes": "论文没有独立局限章节；unit-024 必须把归纳内容标注为课程解释。"
+    }
+  ]
+}

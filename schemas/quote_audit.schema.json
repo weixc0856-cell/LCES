@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "QuoteReview": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "chunk_id": {
+          "default": "",
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "verified_exact",
+            "verified_normalized",
+            "needs_review",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "candidate": {
+          "title": "Candidate",
+          "type": "string"
+        },
+        "locator": {
+          "default": "",
+          "title": "Locator",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "claim_id",
+        "source_id",
+        "status",
+        "reason",
+        "candidate"
+      ],
+      "title": "QuoteReview",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "total": {
+      "default": 0,
+      "title": "Total",
+      "type": "integer"
+    },
+    "verified_exact": {
+      "default": 0,
+      "title": "Verified Exact",
+      "type": "integer"
+    },
+    "verified_normalized": {
+      "default": 0,
+      "title": "Verified Normalized",
+      "type": "integer"
+    },
+    "needs_review": {
+      "default": 0,
+      "title": "Needs Review",
+      "type": "integer"
+    },
+    "rejected": {
+      "default": 0,
+      "title": "Rejected",
+      "type": "integer"
+    },
+    "section_resolved": {
+      "default": 0,
+      "title": "Section Resolved",
+      "type": "integer"
+    },
+    "reasons": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Reasons",
+      "type": "object"
+    },
+    "reviews": {
+      "items": {
+        "$ref": "#/$defs/QuoteReview"
+      },
+      "title": "Reviews",
+      "type": "array"
+    }
+  },
+  "title": "QuoteAudit",
+  "type": "object"
+}

@@ -115,7 +115,12 @@ LCES_LOCAL_PROMPT_CHAR_BUDGET=20000
 - `LCES_LOCAL_JSON_MODE=false`：仅当该 llama-server 版本不支持 `response_format`
   时使用；结构化输出仍由提示词 + Pydantic 校验兜底。
 - 上下文预算：32K 档位下 `LCES_LOCAL_PROMPT_CHAR_BUDGET` 建议 16000–20000。
-  超出上下文时适配器会报 provider 错误，不会悄悄截断资料。
+  这是分节研究**每次调用**的原文窗口上限；长论文会拆成多次调用后合并，
+  不会截断开头。窗口仍超出上下文时适配器会报 provider 错误，不会悄悄截断资料。
+- 输出与超时：30B 本地模型约 10–13 tokens/s，研究阶段应使用
+  `LCES_RESEARCH_MAX_OUTPUT_TOKENS=4096`，并把 `LCES_LOCAL_TIMEOUT_SECONDS`
+  设为 900。300 秒超时配合 8192 输出上限会让请求在完成前被取消；
+  取消会显式失败，不会把半截结果写入研究记录。
 - 路由文件（`config/routing.yaml`）可以把 `research` 指向云端模型、`generate`
   留在本地；`ingest/build/validate` 永远不调用模型。
 

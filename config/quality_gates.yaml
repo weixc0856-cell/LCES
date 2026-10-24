@@ -21,9 +21,20 @@ gates:
       - public_text_clean
       - citations_have_source_ids
       - no_mock_provider_in_release
+      # Blocks when PaperMap + CourseMaster + coverage matrix exist and a
+      # required paper element has no teaching unit; reports NOT_RUN when the
+      # planning data is absent (absence is not evidence of coverage).
+      - coverage_matrix_complete
+      # Blocks when a course number or formula disagrees with the reviewed
+      # evidence, when a source conflict is not disclosed, or when a reviewed
+      # formula is not shown. Reads internal/qa/course_content_audit.json and
+      # rewrites it for the audited file hashes.
+      - course_content_audit
     advisory_checks:
       - duration_within_tolerance
-    not_run: []
+    not_run:
+      - coverage_matrix_complete  # only when no planning data exists
+      - course_content_audit  # only when the project has no public content
   gate_3_engineering:
     blocking_checks:
       - public_html_built
@@ -42,5 +53,15 @@ gates:
       - no_secret_patterns
       - manifest_hashes_match
       - human_approval_recorded
+      # Structured evidence: links must resolve, every record needs a human
+      # conclusion, and a source conflict needs an explicit acknowledgement.
+      - structured_evidence_review_valid
+      - structured_evidence_signed
+      - source_conflicts_acknowledged
+      # The audit must describe the exact files being released; editing the
+      # course after an audit invalidates it instead of inheriting a pass.
+      - course_content_audit_current
+      - course_content_audit_passed
+      - release_matches_audited_content
     not_run:
       - media_decode_check

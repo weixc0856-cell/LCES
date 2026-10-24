@@ -117,6 +117,8 @@ class AnthropicProvider(ModelProvider):
             model=str(data.get("model") or self.model),
             usage=usage,
             latency_ms=latency,
+            finish_reason=str(data.get("stop_reason") or ""),
+            request_id=str(data.get("id") or ""),
         )
 
     def close(self) -> None:

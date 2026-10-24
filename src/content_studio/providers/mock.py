@@ -192,8 +192,50 @@ def _reading_payload(request: GenerationRequest) -> dict[str, Any]:
     }
 
 
+def _section_payload(request: GenerationRequest) -> dict[str, Any]:
+    source_id = _source_ids(request)[0]
+    return {
+        "section": "MOCK 章节",
+        "summary": "MOCK 分节摘要：仅用于验证结构，不含真实研究结论。",
+        "claims": [
+            {
+                "claim_id": "claim-001",
+                "statement": "MOCK 占位主张：必须替换为来源中可核验的结论。",
+                "claim_type": "unknown",
+                "importance": "key",
+            }
+        ],
+        "evidence": [
+            {
+                "evidence_id": "evidence-001",
+                "source_id": source_id,
+                "claim_id": "claim-001",
+                "evidence_type": "analysis",
+                "locator": "MOCK",
+                "source_excerpt": "MOCK：未从来源中实际摘录。",
+                "support_relation": "background",
+                "verification_status": "unverified",
+                "reviewer": "",
+                "notes": "Mock 数据不得用于发布。",
+            }
+        ],
+        "paper_elements": [
+            {
+                "kind": "section",
+                "title": "MOCK 章节",
+                "locator": "MOCK",
+                "notes": "占位结构，不代表真实论文要素。",
+            }
+        ],
+        "unknowns": ["MOCK：真实研究、实验与数据均未获取。"],
+        "limitations": ["MOCK：结果仅用于工程测试。"],
+        "source_conflicts": [],
+    }
+
+
 _BUILDERS: dict[str, Callable[[GenerationRequest], dict[str, Any]]] = {
     "ResearchAnalysis": _research_payload,
+    "SectionAnalysis": _section_payload,
     "ContentOutline": _outline_payload,
     "PublicContent": _public_payload,
     "SpeakerScript": _script_payload,
@@ -219,6 +261,7 @@ class MockProvider(ModelProvider):
             model=self.model,
             usage=usage,
             latency_ms=elapsed_ms(started),
+            finish_reason="stop",
         )
 
     def generate_structured(self, request: GenerationRequest, schema: type[BaseModel]) -> Any:
@@ -234,5 +277,6 @@ class MockProvider(ModelProvider):
             provider=self.name,
             model=self.model,
             usage=Usage(input_tokens=0, output_tokens=0),
+            finish_reason="stop",
         )
         return schema.model_validate(payload)

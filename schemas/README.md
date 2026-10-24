@@ -18,8 +18,16 @@ which belongs to Phase 3).
 | `evidence.schema.json` | `EvidenceRecord` |
 | `evidence_ledger.schema.json` | `EvidenceLedger` |
 | `research_brief.schema.json` | `ResearchBrief` |
-| `research_analysis.schema.json` | `ResearchAnalysis` (model output) |
+| `research_analysis.schema.json` | `ResearchAnalysis` (single-call research output) |
+| `quote_candidate.schema.json` | `QuoteCandidate` (model proposal before location) |
+| `quote_audit.schema.json` | `QuoteAudit` (exact/normalized/review/rejected counts) |
+| `section_analysis.schema.json` | `SectionAnalysis` (one sectioned-research window) |
+| `source_map.schema.json` | `SourceMap` (page/section/chunk boundaries) |
 | `content_outline.schema.json` | `ContentOutline` |
+| `paper_map.schema.json` | `PaperMap` (internal paper structure) |
+| `coverage_matrix.schema.json` | `CoverageMatrix` (paper element → units) |
+| `learning_unit.schema.json` | `LearningUnit` (internal unit of generation) |
+| `course_master.schema.json` | `CourseMaster` (single internal course source) |
 | `public_content.schema.json` | `PublicContent` (public only) |
 | `speaker_script.schema.json` | `SpeakerScript` (internal only) |
 | `reading_edition.schema.json` | `ReadingEdition` |

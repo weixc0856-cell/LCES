@@ -1,7 +1,23 @@
 import pytest
 from pydantic import ValidationError
 
-from content_studio.models import SceneContract, SceneSet, VideoContract, VisualAsset
+from content_studio.models import (
+    Claim,
+    CourseChapter,
+    CourseMaster,
+    CoverageEntry,
+    CoverageMatrix,
+    EvidenceRecord,
+    LearningUnit,
+    PaperElement,
+    PaperMap,
+    ParagraphBlock,
+    SceneContract,
+    SceneSet,
+    SectionAnalysis,
+    VideoContract,
+    VisualAsset,
+)
 
 
 def _asset(**overrides) -> VisualAsset:
@@ -160,3 +176,139 @@ def test_scene_set_keeps_order_and_rejects_duplicates():
 def test_scene_set_needs_at_least_one_scene():
     with pytest.raises(ValidationError):
         SceneSet(scenes=[])
+
+
+def _paper_element(item_id: str = "paper-001", **overrides) -> PaperElement:
+    values = {
+        "paper_item_id": item_id,
+        "kind": "section",
+        "title": "Abstract",
+        "locator": "Abstract",
+    }
+    values.update(overrides)
+    return PaperElement(**values)
+
+
+def _unit(unit_id: str = "unit-001", **overrides) -> LearningUnit:
+    values = {
+        "unit_id": unit_id,
+        "chapter_id": "chapter-001",
+        "title": "注意力",
+        "unit_type": "concept",
+        "estimated_minutes": 3,
+    }
+    values.update(overrides)
+    return LearningUnit(**values)
+
+
+def test_paper_map_rejects_duplicate_item_ids():
+    with pytest.raises(ValidationError, match="unique"):
+        PaperMap(
+            project_id="demo",
+            elements=[_paper_element(), _paper_element()],
+        )
+
+
+def test_coverage_entry_status_must_match_units():
+    with pytest.raises(ValidationError, match="requires at least one unit"):
+        CoverageEntry(paper_item_id="paper-001", status="covered")
+    with pytest.raises(ValidationError, match="must not name units"):
+        CoverageEntry(
+            paper_item_id="paper-001",
+            status="missing",
+            covered_by=["unit-001"],
+        )
+
+
+def test_coverage_matrix_rejects_duplicate_paper_items():
+    with pytest.raises(ValidationError, match="unique"):
+        CoverageMatrix(
+            project_id="demo",
+            entries=[
+                CoverageEntry(paper_item_id="paper-001", status="missing"),
+                CoverageEntry(paper_item_id="paper-001", status="missing"),
+            ],
+        )
+
+
+def test_generated_unit_requires_a_body():
+    with pytest.raises(ValidationError, match="has no body"):
+        _unit(status="generated")
+
+    unit = _unit(status="generated", body=[ParagraphBlock(text="正文")])
+    assert unit.status == "generated"
+
+
+def test_course_master_requires_chapter_order_and_known_units():
+    chapter = CourseChapter(chapter_id="chapter-001", title="第一章", unit_ids=["unit-001"])
+
+    master = CourseMaster(
+        project_id="demo",
+        title="课程",
+        chapters=[chapter],
+        units=[_unit()],
+    )
+    assert master.status == "draft"
+    assert master.schema_version == "1.0"
+
+    with pytest.raises(ValidationError, match="unknown unit"):
+        CourseMaster(
+            project_id="demo",
+            title="课程",
+            chapters=[
+                CourseChapter(chapter_id="chapter-001", title="第一章", unit_ids=["unit-999"])
+            ],
+            units=[_unit()],
+        )
+
+    with pytest.raises(ValidationError, match="chapter order"):
+        CourseMaster(
+            project_id="demo",
+            title="课程",
+            chapters=[
+                CourseChapter(
+                    chapter_id="chapter-001", title="第一章", unit_ids=["unit-001", "unit-002"]
+                )
+            ],
+            units=[_unit("unit-002"), _unit("unit-001")],
+        )
+
+    with pytest.raises(ValidationError, match="unknown units"):
+        CourseMaster(
+            project_id="demo",
+            title="课程",
+            chapters=[chapter],
+            units=[_unit()],
+            coverage=[
+                CoverageEntry(paper_item_id="paper-001", status="covered", covered_by=["unit-404"])
+            ],
+        )
+
+
+def test_section_analysis_requires_unique_local_ids():
+    claim = Claim(claim_id="claim-001", statement="A fact", claim_type="fact")
+    with pytest.raises(ValidationError, match="unique"):
+        SectionAnalysis(claims=[claim, claim.model_copy()])
+
+    evidence = EvidenceRecord(
+        evidence_id="evidence-001",
+        source_id="source-001",
+        claim_id="claim-001",
+        evidence_type="quote",
+        support_relation="supports",
+    )
+    with pytest.raises(ValidationError, match="unique"):
+        SectionAnalysis(evidence=[evidence, evidence.model_copy()])
+
+
+def test_course_master_rejects_unsupported_schema_major():
+    with pytest.raises(ValidationError, match="unsupported course master"):
+        CourseMaster(
+            schema_version="2.0",
+            project_id="demo",
+            title="课程",
+            chapters=[
+                CourseChapter(chapter_id="chapter-001", title="第一章", unit_ids=["unit-001"])
+            ],
+            units=[_unit()],
+        )

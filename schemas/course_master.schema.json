@@ -1,0 +1,757 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AnimationBlock": {
+      "additionalProperties": false,
+      "description": "An animation backed by a structured scene file, never generated code.\n\nP2.1 admits one animation per course and one scene per animation. The\nscene file lives under ``content/scenes/`` and is validated by the\nrenderer's contract before any frames are produced.",
+      "properties": {
+        "type": {
+          "const": "animation",
+          "default": "animation",
+          "title": "Type",
+          "type": "string"
+        },
+        "scene_file": {
+          "minLength": 1,
+          "title": "Scene File",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_file",
+        "alt"
+      ],
+      "title": "AnimationBlock",
+      "type": "object"
+    },
+    "BulletsBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "bullets",
+          "default": "bullets",
+          "title": "Type",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "BulletsBlock",
+      "type": "object"
+    },
+    "CalloutBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "callout",
+          "default": "callout",
+          "title": "Type",
+          "type": "string"
+        },
+        "kind": {
+          "default": "note",
+          "enum": [
+            "note",
+            "warning",
+            "limitation",
+            "assumption"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "CalloutBlock",
+      "type": "object"
+    },
+    "ChartBlock": {
+      "additionalProperties": false,
+      "description": "A statistical chart described by data plus a Vega-Lite spec.\n\nThe rendered SVG is derived at build time; the block carries no markup.",
+      "properties": {
+        "type": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Type",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "spec": {
+          "additionalProperties": true,
+          "title": "Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "alt"
+      ],
+      "title": "ChartBlock",
+      "type": "object"
+    },
+    "CodeBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "code",
+          "default": "code",
+          "title": "Type",
+          "type": "string"
+        },
+        "language": {
+          "default": "text",
+          "title": "Language",
+          "type": "string"
+        },
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "CodeBlock",
+      "type": "object"
+    },
+    "CourseChapter": {
+      "additionalProperties": false,
+      "properties": {
+        "chapter_id": {
+          "pattern": "^chapter-[0-9]{3,}$",
+          "title": "Chapter Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "objectives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Objectives",
+          "type": "array"
+        },
+        "unit_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Unit Ids",
+          "type": "array"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "chapter_id",
+        "title",
+        "unit_ids"
+      ],
+      "title": "CourseChapter",
+      "type": "object"
+    },
+    "CoverageEntry": {
+      "additionalProperties": false,
+      "description": "Where one paper element is taught (or why it is not).",
+      "properties": {
+        "paper_item_id": {
+          "pattern": "^paper-[0-9]{3,}$",
+          "title": "Paper Item Id",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "covered_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Covered By",
+          "type": "array"
+        },
+        "status": {
+          "default": "missing",
+          "enum": [
+            "covered",
+            "partial",
+            "missing",
+            "not_applicable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "paper_item_id"
+      ],
+      "title": "CoverageEntry",
+      "type": "object"
+    },
+    "DiagramBlock": {
+      "additionalProperties": false,
+      "description": "A flowchart or sequence diagram written in Mermaid source.",
+      "properties": {
+        "type": {
+          "const": "diagram",
+          "default": "diagram",
+          "title": "Type",
+          "type": "string"
+        },
+        "mermaid": {
+          "minLength": 1,
+          "title": "Mermaid",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mermaid",
+        "alt"
+      ],
+      "title": "DiagramBlock",
+      "type": "object"
+    },
+    "FigureBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "figure",
+          "default": "figure",
+          "title": "Type",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "alt"
+      ],
+      "title": "FigureBlock",
+      "type": "object"
+    },
+    "FormulaBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "formula",
+          "default": "formula",
+          "title": "Type",
+          "type": "string"
+        },
+        "latex": {
+          "minLength": 1,
+          "title": "Latex",
+          "type": "string"
+        },
+        "explanation": {
+          "default": "",
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "latex"
+      ],
+      "title": "FormulaBlock",
+      "type": "object"
+    },
+    "GraphBlock": {
+      "additionalProperties": false,
+      "description": "A relationship graph written in Graphviz DOT.",
+      "properties": {
+        "type": {
+          "const": "graph",
+          "default": "graph",
+          "title": "Type",
+          "type": "string"
+        },
+        "dot": {
+          "minLength": 1,
+          "title": "Dot",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dot",
+        "alt"
+      ],
+      "title": "GraphBlock",
+      "type": "object"
+    },
+    "LearningUnit": {
+      "additionalProperties": false,
+      "description": "The unit of generation and review. One unit may span several slides.\n\n``body`` is public content; ``narration`` and the evidence/claim refs are\ninternal. The assembler splits this model into ``PublicContent`` and\n``SpeakerScript``; a template must never receive it directly.",
+      "properties": {
+        "unit_id": {
+          "pattern": "^unit-[0-9]{3,}$",
+          "title": "Unit Id",
+          "type": "string"
+        },
+        "chapter_id": {
+          "pattern": "^chapter-[0-9]{3,}$",
+          "title": "Chapter Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "unit_type": {
+          "enum": [
+            "concept",
+            "formula",
+            "algorithm",
+            "experiment",
+            "comparison",
+            "application"
+          ],
+          "title": "Unit Type",
+          "type": "string"
+        },
+        "objectives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Objectives",
+          "type": "array"
+        },
+        "prerequisites": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prerequisites",
+          "type": "array"
+        },
+        "key_concepts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Concepts",
+          "type": "array"
+        },
+        "body": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "animation": "#/$defs/AnimationBlock",
+                "bullets": "#/$defs/BulletsBlock",
+                "callout": "#/$defs/CalloutBlock",
+                "chart": "#/$defs/ChartBlock",
+                "code": "#/$defs/CodeBlock",
+                "diagram": "#/$defs/DiagramBlock",
+                "figure": "#/$defs/FigureBlock",
+                "formula": "#/$defs/FormulaBlock",
+                "graph": "#/$defs/GraphBlock",
+                "paragraph": "#/$defs/ParagraphBlock",
+                "quote": "#/$defs/QuoteBlock",
+                "table": "#/$defs/TableBlock"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ParagraphBlock"
+              },
+              {
+                "$ref": "#/$defs/BulletsBlock"
+              },
+              {
+                "$ref": "#/$defs/FormulaBlock"
+              },
+              {
+                "$ref": "#/$defs/CodeBlock"
+              },
+              {
+                "$ref": "#/$defs/FigureBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/ChartBlock"
+              },
+              {
+                "$ref": "#/$defs/DiagramBlock"
+              },
+              {
+                "$ref": "#/$defs/GraphBlock"
+              },
+              {
+                "$ref": "#/$defs/AnimationBlock"
+              },
+              {
+                "$ref": "#/$defs/CalloutBlock"
+              },
+              {
+                "$ref": "#/$defs/QuoteBlock"
+              }
+            ]
+          },
+          "title": "Body",
+          "type": "array"
+        },
+        "narration": {
+          "default": "",
+          "title": "Narration",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "paper_item_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Paper Item Ids",
+          "type": "array"
+        },
+        "visual_requirements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Visual Requirements",
+          "type": "array"
+        },
+        "estimated_minutes": {
+          "exclusiveMinimum": 0,
+          "maximum": 120,
+          "title": "Estimated Minutes",
+          "type": "number"
+        },
+        "status": {
+          "default": "planned",
+          "enum": [
+            "planned",
+            "generating",
+            "generated",
+            "validating",
+            "approved",
+            "needs_revision",
+            "blocked",
+            "retryable_failure",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "revision": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "generated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generated At"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit_id",
+        "chapter_id",
+        "title",
+        "unit_type",
+        "estimated_minutes"
+      ],
+      "title": "LearningUnit",
+      "type": "object"
+    },
+    "ParagraphBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "paragraph",
+          "default": "paragraph",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "ParagraphBlock",
+      "type": "object"
+    },
+    "QuoteBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "quote",
+          "default": "quote",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "attribution": {
+          "default": "",
+          "title": "Attribution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "QuoteBlock",
+      "type": "object"
+    },
+    "TableBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "table",
+          "default": "table",
+          "title": "Type",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "TableBlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Single internal source for the course; deliverable forms derive from it.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "language": {
+      "default": "zh-CN",
+      "title": "Language",
+      "type": "string"
+    },
+    "audience": {
+      "default": "",
+      "title": "Audience",
+      "type": "string"
+    },
+    "prerequisites": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Prerequisites",
+      "type": "array"
+    },
+    "chapters": {
+      "items": {
+        "$ref": "#/$defs/CourseChapter"
+      },
+      "minItems": 1,
+      "title": "Chapters",
+      "type": "array"
+    },
+    "units": {
+      "items": {
+        "$ref": "#/$defs/LearningUnit"
+      },
+      "minItems": 1,
+      "title": "Units",
+      "type": "array"
+    },
+    "coverage": {
+      "items": {
+        "$ref": "#/$defs/CoverageEntry"
+      },
+      "title": "Coverage",
+      "type": "array"
+    },
+    "source_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "references": {
+      "items": {
+        "type": "string"
+      },
+      "title": "References",
+      "type": "array"
+    },
+    "status": {
+      "default": "draft",
+      "enum": [
+        "draft",
+        "in_review",
+        "approved"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "title",
+    "chapters",
+    "units"
+  ],
+  "title": "CourseMaster",
+  "type": "object"
+}

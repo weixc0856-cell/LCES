@@ -68,7 +68,8 @@ LCES_ANTHROPIC_API_KEY=
 3. 在 `.env` 设置 `LCES_PROVIDER=local`，或直接 `uv run lces run <project> --provider local`。固定 `LCES_LOCAL_MODEL` 后，适配器会在每次生成前核对 `/v1/models`；llama-server 本身会忽略请求中的 model 字段，这一步是防止用错模型的唯一保障。
 4. 如果服务端口不是 8080，修改 `LCES_LOCAL_BASE_URL`。
 5. 若该 llama-server 版本不支持 `response_format`，设置 `LCES_LOCAL_JSON_MODE=false`；结构化输出仍会由提示词 + Pydantic 校验兜底。
-6. 本地上下文较小：`LCES_LOCAL_PROMPT_CHAR_BUDGET` 限制研究阶段的资料长度。32K 档位建议 16000–20000 字符（默认 24000 面向更大上下文）；上下文不足时应减少资料或改用云端模型，而不是强行塞满。
+6. 本地上下文较小：`LCES_LOCAL_PROMPT_CHAR_BUDGET` 现在是**分节研究每次调用**的原文窗口上限，不是整篇资料上限。长论文会按页/章节拆块并分多次调用，开头不再被截断；单次窗口仍放不下时继续拆小，而不是截断或强行塞满。32K 档位建议 16000–20000 字符（默认 24000 面向更大上下文）。
+7. 本地 30B 模型生成速度约 10–13 tokens/s。研究阶段默认只用 `LCES_RESEARCH_MAX_OUTPUT_TOKENS=4096`，并把 `LCES_LOCAL_TIMEOUT_SECONDS` 提到 900，避免“输出上限 8192 + 300 秒超时”导致请求失败；超时会显式报错，不会返回半截研究结果。
 
 ### 按阶段路由（本地 + 云端混合）
 
@@ -144,9 +145,27 @@ git push -u origin main
 `lces validate` 只对真正实现的检查给出 PASS。当前包含：
 
 - Gate 1：来源台账、证据引用可解析、关键主张有支持证据、核验状态可解析；被证据否定的关键主张直接阻断，未核验项告警；科学审查为 `NOT_RUN`。详见 `docs/EVIDENCE_GOVERNANCE.md`。
-- Gate 2：公开模型校验、讲稿独立与章节映射、公开文本无内部标记、引用存在、mock 内容禁止发布、时长偏差告警。
+- Gate 2：公开模型校验、讲稿独立与章节映射、公开文本无内部标记、引用存在、mock 内容禁止发布、时长偏差告警；存在 PaperMap/CourseMaster 时还检查覆盖矩阵，必需要素没有教学单元即阻断（无规划数据记 `NOT_RUN`）。
 - Gate 3：HTML 构建、UTF-8、内部标记、图表文件存在、外部资源告警；安装浏览器依赖后还会用 Chromium 实际渲染，检查页面加载、JavaScript 错误、资源加载、桌面/16:9/2K/4K/移动视口横向溢出，并保存基准截图（见下节）。
 - Gate 4：白名单、内部标记、密钥模式、清单哈希、人工审批；发布物含媒体时用 FFmpeg 检查解码、音频流与字幕时间轴，否则该项为 `NOT_RUN`。
+
+有课程蓝图（`internal/plan/paper_map.json` + `internal/course_master.json`）时，先生成覆盖矩阵：
+
+```powershell
+uv run lces plan-coverage .\projects\paper-01
+```
+
+矩阵写入 `internal/plan/coverage_matrix.json`，并以 SHA-256 钉住论文地图。Gate 2 的
+`coverage_matrix_complete` 会阻断"必需要素没有教学单元"或"矩阵基于旧版地图"；没有规划
+数据时该项为 `NOT_RUN`，不会冒充通过。
+
+### 证据定位（P0-B2.2）
+
+模型只能提出候选引文。`evidence_locator.py` 在候选指定的区块内定位：完全匹配记为
+`verified_exact`，仅排版归一化后匹配记为 `verified_normalized`；找不到、歧义或过短记为
+`needs_review`，无效来源/区块/claim 记为 `rejected`。只有前两种进入
+`internal/evidence_ledger.csv`，其余连同原因写入 `internal/qa/quote_audit.json`。
+跨区块拼接、省略号、表格重排与数学符号改写不会被接受。
 
 ### 证据核验（Phase 4）
 
@@ -159,6 +178,22 @@ uv run lces validate .\projects\<project>
 ```
 
 `contradicted` 会直接阻断发布；`pending` / `partially_supported` / `insufficient_evidence` 只告警。状态词表与门禁清单见 `docs/EVIDENCE_GOVERNANCE.md`。
+
+### 结构化证据复核（阶段 B）
+
+程序定位、外部研究核验和人工签署是三件事，不能互相替代。复核记录在
+`internal/qa/structured_evidence_review.json`，`research_verification` 记录外部来源与
+`verified / source_conflict / ...`；`reviewed_by_human` 与 `conclusion` 仍由人工填写。
+
+```powershell
+uv run lces review-evidence .\projects\<project> --review-id review-formula-attention `
+    --by "你的名字" --conclusion pass --basis "对照 NeurIPS PDF §3.2.1 Eq. (1)"
+```
+
+- 记录必须关联真实 `source_id`、`chunk_id`、`claim_id` 或局部 `claim_ref`、`paper_id`
+- 冲突项 `pass` 需要 `--conflict-ack`；41.0/41.8 这类冲突不得自动裁决
+- 写入是原子更新，并追加 `internal/qa/evidence_review_audit.jsonl`
+- 研究核验为 `verified` 不会自动把人工状态改成 `pass`，也不会提升证据台账状态
 
 ### 媒体检查（Phase 5）
 
@@ -269,8 +304,10 @@ src/content_studio/
 ```
 
 ```powershell
-uv run lces export-schemas    # 生成 16 个 JSON Schema
+uv run lces export-schemas    # 生成 26 个 JSON Schema
 ```
+
+课程生产改进计划见 `docs/design/course-production-plan-v1-2026-10-23.md`，P0-B2 评审见 `docs/design/course-production-review-v2-2026-10-23.md`，真实研究试跑见 `docs/design/research-trial-2026-10-23.md`，证据定位器验收见 `docs/design/quote-locator-trial-2026-10-24.md`，结构化公式/表格验收见 `docs/design/structured-evidence-trial-2026-10-24.md`；当前实现状态见 `docs/IMPLEMENTATION_STATUS.md`。
 
 `skills/` 保存五大 Skill 规范；`vendor/mermaid/` 保存离线 Mermaid 运行时（含版本清单、sha256 与 MIT 许可证）；`schemas/` 由 `lces export-schemas` 从 Pydantic 契约生成（含 `visual_spec`、`visual_asset`、`scene_contract`、`video_contract`）；`templates/public_html/` 只渲染公开模型。内容与视觉规格的边界、渲染器规则与版本策略见 `docs/CONTENT_CONTRACTS.md`。
 

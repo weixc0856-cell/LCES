@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "SourceChunk": {
+      "additionalProperties": false,
+      "description": "One contiguous slice of a stored source text.\n\nChunks tile the whole text with no gaps and no overlap, so sectioned\nresearch can cover every character without a head-truncation budget.",
+      "properties": {
+        "chunk_id": {
+          "pattern": "^source-[0-9]{3,}:b[0-9]{4,}$",
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "section": {
+          "default": "",
+          "title": "Section",
+          "type": "string"
+        },
+        "char_start": {
+          "minimum": 0,
+          "title": "Char Start",
+          "type": "integer"
+        },
+        "char_end": {
+          "exclusiveMinimum": 0,
+          "title": "Char End",
+          "type": "integer"
+        },
+        "text_chars": {
+          "exclusiveMinimum": 0,
+          "title": "Text Chars",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "chunk_id",
+        "index",
+        "char_start",
+        "char_end",
+        "text_chars"
+      ],
+      "title": "SourceChunk",
+      "type": "object"
+    },
+    "SourceDocumentMap": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "pattern": "^source-[0-9]{3,}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "sha256": {
+          "default": "",
+          "pattern": "^(|[0-9a-f]{64})$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "parser": {
+          "default": "",
+          "title": "Parser",
+          "type": "string"
+        },
+        "text_chars": {
+          "exclusiveMinimum": 0,
+          "title": "Text Chars",
+          "type": "integer"
+        },
+        "chunks": {
+          "items": {
+            "$ref": "#/$defs/SourceChunk"
+          },
+          "minItems": 1,
+          "title": "Chunks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_id",
+        "text_chars",
+        "chunks"
+      ],
+      "title": "SourceDocumentMap",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Page/section/chunk map for every ingested source.",
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "documents": {
+      "items": {
+        "$ref": "#/$defs/SourceDocumentMap"
+      },
+      "title": "Documents",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "SourceMap",
+  "type": "object"
+}

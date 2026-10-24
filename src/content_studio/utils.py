@@ -166,6 +166,66 @@ def slugify(value: str, *, max_length: int = 48) -> str:
     return (slug or "source")[:max_length].strip("-") or "source"
 
 
+_QUOTE_TRANSLATION = str.maketrans(
+    {
+        "‘": "'",
+        "’": "'",
+        "“": '"',
+        "”": '"',
+        "–": "-",
+        "—": "-",
+        " ": " ",
+        # HTML-to-text extraction inserts these around rendered math; they are
+        # not part of the visible quote and must not defeat the substring test.
+        "​": "",
+        "‌": "",
+        "‍": "",
+        "⁠": "",
+        "﻿": "",
+        "­": "",
+    }
+)
+
+
+def normalize_quote_with_map(text: str) -> tuple[str, list[int]]:
+    """Normalize a quote and keep a normalized-index -> original-index map.
+
+    The map lets the locator turn a normalized match back into a contiguous
+    slice of the original text. Only typography is changed (quotes, dashes,
+    invisible characters, whitespace, case); math symbols are left alone.
+    """
+
+    chars: list[str] = []
+    positions: list[int] = []
+    for index, char in enumerate(text):
+        translated = char.translate(_QUOTE_TRANSLATION)
+        if not translated:
+            continue
+        for part in translated:
+            if part.isspace():
+                if not chars or chars[-1] == " ":
+                    continue
+                chars.append(" ")
+                positions.append(index)
+            else:
+                for folded in part.lower():
+                    chars.append(folded)
+                    positions.append(index)
+    start = 0
+    end = len(chars)
+    while start < end and chars[start] == " ":
+        start += 1
+    while end > start and chars[end - 1] == " ":
+        end -= 1
+    return "".join(chars[start:end]), positions[start:end]
+
+
+def normalize_quote(text: str) -> str:
+    """Normalise a quote for a whitespace/case/typography-tolerant match."""
+
+    return normalize_quote_with_map(text)[0]
+
+
 def truncate(text: str, limit: int, suffix: str = "\n...[truncated]") -> str:
     if limit <= 0 or len(text) <= limit:
         return text

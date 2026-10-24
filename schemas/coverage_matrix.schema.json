@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CoverageEntry": {
+      "additionalProperties": false,
+      "description": "Where one paper element is taught (or why it is not).",
+      "properties": {
+        "paper_item_id": {
+          "pattern": "^paper-[0-9]{3,}$",
+          "title": "Paper Item Id",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "covered_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Covered By",
+          "type": "array"
+        },
+        "status": {
+          "default": "missing",
+          "enum": [
+            "covered",
+            "partial",
+            "missing",
+            "not_applicable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "paper_item_id"
+      ],
+      "title": "CoverageEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "paper_map_sha256": {
+      "default": "",
+      "pattern": "^(|[0-9a-f]{64})$",
+      "title": "Paper Map Sha256",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/CoverageEntry"
+      },
+      "minItems": 1,
+      "title": "Entries",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "entries"
+  ],
+  "title": "CoverageMatrix",
+  "type": "object"
+}
