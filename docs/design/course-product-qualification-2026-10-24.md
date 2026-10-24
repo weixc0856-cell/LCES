@@ -23,6 +23,17 @@ Gate C 发布审批未开始。`release/v1` 保持历史版本，不覆盖、不
 | 计时证据 | `scripts/measure-narration-timing.py` 用 Windows SAPI（Huihui）+ FFprobe 实测完整口播 **19.96 分钟** |
 | 发布门禁 | Gate 4 增加 `course_product_current`、`course_product_qualified`、`course_product_human_pending`；无契约项目报 `not_run`，不冒充通过 |
 
+### 推送基线
+
+- 代码提交：`1e1f4c835ecada3fef1ebce644aff8bd01f25707`（分支
+  `feat/course-content-audit-release-gate`；其后仅有文档提交）。
+- 干净工作树 `git worktree add --detach ../LECS-pushed-p5 1e1f4c8`：
+  582 passed / 49 skipped，ruff、format（121 files）、mypy（53 files）全部通过。
+- 在推送提交上复跑：`audit-product` 仍为 `needs_human_review`（同样 2 个人工项），
+  `release-check v1` 仍为 `decision=blocked`。
+- 课程工作区 `projects/` 不进入 git，`249d2f580996a0da` 只能与本机内容对应；
+  本报告、契约、质量审计、计时证据和证据整改记录是入库的可追溯产物。
+
 ## 二、课程实际交付内容与学习目标覆盖
 
 | 模块 | 时间目标 | 学习目标 | 公式/表格/检查 |
