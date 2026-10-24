@@ -1,0 +1,76 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "d71ff2084b8667750a0fccec1dea2cf04d1ed176221108d916e7d0a2cfc7aedf",
+  "review_id": "review-formula-multihead",
+  "generated_at": "2026-10-24T04:03:51.935903Z",
+  "claim": "Multi-Head Attention（§3.2.2）：MultiHead(Q,K,V)=Concat(head_1,…,head_h)W^O；head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)",
+  "evidence_kind": "formula",
+  "paper_id": "paper-009",
+  "paper_title": "多头注意力的投影与拼接公式",
+  "paper_locator": "§3.2.2 公式",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0035",
+  "locator": "§3.2.2 Multi-Head Attention",
+  "program_status": "needs_review",
+  "program_reason": "formula_semantics_manual",
+  "research_finding": "verified",
+  "external_source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+  "external_source_version": "NeurIPS 2017 proceedings",
+  "external_source_locator": "§3.2.2, p.4",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§3.2.2 Multi-Head Attention",
+    "chunk_id": "source-001:b0035",
+    "chunk_section": "3.2.2 Multi-Head Attention",
+    "char_start": 13038,
+    "char_end": 15023,
+    "excerpt": "ng in the final values, as depicted in Figure\n2\n.\nMulti-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.\nMultiHead\n⁡\n(\nQ\n,\nK\n,\nV\n)\n\\displaystyle\\mathrm{MultiHead}(Q,K,V)\n=\nConcat\n⁡\n(\nhead\n1\n,\n…\n,\nhead\nh\n)\n​\nW\nO\n\\displaystyle=\\mathrm{Concat}(\\mathrm{head_{1}},...,\\mathrm{head_{h}})W^{O}\nwhere\n​\nhead\ni\n\\displaystyle\\text{where}~\\mathrm{head_{i}}\n=\nAttention\n⁡\n(\nQ\n​\nW\ni\nQ\n,\nK\n​\nW\ni\nK\n,\nV\n​\nW\ni\nV\n)\n\\displaystyle=\\mathrm{Attention}(QW^{Q}_{i},KW^{K}_{i},VW^{V}_{i})\nWhere the projections are parameter matrices\nW\ni\nQ\n∈\nℝ\nd\nmod",
+    "excerpt_sha256": "c58f31c090e0022cfc54b0530c063911a4a477bbbe21cba406f1fc636980904f",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-004:formula[1]",
+      "text": "\\mathrm{MultiHead}(Q,K,V)=\\mathrm{Concat}(\\mathrm{head}_1,...,\\mathrm{head}_h)W^O;\\ \\mathrm{head}_i=\\mathrm{Attention}(QW_i^Q,KW_i^K,VW_i^V)"
+    },
+    {
+      "path": "content/reading_edition.json",
+      "location": "content/reading_edition.json#slide-004:paragraph[0]",
+      "text": "MultiHead 把 Q、K、V 投影到 h 组子空间并行计算注意力，拼接后由 W^O 投影回 d_model。base 模型 h=8、d_k=d_v=d_model/h=64。"
+    }
+  ],
+  "support_scope": "research_finding=verified；program=needs_review/formula_semantics_manual",
+  "counter_evidence": "",
+  "limitations": "The course must explain the purpose and the dimensions; displaying the formula is not understanding.",
+  "ambiguities": [
+    "正式人工签署；课程是否展示并解释投影维度由课程内容审计单独检查。",
+    "Formula element found; Q/K/V/WO symbols matched; projection dimensions and concatenation order not verified by the program."
+  ],
+  "reviewer_questions": [
+    "公式的转录、符号、上下标、运算符和维度是否与原文逐项一致？",
+    "课程对该公式的解释是否超出原文支持范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-formula-multihead --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

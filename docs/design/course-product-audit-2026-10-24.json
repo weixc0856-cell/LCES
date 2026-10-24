@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "audit_id": "course-quality-546f721e5d61",
+  "project_id": "attention-is-all-you-need",
+  "contract_version": "1.0",
+  "content_version": "249d2f580996a0dafb4dfda0d1fcc0275b628c845e7ebc96170dcf214c99bfe8",
+  "generated_at": "2026-10-24T03:19:36.139328Z",
+  "files": [
+    {
+      "path": "internal/plan/course_contract.json",
+      "sha256": "4470dd4faf53a82556716a4ddae414b0a3f0836dcf0ff53358db738b7f975b09"
+    },
+    {
+      "path": "content/public_content.json",
+      "sha256": "6ffa4cdb5a0097bd7e92b33f69104f27ea17473ef9a7ed3ccae33904e028c7e1"
+    },
+    {
+      "path": "content/reading_edition.json",
+      "sha256": "8f4c2ab4ae5c4ef6ffd4993c7d6304b6a2dfc16a3fb20f380cb2e06546dc8f2f"
+    },
+    {
+      "path": "content/outline.json",
+      "sha256": "4bfc6d8d3326014e8d3521940d4761789b67da1bbbcff32ef864161946e6ac23"
+    },
+    {
+      "path": "internal/speaker_script.json",
+      "sha256": "1d54ef0a51585d2a1804d1cef1349a774cdcc1da9c44db3fd73f8a36c7d08be3"
+    },
+    {
+      "path": "build/slides/index.html",
+      "sha256": "05f6a1068b61f3c48b37848f50dbf1d9e77048bd56350137cb61e0861243c83e"
+    },
+    {
+      "path": "build/reading_edition.html",
+      "sha256": "78934d5891b7d7c6903bb1a68c737d0fe27e8170a306bef2e1c8ae1bc8992b26"
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "quality-be2e50d7bcf6",
+      "check_id": "product_contract_approved",
+      "severity": "human",
+      "message": "课程产品契约尚未由产品负责人批准（status != approved）",
+      "location": "internal/plan/course_contract.json"
+    },
+    {
+      "finding_id": "quality-f91e99832c90",
+      "check_id": "human_course_acceptance",
+      "severity": "human",
+      "message": "缺少课程产品验收人工记录 internal/qa/course_acceptance.json",
+      "location": "internal/qa/course_acceptance.json"
+    }
+  ],
+  "summary": {
+    "blocker": 0,
+    "human": 2
+  },
+  "decision": "needs_human_review",
+  "notes": "Gate B 只判定契约、结构覆盖、交付物、计时证据和人工验收状态；讲解是否清晰、学习者是否理解必须由人工试听与学习检查确认。"
+}

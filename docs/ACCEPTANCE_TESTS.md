@@ -245,3 +245,17 @@ byte-for-byte reproducibility (Level 3), and Windows-native rendering remain
   acceptance record is
   [`docs/design/release-acceptance-2026-10-24.md`](design/release-acceptance-2026-10-24.md).
 
+
+- Course product qualification (P5): `tests/test_course_quality.py` covers the
+  product contract (missing contract, target downgrade, objective coverage,
+  modules, formulas, learning checks), measured vs estimated timing, the
+  human acceptance record and its content-version binding, Gate B release
+  blocking, the contract-less `NOT_RUN` path, and the `CheckBlock` rendering.
+  The real-course result is
+  [`docs/design/course-product-qualification-2026-10-24.md`](design/course-product-qualification-2026-10-24.md).
+
+- Human acceptance preparation (P6): `tests/test_review_packets.py` covers
+  packet source slices and `unresolved` handling, course-usage matching,
+  stable content hashes, the index, empty signature fields and the
+  `export-review-packets` CLI. The P6 execution report is
+  [`docs/design/p6/p6-execution-2026-10-24.md`](design/p6/p6-execution-2026-10-24.md).

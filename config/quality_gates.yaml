@@ -32,9 +32,12 @@ gates:
       - course_content_audit
     advisory_checks:
       - duration_within_tolerance
+      # Gate B status only; product qualification is enforced at Gate 4.
+      - course_product_status
     not_run:
       - coverage_matrix_complete  # only when no planning data exists
       - course_content_audit  # only when the project has no public content
+      - course_product_status  # only before `lces audit-product` runs
   gate_3_engineering:
     blocking_checks:
       - public_html_built
@@ -63,5 +66,11 @@ gates:
       - course_content_audit_current
       - course_content_audit_passed
       - release_matches_audited_content
+      # Gate B: only for projects that freeze a course product contract.
+      # A contract-less project reports NOT_RUN, never PASS.
+      - course_product_current
+      - course_product_qualified
+      - course_product_human_pending
     not_run:
+      - course_product_qualified  # only when no product contract exists
       - media_decode_check

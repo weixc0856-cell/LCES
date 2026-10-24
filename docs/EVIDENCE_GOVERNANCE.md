@@ -174,7 +174,18 @@ conflict.
 
 `evidence_quotes_in_source` remains a second, whole-source check after the
 ledger is written. It catches a locator bug or a source text change; it is not
-the mechanism that admits evidence.
+the mechanism that admits evidence. Table and formula records are excluded
+from the quote comparison and reported separately: a table row is not a quote,
+and comparing it to prose would only produce a false warning.
+
+**P5 evidence remediation (2026-10-24).** Of the 27 non-verbatim excerpts, 20
+were replaced with the actual source slice (extraction artifacts included) and
+marked `verified_normalized`; 7 were classified as structured table/formula
+evidence and no longer treated as quotes. The per-record disposition is in
+`docs/design/evidence-remediation-2026-10-24.json`. `claim-001` was narrowed to
+"replaces recurrence" and a separate `claim-023` with a verbatim abstract quote
+(`evidence-034`) now covers "no convolutions"; the link is no longer presented
+as full support for a combined claim.
 
 ## What automation still cannot do
 

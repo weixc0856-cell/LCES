@@ -56,7 +56,7 @@ def _item(**overrides) -> ReviewItem:
 def test_template_keeps_research_and_human_status_separate():
     document = ReviewDocument.model_validate_json(TEMPLATE.read_text(encoding="utf-8"))
 
-    assert len(document.items) == 7
+    assert len(document.items) == 8
     assert document.status == "pending_human_review"
     assert all(item.conclusion == "pending" for item in document.items)
     assert all(
@@ -90,6 +90,13 @@ def test_template_keeps_research_and_human_status_separate():
     assert verification.dimension_check
     assert verification.derivation_check
     assert verification.reviewed_by_human is False
+
+    positional = next(
+        item for item in document.items if item.review_id == "review-formula-positional"
+    )
+    assert positional.paper_id == "paper-014"
+    assert positional.conclusion == "pending"
+    assert "PE_{(pos,2i)}" in positional.research_verification[0].transcribed_expression
 
 
 def test_a_signed_item_requires_reviewer_date_and_basis():

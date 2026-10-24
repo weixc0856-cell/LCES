@@ -23,6 +23,11 @@ from content_studio.course_audit import (
     run_course_audit,
     write_audit,
 )
+from content_studio.course_quality import (
+    load_quality,
+    quality_is_current,
+    quality_status,
+)
 from content_studio.errors import ValidationFailure
 from content_studio.evidence import is_contradicted, review_state
 from content_studio.ingestion import load_registry, load_source_text
@@ -269,8 +274,15 @@ def _evidence_quote_checks(project_dir: Path, ledger: EvidenceLedger) -> list[Ch
 
     unmatched: list[str] = []
     unverifiable: list[str] = []
+    structural: list[str] = []
     compared = 0
     for record in ledger.records:
+        # A table row or a formula is not a quote. Those records are checked
+        # by the structured validator and their review records; comparing
+        # them to the prose source would only produce a false warning.
+        if record.evidence_type in {"table", "formula"}:
+            structural.append(record.evidence_id)
+            continue
         excerpt = record.source_excerpt.strip()
         if not excerpt:
             unverifiable.append(f"{record.evidence_id}(缺少摘录)")
@@ -293,12 +305,18 @@ def _evidence_quote_checks(project_dir: Path, ledger: EvidenceLedger) -> list[Ch
         problems.append("未在来源中找到：" + ", ".join(unmatched))
     if unverifiable:
         problems.append("无法核对：" + ", ".join(unverifiable))
+    excluded = (
+        f"；{len(structural)} 条表格/公式证据按结构检查，未按引文检查：" + ", ".join(structural)
+        if structural
+        else ""
+    )
     return [
         _check(
             "gate_1_research",
             "evidence_quotes_in_source",
             "warn" if problems else "pass",
-            "；".join(problems) if problems else f"{compared} 条证据摘录均可在来源文本中找到",
+            ("；".join(problems) if problems else f"{compared} 条证据摘录均可在来源文本中找到")
+            + excluded,
             blocking=False,
         )
     ]
@@ -575,6 +593,83 @@ def _course_release_checks(project_dir: Path, release_root: Path) -> list[CheckR
             )
         )
         checks.append(_release_matches_audit(release_root, report))
+
+    contract_defined = (project_dir / "internal" / "plan" / "course_contract.json").is_file() or (
+        project_dir / "internal" / "qa" / "course_quality_audit.json"
+    ).is_file()
+    quality = load_quality(project_dir)
+    if not contract_defined:
+        # Gate B is opt-in until a project freezes a product contract. NOT_RUN is
+        # reported, never PASS; a contract-bearing project must pass all checks.
+        checks.append(
+            _check(
+                "gate_4_release",
+                "course_product_qualified",
+                "not_run",
+                "未定义课程产品契约；Gate B 未运行（未运行不代表通过）",
+                blocking=False,
+            )
+        )
+    elif quality is None:
+        checks.append(
+            _check(
+                "gate_4_release",
+                "course_product_qualified",
+                "fail",
+                "缺少 Gate B 课程产品验收报告；先运行 `lces audit-product`",
+            )
+        )
+    else:
+        stale = quality_is_current(project_dir, quality)
+        checks.append(
+            _check(
+                "gate_4_release",
+                "course_product_current",
+                "fail" if stale else "pass",
+                "课程产品验收后内容已变更，旧结论不再适用：" + ", ".join(stale)
+                if stale
+                else f"Gate B 对应当前内容版本 {quality.content_version[:12]}",
+            )
+        )
+        labels = [
+            f"{finding.severity}/{finding.check_id}: {finding.message}"
+            for finding in [*quality.blockers, *quality.human_items]
+        ]
+        if quality.blockers:
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "course_product_qualified",
+                    "fail",
+                    "Gate B 课程产品验收存在阻断项：" + "; ".join(labels),
+                )
+            )
+        elif quality.human_items:
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "course_product_qualified",
+                    "pass",
+                    "Gate B 自动化检查通过；以下人工项尚未完成",
+                )
+            )
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "course_product_human_pending",
+                    "fail",
+                    "Gate B 人工验收尚未完成：" + "; ".join(labels),
+                )
+            )
+        else:
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "course_product_qualified",
+                    "pass",
+                    f"Gate B 课程产品验收通过（{quality.content_version[:12]}）",
+                )
+            )
     return checks
 
 
@@ -606,6 +701,7 @@ def _release_matches_audit(release_root: Path, report: CourseAuditReport) -> Che
 SIGNATURE_CHECK_IDS = {
     "structured_evidence_signed",
     "source_conflicts_acknowledged",
+    "course_product_human_pending",
 }
 
 
@@ -887,6 +983,7 @@ def run_validation(
 
     checks.extend(_coverage_checks(project_dir))
     checks.extend(_course_audit_checks(project_dir))
+    checks.append(quality_status(project_dir))
 
     # --- Gate 3 -------------------------------------------------------
     html_path = project_dir / "build" / "slides" / "index.html"

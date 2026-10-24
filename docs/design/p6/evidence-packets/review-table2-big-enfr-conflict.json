@@ -1,0 +1,97 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "1696e7dcf36e2c4aac286c42581d704843bb29545b1061e8acb98e36a16bd6d8",
+  "review_id": "review-table2-big-enfr-conflict",
+  "generated_at": "2026-10-24T04:03:51.923111Z",
+  "claim": "Transformer (big) EN-FR BLEU 存在未裁决的来源冲突：本地 arXiv 源 Table 2 行 = 41.8、摘要 = 41.8、§6.1 正文 = 41.0；NeurIPS 2017 会议版 Table 2/§6.1 = 41.0。",
+  "evidence_kind": "table",
+  "paper_id": "paper-025",
+  "paper_title": "Table 2：BLEU 与训练成本对比",
+  "paper_locator": "§6.1 Table 2",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0048",
+  "locator": "§6.1 Machine Translation",
+  "program_status": "needs_review",
+  "program_reason": "column_semantics_unverified",
+  "research_finding": "source_conflict",
+  "external_source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+  "external_source_version": "NeurIPS 2017 proceedings",
+  "external_source_locator": "Table 2 (b0048); §6.1 (b0050); Abstract (b0026); NeurIPS Table 2, p.7",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§6.1 Machine Translation",
+    "chunk_id": "source-001:b0048",
+    "chunk_section": "5.4 Regularization",
+    "char_start": 26271,
+    "char_end": 26927,
+    "excerpt": "6\n1.8\n⋅\n10\n20\n1.8\\cdot 10^{20}\n1.1\n⋅\n10\n21\n1.1\\cdot 10^{21}\nConvS2S Ensemble\n[\n9\n]\n26.36\n41.29\n7.7\n⋅\n10\n19\n7.7\\cdot 10^{19}\n1.2\n⋅\n10\n21\n1.2\\cdot 10^{21}\nTransformer (base model)\n27.3\n38.1\n3.3\n⋅\n𝟏𝟎\n𝟏𝟖\n3.3\\cdot 10^{18}\nTransformer (big)\n28.4\n41.8\n2.3\n⋅\n10\n19\n2.3\\cdot 10^{19}\nOn the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big) in Table\n2\n) outperforms the best previously reported models (including ensembles) by more than\n2.0\n2.0\nBLEU, establishing a new state-of-the-art BLEU score of\n28.4\n28.4\n. The configuration of this model is listed in the bottom line of Table\n3\n. Training took\n3.5\n3.5\ndays on\n",
+    "excerpt_sha256": "ae29d2b7cbc170a79039ab3c0ca5991dcf0a20dd50264cdf967210a09388cc28",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-007:table[0]",
+      "text": "Transformer (big) | WMT 2014 EN-FR | 41.0 | §6.1 / NeurIPS Table 2"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-007:table[0]",
+      "text": "Transformer (big) | WMT 2014 EN-FR | 41.8 | arXiv Table 2 / 摘要"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-007:bullets[1]",
+      "text": "EN-FR 的 41.0 与 41.8 并存：本课程采用 §6.1 / NeurIPS Table 2 的 41.0 作为 Table 2 口径，同时披露 arXiv Table 2 / 摘要的 41.8，不取平均、不静默择一。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-007:callout[2]",
+      "text": "来源冲突披露：41.0 与 41.8 的差异不是四舍五入。正式口径由人工审核签署确认；在签署前，课程只声明采用哪一个来源，不宣称哪一个数值是作者的真实意图。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-008:bullets[1]",
+      "text": "比较结论：28.4 与 41.0/41.8 都带有任务、数据、模型规模与来源口径。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-008:check[4]",
+      "text": "如果有人引用 Transformer (big) 的 41.8 BLEU 说 Table 2 的结果，你应该怎样核对？"
+    }
+  ],
+  "support_scope": "research_finding=source_conflict；program=needs_review/column_semantics_unverified",
+  "counter_evidence": "同一来源内部或不同版本之间存在 41.0 / 41.8 的不一致；不得自动裁决。",
+  "limitations": "Do not silently choose one value. A course describing Table 2 or §6.1 must use 41.0; a course quoting the abstract may state 41.8 only with the conflict disclosed.",
+  "ambiguities": [
+    "人工决定课程采用 Table 2/正文口径（41.0）还是摘要口径（41.8），并在同一教学单元披露另一数值；pass 需要 --conflict-ack 与写明口径的 basis。",
+    "原记录指向 b0050；Table 2 行在当前 source map 中位于 b0048，§6.1 的 41.0 正文位于 b0050，摘要的 41.8 位于 b0026。冲突是数据，不由程序裁决。"
+  ],
+  "reviewer_questions": [
+    "两版来源（NeurIPS 与 arXiv）的表格与正文分别写了什么？",
+    "课程采用的口径是否明确、在正文/阅读版/口播中是否一致披露？",
+    "冲突是否被如实保留，而不是被静默择一或取平均？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-table2-big-enfr-conflict --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\" --conflict-ack"
+}

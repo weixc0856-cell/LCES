@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "status": "candidate_snapshot",
+  "project_id": "attention-is-all-you-need",
+  "files": [
+    {
+      "path": "public_content.json",
+      "source_path": "content/public_content.json",
+      "sha256": "6ffa4cdb5a0097bd7e92b33f69104f27ea17473ef9a7ed3ccae33904e028c7e1",
+      "size_bytes": 16291
+    },
+    {
+      "path": "reading_edition.json",
+      "source_path": "content/reading_edition.json",
+      "sha256": "8f4c2ab4ae5c4ef6ffd4993c7d6304b6a2dfc16a3fb20f380cb2e06546dc8f2f",
+      "size_bytes": 5406
+    },
+    {
+      "path": "outline.json",
+      "source_path": "content/outline.json",
+      "sha256": "3574dc56f2eb8b6a46dd4ad17345a9c45deab9034684bfb867e34cb1079870c6",
+      "size_bytes": 4638
+    },
+    {
+      "path": "course_contract.json",
+      "source_path": "internal/plan/course_contract.json",
+      "sha256": "fe793b6f4db1727caf0444f60b2caa7be924f9ac2cf22b039ff3d37226423f3a",
+      "size_bytes": 4499
+    },
+    {
+      "path": "timing_evidence.json",
+      "source_path": "internal/qa/timing_evidence.json",
+      "sha256": "c525429539c8f3ba5f8dbd811b7af040f5aca9629dd3bbcb7fc9db4e5018a214",
+      "size_bytes": 593
+    },
+    {
+      "path": "course_content_audit.json",
+      "source_path": "internal/qa/course_content_audit.json",
+      "sha256": "440d1e00b37c1f28da96dfac72214333149836a9ecdfe27dd2c30a56e5e849a4",
+      "size_bytes": 1154
+    },
+    {
+      "path": "course_quality_audit.json",
+      "source_path": "internal/qa/course_quality_audit.json",
+      "sha256": "0ace6b7f650f1a26e3c0c36f6747f8494c6371c2c96b5282825ddf75a91942f0",
+      "size_bytes": 2142
+    },
+    {
+      "path": "structured_evidence_review.json",
+      "source_path": "internal/qa/structured_evidence_review.json",
+      "sha256": "1060f134131716167e99649daf34ebbb8bef8a887d5c99aa9f4667bbbcb0d7ea",
+      "size_bytes": 24586
+    },
+    {
+      "path": "build/slides/index.html",
+      "source_path": "build/slides/index.html",
+      "sha256": "05f6a1068b61f3c48b37848f50dbf1d9e77048bd56350137cb61e0861243c83e",
+      "size_bytes": 17861
+    },
+    {
+      "path": "build/reading_edition.html",
+      "source_path": "build/reading_edition.html",
+      "sha256": "78934d5891b7d7c6903bb1a68c737d0fe27e8170a306bef2e1c8ae1bc8992b26",
+      "size_bytes": 6726
+    }
+  ],
+  "excluded": [
+    {
+      "source_path": "internal/speaker_script.json",
+      "reason": "internal narration; public/private boundary; hash only",
+      "sha256": "1d54ef0a51585d2a1804d1cef1349a774cdcc1da9c44db3fd73f8a36c7d08be3",
+      "size_bytes": 15113
+    }
+  ],
+  "versions": {
+    "course_version": "7bf523070d2686570844a3194092af8e9f0f71cd526d2748592f803c71df08db",
+    "content_version": "fffaba7009e725ee07713b618f8dbb21469694d3758cbb489bf8e19600cc5cd3",
+    "contract_version": "1.0",
+    "contract_status": "draft",
+    "review_file_sha256": "1060f134131716167e99649daf34ebbb8bef8a887d5c99aa9f4667bbbcb0d7ea",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "build_html_sha256": {
+      "build/slides/index.html": "05f6a1068b61f3c48b37848f50dbf1d9e77048bd56350137cb61e0861243c83e",
+      "build/reading_edition.html": "78934d5891b7d7c6903bb1a68c737d0fe27e8170a306bef2e1c8ae1bc8992b26"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "source-001",
+      "title": "Attention Is All You Need",
+      "kind": "html",
+      "origin": "https://arxiv.org/html/1706.03762v7",
+      "sha256": "fe1288e9c6f8322156429ab44bf5ced203155f8ecc7ea9fe6cfd125872c72a3b",
+      "text_chars": 43615,
+      "access_status": "fetched"
+    }
+  ],
+  "restore_notes": [
+    "Copy the files back to their source_path to restore the public course content, contract, audits and timing record.",
+    "The narration (internal/speaker_script.json) is intentionally excluded; its SHA-256 is recorded, so a restored narration can be verified if kept separately.",
+    "The Git commit does not contain projects/; this snapshot is the recovery aid for the candidate course version."
+  ]
+}

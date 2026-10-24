@@ -16,6 +16,19 @@ from pydantic import BaseModel
 
 from content_studio import __version__
 from content_studio.course_audit import run_course_audit, write_audit
+from content_studio.course_quality import (
+    CourseAcceptance,
+    CourseContract,
+    CourseQualityReport,
+    TimingEvidence,
+    contract_path,
+    load_contract,
+    load_quality,
+    quality_is_current,
+    run_course_quality_audit,
+    write_acceptance,
+    write_quality,
+)
 from content_studio.errors import ConfigurationError, LCESError, RenderError
 from content_studio.eval import build_report, load_tasks, run_tasks, write_report
 from content_studio.evidence import review_claim
@@ -84,12 +97,19 @@ from content_studio.renderers import (
     graphviz_status,
     mermaid_status,
 )
+from content_studio.review_packets import build_packets
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.structured_review import record_review, record_substantive_review
 from content_studio.supply_chain import audit_supply_chain
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
-from content_studio.utils import read_json, redact_home, write_json
+from content_studio.utils import (
+    read_json,
+    redact_home,
+    utc_now,
+    write_json,
+    write_json_atomic,
+)
 from content_studio.visual_acceptance import record_acceptance
 from content_studio.visual_baseline import build_baseline
 
@@ -385,6 +405,134 @@ def audit_course(
     if report.decision == "not_run":
         _exit("没有可审计的课程内容文件", code=0)
     typer.echo("课程内容审计通过（只覆盖列出的检查项）。")
+
+
+@app.command("audit-product")
+@guarded
+def audit_product(project_dir: Path = typer.Argument(..., exists=True, file_okay=False)) -> None:
+    """Run Gate B: course product qualification against the frozen contract."""
+
+    root, _config = _project(project_dir)
+    report = run_course_quality_audit(root)
+    path = write_quality(root, report)
+    typer.echo(f"Gate B 报告: {path}")
+    typer.echo(
+        f"课程内容版本: {report.content_version[:16] or '-'} | 契约:"
+        f" {report.contract_version or '-'} | blocker={report.summary.get('blocker', 0)}"
+        f" human={report.summary.get('human', 0)} | decision={report.decision}"
+    )
+    for finding in report.findings:
+        color = typer.colors.RED if finding.severity == "blocker" else typer.colors.YELLOW
+        typer.secho(
+            f"[{finding.severity}] {finding.check_id}: {finding.message} ({finding.finding_id})",
+            fg=color,
+        )
+    if report.decision == "blocked":
+        _exit("Gate B 课程产品验收存在阻断项", code=1)
+    if report.decision == "needs_human_review":
+        _exit("Gate B 自动化检查通过，但仍有未完成的人工验收项", code=2)
+    if report.decision == "not_run":
+        _exit("Gate B 未运行", code=0)
+    typer.echo("Gate B 课程产品验收通过。")
+
+
+@app.command("export-review-packets")
+@guarded
+def export_review_packets(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    output: Path | None = typer.Option(
+        None, "--output", help="审核包输出目录（默认 internal/qa/review_packets）"
+    ),
+) -> None:
+    """Export read-only evidence review packets for a human reviewer."""
+
+    root, _config = _project(project_dir)
+    destination = output or (root / "internal" / "qa" / "review_packets")
+    entries, index = build_packets(root, destination)
+    typer.echo(f"审核包: {destination}")
+    typer.echo(
+        f"记录: {len(entries)} | review sha256: {index.review_file_sha256[:16]}"
+        f" | source sha256: {index.source_text_sha256[:16]}"
+    )
+    unresolved = [entry.review_id for entry in entries if entry.current_conclusion == "pending"]
+    typer.echo(f"待人工结论: {len(unresolved)}/{len(entries)}")
+    typer.echo("提示: 审核包只读；签署仍须由真实审核者通过 `lces review-evidence` 完成。")
+
+
+@app.command("approve-course-contract")
+@guarded
+def approve_course_contract(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    by: str = typer.Option(..., "--by", help="产品负责人"),
+    notes: str = typer.Option("", "--notes", help="批准说明"),
+) -> None:
+    """Record the product owner's approval of the course contract (human only)."""
+
+    root, _config = _project(project_dir)
+    contract = load_contract(root)
+    if contract is None:
+        _exit("缺少课程产品契约 internal/plan/course_contract.json")
+    if not by.strip():
+        _exit("必须提供产品负责人 --by")
+    updated = contract.model_copy(
+        update={
+            "status": "approved",
+            "approved_by": by.strip(),
+            "approved_at": utc_now(),
+            "notes": (contract.notes + " | " + notes).strip(" |"),
+        }
+    )
+    write_json_atomic(contract_path(root), updated)
+    typer.echo(f"课程产品契约已批准: {contract.version} by {updated.approved_by}")
+
+
+@app.command("accept-course")
+@guarded
+def accept_course(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    by: str = typer.Option(..., "--by", help="课程产品验收人"),
+    decision: str = typer.Option("pass", "--decision", help="pass | needs_revision"),
+    timing_confirmed: bool = typer.Option(False, "--timing-confirmed", help="已确认计时证据"),
+    visual_confirmed: bool = typer.Option(False, "--visual-confirmed", help="已确认视觉呈现"),
+    checks_confirmed: bool = typer.Option(False, "--checks-confirmed", help="已确认学习检查"),
+    notes: str = typer.Option("", "--notes", help="验收说明"),
+) -> None:
+    """Record the human Gate B acceptance (never generated by an AI)."""
+
+    root, _config = _project(project_dir)
+    if decision not in {"pass", "needs_revision"}:
+        _exit(f"未知验收结论: {decision}")
+    if not by.strip():
+        _exit("必须提供验收人 --by")
+    contract = load_contract(root)
+    if contract is None:
+        _exit("缺少课程产品契约")
+    if contract.status != "approved":
+        _exit("课程产品契约尚未批准；先运行 `lces approve-course-contract`")
+    report = load_quality(root)
+    if report is None:
+        _exit("缺少 Gate B 报告；先运行 `lces audit-product`")
+    stale = quality_is_current(root, report)
+    if stale:
+        _exit("Gate B 报告已过期，课程内容在报告后变更：" + ", ".join(stale))
+    if report.decision == "blocked":
+        _exit("Gate B 仍有阻断项，不能记录通过验收")
+    if decision == "pass" and not (timing_confirmed and visual_confirmed and checks_confirmed):
+        _exit("结论为 pass 时必须同时确认计时、视觉与学习检查")
+    acceptance = CourseAcceptance(
+        project_id=contract.project_id,
+        contract_version=contract.version,
+        content_version=report.content_version,
+        reviewer=by.strip(),
+        reviewed_at=utc_now(),
+        decision=decision,  # type: ignore[arg-type]
+        timing_confirmed=timing_confirmed,
+        visual_confirmed=visual_confirmed,
+        checks_confirmed=checks_confirmed,
+        notes=notes.strip(),
+    )
+    path = write_acceptance(root, acceptance)
+    typer.echo(f"课程产品验收记录: {path} -> {acceptance.decision} by {acceptance.reviewer}")
 
 
 @app.command("release-check")
@@ -782,6 +930,10 @@ def export_schemas(
         "frame_manifest": FrameManifest,
         "scene_set": SceneSet,
         "video_contract": VideoContract,
+        "course_contract": CourseContract,
+        "course_quality": CourseQualityReport,
+        "timing_evidence": TimingEvidence,
+        "course_acceptance": CourseAcceptance,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, model in mapping.items():

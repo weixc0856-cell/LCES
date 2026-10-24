@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "project_id": "attention-is-all-you-need",
+  "version": "1.0",
+  "status": "draft",
+  "approved_by": "",
+  "approved_at": null,
+  "audience": "具备 Python 与基础深度学习背景、希望理解 Transformer 原始论文的学习者",
+  "prerequisites": [
+    "Python 基础",
+    "深度学习基础（张量、softmax、梯度）"
+  ],
+  "target_duration_minutes": 20.0,
+  "timing_rule": "以完整口播或录制的实测时长为准；文本估算只用于排期，不作为验收证据。",
+  "objectives": [
+    {
+      "objective_id": "objective-problem",
+      "statement": "解释序列建模的并行化与长距离依赖问题",
+      "required": true,
+      "slide_ids": [
+        "slide-001"
+      ]
+    },
+    {
+      "objective_id": "objective-architecture",
+      "statement": "描述编码器—解码器的数据流与掩码作用",
+      "required": true,
+      "slide_ids": [
+        "slide-002"
+      ]
+    },
+    {
+      "objective_id": "objective-attention",
+      "statement": "解释缩放点积注意力的每个符号、缩放项与输出形状",
+      "required": true,
+      "slide_ids": [
+        "slide-003"
+      ]
+    },
+    {
+      "objective_id": "objective-multihead",
+      "statement": "解释多头投影、拼接与输出投影的维度",
+      "required": true,
+      "slide_ids": [
+        "slide-004"
+      ]
+    },
+    {
+      "objective_id": "objective-positional",
+      "statement": "解释位置编码的构造与证据边界",
+      "required": true,
+      "slide_ids": [
+        "slide-005"
+      ]
+    },
+    {
+      "objective_id": "objective-complexity",
+      "statement": "比较三类层的复杂度、顺序操作与路径长度",
+      "required": true,
+      "slide_ids": [
+        "slide-006"
+      ]
+    },
+    {
+      "objective_id": "objective-results",
+      "statement": "正确解读 Table 2/Table 3 的数字与来源口径",
+      "required": true,
+      "slide_ids": [
+        "slide-007"
+      ]
+    },
+    {
+      "objective_id": "objective-limits",
+      "statement": "说出结论的适用边界并完成学习检查",
+      "required": true,
+      "slide_ids": [
+        "slide-008"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "module_id": "module-01",
+      "title": "论文要解决的问题",
+      "target_minutes": 2.0,
+      "slide_ids": [
+        "slide-001"
+      ]
+    },
+    {
+      "module_id": "module-02",
+      "title": "Transformer 总体架构",
+      "target_minutes": 3.0,
+      "slide_ids": [
+        "slide-002"
+      ]
+    },
+    {
+      "module_id": "module-03",
+      "title": "缩放点积注意力",
+      "target_minutes": 4.0,
+      "slide_ids": [
+        "slide-003"
+      ]
+    },
+    {
+      "module_id": "module-04",
+      "title": "多头注意力",
+      "target_minutes": 2.0,
+      "slide_ids": [
+        "slide-004"
+      ]
+    },
+    {
+      "module_id": "module-05",
+      "title": "位置编码",
+      "target_minutes": 1.0,
+      "slide_ids": [
+        "slide-005"
+      ]
+    },
+    {
+      "module_id": "module-06",
+      "title": "复杂度、并行性与长序列成本",
+      "target_minutes": 3.0,
+      "slide_ids": [
+        "slide-006"
+      ]
+    },
+    {
+      "module_id": "module-07",
+      "title": "翻译实验、消融与来源口径",
+      "target_minutes": 3.0,
+      "slide_ids": [
+        "slide-007"
+      ]
+    },
+    {
+      "module_id": "module-08",
+      "title": "局限、结论与学习检查",
+      "target_minutes": 2.0,
+      "slide_ids": [
+        "slide-008"
+      ]
+    }
+  ],
+  "deliverables": [
+    "可滚动 HTML 课程页（slides/index.html，非逐页 16:9 deck）",
+    "阅读版 HTML（reading_edition.html）",
+    "口播稿（internal）",
+    "3 个公式及解释",
+    "Table 2/3 结果表",
+    "学习检查（可折叠）",
+    "来源标注"
+  ],
+  "required_formula_count": 3,
+  "required_check_count": 8,
+  "manual_items": [
+    "产品定义批准",
+    "完整试听或口播计时",
+    "视觉呈现确认",
+    "学习检查确认",
+    "证据人工签署"
+  ],
+  "notes": "P5-A: default product definition is a 20-minute technical close-reading course; no downgrade without product-owner approval. 交付形态：可滚动 HTML 章节页，不是逐页演示 deck；若需要 deck，应另行定义并验收。"
+}

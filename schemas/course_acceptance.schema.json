@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "contract_version": {
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "content_version": {
+      "title": "Content Version",
+      "type": "string"
+    },
+    "reviewer": {
+      "minLength": 1,
+      "title": "Reviewer",
+      "type": "string"
+    },
+    "reviewed_at": {
+      "format": "date-time",
+      "title": "Reviewed At",
+      "type": "string"
+    },
+    "decision": {
+      "default": "needs_revision",
+      "enum": [
+        "pass",
+        "needs_revision"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "timing_confirmed": {
+      "default": false,
+      "title": "Timing Confirmed",
+      "type": "boolean"
+    },
+    "visual_confirmed": {
+      "default": false,
+      "title": "Visual Confirmed",
+      "type": "boolean"
+    },
+    "checks_confirmed": {
+      "default": false,
+      "title": "Checks Confirmed",
+      "type": "boolean"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "contract_version",
+    "content_version",
+    "reviewer",
+    "reviewed_at"
+  ],
+  "title": "CourseAcceptance",
+  "type": "object"
+}

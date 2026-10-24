@@ -2,6 +2,7 @@
 
 对象：`projects/attention-is-all-you-need`  
 任务：`LECS — Course Content Consistency & Release Gate`  
+后续恢复轮次：[`course-recovery-acceptance-2026-10-24.md`](course-recovery-acceptance-2026-10-24.md)  
 结论：**发布会话被正确阻断，P0-B3 保持关闭。** 证据机制、课程审计和发布门禁都已落地并有负向测试；
 课程内容本身仍有未修复的高风险问题，七条记录仍缺正式人工签署。
 
@@ -42,7 +43,8 @@
 - `docs/design/structured-evidence-review-2026-10-24.json`（同一记录的归档副本）
 - `projects/attention-is-all-you-need/internal/qa/evidence_review_audit.jsonl`（AI 复核审计行）
 - `projects/attention-is-all-you-need/internal/qa/course_content_audit.json`（当前课程）
-- `docs/design/course-content-audit-2026-10-24.json`（归档副本）
+- `docs/design/course-content-audit-pre-recovery-2026-10-24.json`（本轮课程版本的审计；
+  恢复后的通过版报告见 P4 报告）
 - `docs/design/release-v1-content-audit-2026-10-24.json`（对已发布 v1 的只读审计）
 - `var/acceptance-validate.log`、`var/acceptance-release-check.log`（命令输出）
 

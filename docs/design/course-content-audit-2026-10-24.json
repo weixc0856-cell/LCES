@@ -1,155 +1,34 @@
 {
   "schema_version": "1.0",
-  "audit_id": "course-audit-fb368e3a9edb",
+  "audit_id": "course-audit-6b29de748b54",
   "project_id": "attention-is-all-you-need",
-  "course_version": "b653ec5af0bc4359734977a544ed8664377033b9f9680c544c9a0c791bcc73db",
-  "generated_at": "2026-10-24T02:32:01.755329Z",
+  "course_version": "7bf523070d2686570844a3194092af8e9f0f71cd526d2748592f803c71df08db",
+  "generated_at": "2026-10-24T03:19:35.422271Z",
   "files": [
     {
       "path": "content/public_content.json",
-      "sha256": "2b553e2e03ab9639184b33c0345f2fabc932d3ea415eb6d56d15c498b531fa8a"
+      "sha256": "6ffa4cdb5a0097bd7e92b33f69104f27ea17473ef9a7ed3ccae33904e028c7e1"
     },
     {
       "path": "content/reading_edition.json",
-      "sha256": "0938719d0bfb422fcebe4b75acd67a15b525e1b5a4a947226deec5898c7d4c01"
+      "sha256": "8f4c2ab4ae5c4ef6ffd4993c7d6304b6a2dfc16a3fb20f380cb2e06546dc8f2f"
     },
     {
       "path": "build/slides/index.html",
-      "sha256": "45a94961452375e4d986f700fb2def5e55f63a6a004d8ee063234ee0829a3ba5"
+      "sha256": "05f6a1068b61f3c48b37848f50dbf1d9e77048bd56350137cb61e0861243c83e"
     },
     {
       "path": "build/reading_edition.html",
-      "sha256": "4bd71b74ac44c120441e214d3754192606a23930393c32ec8bff445d5a2d8804"
+      "sha256": "78934d5891b7d7c6903bb1a68c737d0fe27e8170a306bef2e1c8ae1bc8992b26"
     }
   ],
-  "items_checked": 7,
-  "findings": [
-    {
-      "finding_id": "finding-16c1c10488b3",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "build/slides/index.html#slide-003:p[2]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-f3490181a59e",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "build/slides/index.html#slide-003:li[1]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-2588dfb2db0c",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "build/reading_edition.html#article-0:p[3]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-cf20b2bec93d",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "build/reading_edition.html#article-0:p[9]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-8cb3ca19c78c",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "content/public_content.json#slide-003:paragraph[0]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-f2ba9567b509",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "content/public_content.json#slide-003:bullets[1].item[0]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-068b6891cc28",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "content/reading_edition.json#slide-001:paragraph[1]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-03f7cc3c34c5",
-      "check_type": "bleu_variant_qualifier",
-      "severity": "advisory",
-      "location": "content/reading_edition.json#slide-003:paragraph[0]",
-      "expected": "标注该结果属于 Transformer (big)",
-      "actual": "28.4 BLEU 未标明 big 模型",
-      "evidence_refs": [
-        "review-table2-big-ende-28.4"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-703b8505b049",
-      "check_type": "reviewed_formula_present",
-      "severity": "major",
-      "location": "review:review-formula-attention",
-      "expected": "课程展示并解释已复核公式",
-      "actual": "当前课程内容没有展示该公式",
-      "evidence_refs": [
-        "review-formula-attention"
-      ],
-      "status": "needs_correction"
-    },
-    {
-      "finding_id": "finding-2ec2e7fc4ec3",
-      "check_type": "reviewed_formula_present",
-      "severity": "major",
-      "location": "review:review-formula-multihead",
-      "expected": "课程展示并解释已复核公式",
-      "actual": "当前课程内容没有展示该公式",
-      "evidence_refs": [
-        "review-formula-multihead"
-      ],
-      "status": "needs_correction"
-    }
-  ],
+  "items_checked": 8,
+  "findings": [],
   "summary": {
     "blocker": 0,
-    "major": 2,
-    "advisory": 8
+    "major": 0,
+    "advisory": 0
   },
-  "decision": "needs_correction",
-  "notes": "检查 52 个文本/公式单元、8 处 BLEU 数值、0 个公式、7 条复核记录。审计只证明列出的检查项；未列出的语义问题仍需人工判断。"
+  "decision": "passed",
+  "notes": "检查 229 个文本/公式单元、8 处 BLEU 数值、6 个公式、8 条复核记录。审计只证明列出的检查项；未列出的语义问题仍需人工判断。"
 }

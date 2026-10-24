@@ -308,6 +308,11 @@ def _content_units(project_dir: Path) -> list[_TextUnit]:
                         texts.append(("text", str(block["explanation"]), f"{base}.explanation"))
                 elif block_type == "callout":
                     texts.append(("text", str(block.get("text", "")), base))
+                elif block_type == "check":
+                    texts.append(("text", str(block.get("question", "")), f"{base}.question"))
+                    texts.append(("text", str(block.get("answer", "")), f"{base}.answer"))
+                    if block.get("rationale"):
+                        texts.append(("text", str(block["rationale"]), f"{base}.rationale"))
                 elif block_type == "quote":
                     texts.append(("text", str(block.get("text", "")), base))
                 elif block_type == "code":

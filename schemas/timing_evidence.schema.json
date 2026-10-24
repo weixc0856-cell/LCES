@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "method": {
+      "default": "estimate",
+      "enum": [
+        "estimate",
+        "tts_readthrough",
+        "human_readthrough",
+        "human_recording"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "measured_seconds": {
+      "minimum": 0,
+      "title": "Measured Seconds",
+      "type": "number"
+    },
+    "target_minutes": {
+      "exclusiveMinimum": 0,
+      "title": "Target Minutes",
+      "type": "number"
+    },
+    "script_sha256": {
+      "default": "",
+      "title": "Script Sha256",
+      "type": "string"
+    },
+    "audio_path": {
+      "default": "",
+      "title": "Audio Path",
+      "type": "string"
+    },
+    "audio_sha256": {
+      "default": "",
+      "title": "Audio Sha256",
+      "type": "string"
+    },
+    "voice": {
+      "default": "",
+      "title": "Voice",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "measured_seconds",
+    "target_minutes",
+    "generated_at"
+  ],
+  "title": "TimingEvidence",
+  "type": "object"
+}
