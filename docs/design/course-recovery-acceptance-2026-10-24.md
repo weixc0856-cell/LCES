@@ -19,6 +19,16 @@
 | `lces release-check --version v1` | exit 1：`decision=blocked`（签署、冲突确认、资产版本） |
 | `lces release --version v2` | exit 1：`human approval for v2 is missing`（未创建 `release/v2`） |
 
+### 推送基线
+
+- 分支：`feat/course-content-audit-release-gate`，提交 `5bdeafe603bff74f373ba0a602f408e21f186adc`
+  （本地与 `origin` 一致）。
+- 干净工作树 `git worktree add --detach ../LECS-pushed-p4 5bdeafe`：
+  568 passed / 49 skipped，ruff、format（118 files）、mypy（52 files）全部通过。
+- 在推送提交上复跑真实课程：审计仍为 `passed`（`a646938f6e80`，0/0/0），
+  `release-check v1` 仍为 `decision=blocked`（8 条 pending、冲突未确认、v1 资产过期）。
+- 课程工作区 `projects/` 按仓库策略不进入提交；本报告、审计报告和复核记录是入库的可追溯产物。
+
 产物：
 
 - `content/public_content.json`（5 节，含公式与解释）
