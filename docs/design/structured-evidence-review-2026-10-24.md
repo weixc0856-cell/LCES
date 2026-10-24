@@ -11,7 +11,7 @@
 >
 > `quote_status=verified_structured` 是程序定位状态，是第四种含义，同样不能与以上三层混用。
 
-## 一、七条复核记录
+## 一、八条复核记录
 
 | # | review_id | 论文要素 | 来源 / 区块 | 复核主张 | 程序状态 | 研究核验 | AI 实质复核 | 人工签署 |
 |---|---|---|---|---|---|---|---|---|
@@ -22,6 +22,7 @@
 | 5 | `review-table3-base-25.8` | paper-027 | `source-001:b0051`；Table 3 | base BLEU (dev) EN-DE newstest2013 = **25.8** | `needs_review / table_row_span_too_wide`（旧源图原因） | `verified` | `consistent` | **pending** |
 | 6 | `review-formula-attention` | paper-007 | `source-001:b0033`；§3.2.1 | Eq. (1) 缩放点积注意力 | `needs_review / formula_semantics_manual` | `verified` | `consistent` | **pending** |
 | 7 | `review-formula-multihead` | paper-009 | `source-001:b0035`；§3.2.2 | 多头注意力两行公式 | `needs_review / formula_semantics_manual` | `verified` | `consistent` | **pending** |
+| 8 | `review-formula-positional` | paper-014 | `source-001:b0040`；§3.5 | 正弦/余弦位置编码公式 | `needs_review / formula_semantics_manual` | `verified` | `consistent` | **pending** |
 
 AI 复核者是 `claude-code (AI substantive review; Opus 5)`。它不写 `reviewer`，不写
 `reviewed_at`，也不改 `conclusion`；`review-evidence-ai` 的审计行带
@@ -74,6 +75,16 @@ AI 复核者是 `claude-code (AI substantive review; Opus 5)`。它不写 `revie
 - 推导检查：逐头投影、并行注意力、拼接、输出投影；base 模型 `h=8`、`d_k=d_v=d_model/h=64`。
 - 限制：课程必须解释设计目的和维度；只展示公式不代表读者理解。
 
+### 位置编码（paper-014，2026-10-24 补充）
+
+- 原文：§3.5（`source-001:b0040`）；NeurIPS PDF p.6。
+- 转录：`PE_{(pos,2i)}=sin(pos/10000^{2i/d_model})`；`PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})`。
+- 符号：`pos` 位置，`i` 维度索引，`d_model` 模型维度；编码维度与词嵌入相同。
+- 推导检查：定义式；波长从 2π 到 10000·2π 按几何级数变化。
+- 限制：论文只论证该设计“有助于”外推，没有给出超长序列实验；这是作者解释，课程必须如此标注。
+- 这一条不在 stage B 的两窗口候选批次中，是 P4 恢复课程时按原文补充的；程序状态保持
+  `needs_review`，AI 复核已记录，人工签署仍为 `pending`。
+
 ## 五、复核规则
 
 1. **研究核验 ≠ 人工签署。** `research_verification.research_finding=verified` 不能自动把
@@ -100,7 +111,8 @@ AI 复核者是 `claude-code (AI substantive review; Opus 5)`。它不写 `revie
 | Table 3 base 25.8 | verified | consistent | pending |
 | 缩放点积公式 | verified | consistent | pending |
 | 多头公式 | verified | consistent | pending |
+| 位置编码公式 | verified | consistent | pending |
 
-**P0-B3 保持关闭。** 七条记录的研究核验、AI 实质复核和人工签署仍然分离；课程内容是否
+**P0-B3 保持关闭。** 八条记录的研究核验、AI 实质复核和人工签署仍然分离；课程内容是否
 使用这些证据、是否披露冲突，由课程内容审计（`internal/qa/course_content_audit.json`）
 单独检查。发布门禁在人工签署完成前拒绝发布。

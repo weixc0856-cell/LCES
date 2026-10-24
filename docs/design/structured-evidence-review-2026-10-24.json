@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "project_id": "attention-is-all-you-need",
   "status": "pending_human_review",
-  "note": "研究核验（外部来源）、AI 实质复核（substantive_review）与正式人工签署（reviewer/reviewed_at/conclusion）三层分开存储。AI 复核的 reviewer_kind 固定为 ai，永远不是签署，也不会改变 conclusion。七条记录的 claim 与 chunk 已在 2026-10-24 的实质复核中按当前 source map 与真实原文修正；Table 2 行位于 source-001:b0048，Table 3 行位于 source-001:b0051，摘要 41.8 位于 b0026，§6.1 的 41.0 位于 b0050。",
+  "note": "研究核验（外部来源）、AI 实质复核（substantive_review）与正式人工签署（reviewer/reviewed_at/conclusion）三层分开存储。AI 复核的 reviewer_kind 固定为 ai，永远不是签署，也不会改变 conclusion。八条记录的 claim 与 chunk 已在 2026-10-24 的实质复核中按当前 source map 与真实原文修正；Table 2 行位于 source-001:b0048，Table 3 行位于 source-001:b0051，摘要 41.8 位于 b0026，§6.1 的 41.0 位于 b0050。",
   "items": [
     {
       "review_id": "review-table2-base-27.3",
@@ -416,6 +416,66 @@
       "conclusion": "pending",
       "basis": "",
       "missing": "正式人工签署；课程是否展示并解释投影维度由课程内容审计单独检查。"
+    },
+    {
+      "review_id": "review-formula-positional",
+      "local_evidence_id": "evidence-006",
+      "window": "A_position",
+      "paper_id": "paper-014",
+      "source_id": "source-001",
+      "chunk_id": "source-001:b0040",
+      "locator": "§3.5 Positional Encoding",
+      "evidence_kind": "formula",
+      "claim_id": "claim-009",
+      "claim_ref": "A_position:claim-001",
+      "claim": "位置编码（§3.5）：PE_{(pos,2i)}=sin(pos/10000^{2i/d_model})；PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+      "program_status": "needs_review",
+      "program_reason": "formula_semantics_manual",
+      "program_precheck": "P4-B 补充：位置编码公式不在 stage B 候选批次中，程序未自动定位；区块 b0040 含 §3.5 公式，语义仍需人工核对。",
+      "research_verification": [
+        {
+          "claim_id": "",
+          "paper_id": "paper-014",
+          "formula_id": "paper-014",
+          "research_finding": "verified",
+          "details": "Matches §3.5: PE_{(pos,2i)}=sin(pos/10000^{2i/d_model}), PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model}).",
+          "source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+          "source_version": "NeurIPS 2017 proceedings",
+          "source_locator": "§3.5, p.6",
+          "transcribed_expression": "PE_{(pos,2i)}=sin(pos/10000^{2i/d_model}); PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+          "symbol_definitions": {
+            "pos": "position in the sequence",
+            "i": "dimension index",
+            "d_model": "embedding/model dimension"
+          },
+          "dimension_check": "PE has the same dimension as the embeddings (d_model); even dimensions use sin, odd dimensions use cos.",
+          "derivation_check": "Definition, not a derivation. Wavelengths form a geometric progression from 2π to 10000·2π.",
+          "limitations": "The paper argues this design allows extrapolation to longer sequences but reports no long-sequence experiment; that part is the authors' interpretation.",
+          "sources": [],
+          "verified_at": "2026-10-24",
+          "reviewed_by_human": false,
+          "formal_review_status": "pending"
+        }
+      ],
+      "substantive_review": {
+        "reviewer": "claude-code (AI substantive review; Opus 5)",
+        "reviewer_kind": "ai",
+        "reviewed_at": "2026-10-24T02:37:50.106008Z",
+        "finding": "consistent",
+        "scopes": [
+          "source_transcription",
+          "claim_interpretation"
+        ],
+        "basis": "§3.5 in source-001:b0040 gives PE_{(pos,2i)}=sin(pos/10000^{2i/d_model}) and PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model}); the symbol definitions and dimension statement match the paper.",
+        "limitations": "The paper's extrapolation rationale is an author claim, not an experiment; course usage is checked by the course audit."
+      },
+      "conflict_status": "none",
+      "conflict_acknowledged": false,
+      "reviewer": "",
+      "reviewed_at": null,
+      "conclusion": "pending",
+      "basis": "",
+      "missing": "正式人工签署；课程是否展示并解释该公式由课程内容审计检查。"
     }
   ]
 }
