@@ -85,3 +85,28 @@ def test_review_claims_rejects_unknown_status(tmp_path, monkeypatch):
     )
     assert result.exit_code == 1
     assert "unknown review status" in result.output
+
+
+def test_status_shows_run_lineage(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from content_studio.storage import TaskStore
+
+    store = TaskStore(tmp_path / "var" / "lces.sqlite3")
+    task_id = store.create_task(
+        "demo-course",
+        "paper_course",
+        "mock",
+        "mock-deterministic",
+        input_sha256="b" * 64,
+        config={"provider": "mock"},
+    )
+    run_id = store.start_stage(task_id, "ingest", "mock", "mock-deterministic")
+    store.finish_stage(run_id, status="pass", artifacts=["internal/source_registry.json"])
+
+    result = CliRunner().invoke(app, ["status", "--task", str(task_id)])
+
+    assert result.exit_code == 0, result.output
+    assert "run_id=" in result.output
+    assert "b" * 64 in result.output
+    assert "retry=0" in result.output
+    assert "internal/source_registry.json" in result.output

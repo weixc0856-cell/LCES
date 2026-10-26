@@ -57,6 +57,8 @@ jobs:
         run: uv run ruff format --check .
       - name: Type check
         run: uv run mypy src
+      - name: Document governance
+        run: uv run python scripts/check_docs.py
       - name: Supply-chain pin audit
         run: uv run lces supply-chain-check
       - name: Tests

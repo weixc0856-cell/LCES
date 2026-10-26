@@ -7,15 +7,23 @@ release tree.
 
 from __future__ import annotations
 
+import os
 import platform
 import re
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
 from content_studio import __version__
 from content_studio.content import load_public_content, load_reading_edition
 from content_studio.course_audit import run_course_audit, write_audit
+from content_studio.course_quality import (
+    ACCEPTANCE_RELATIVE_PATH,
+    QUALITY_RELATIVE_PATH,
+    load_contract,
+    load_quality,
+)
 from content_studio.errors import ConfigurationError, ValidationFailure
 from content_studio.models import (
     ApprovalRecord,
@@ -28,7 +36,7 @@ from content_studio.paths import BUILD_MARKER, symlink_components, symlinks_in_t
 from content_studio.storage import TaskStore
 from content_studio.structured_review import default_review_path, load_review
 from content_studio.utils import sha256_file, write_json, write_text
-from content_studio.validation import release_decision, run_release_checks
+from content_studio.validation import content_version, release_decision, run_release_checks
 
 VERSION_PATTERN = re.compile(r"^v[0-9]{1,3}$")
 
@@ -238,6 +246,33 @@ def _write_archive(
     return destination
 
 
+def _file_digest(project_dir: Path, relative: Path) -> str:
+    path = project_dir / relative
+    return sha256_file(path) if path.is_file() else ""
+
+
+def _code_version(project_dir: Path) -> str:
+    """The Git revision the release was built from ("" outside a repository).
+
+    A release without a recorded revision is not refused -- CI and normal
+    clones have one -- but the manifest says so instead of inventing a value.
+    """
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(project_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    value = result.stdout.strip()
+    return value if result.returncode == 0 and re.fullmatch(r"[0-9a-f]{40,64}", value) else ""
+
+
 def build_release(
     project_dir: Path,
     config: ProjectConfig,
@@ -275,6 +310,21 @@ def build_release(
         details = "; ".join(f"{item.check_id}: {item.message}" for item in qa.blocking_failures)
         raise ValidationFailure(f"QA has blocking failures, release refused: {details}")
 
+    # A pass describes the artefacts it read. Content edited (or rebuilt)
+    # after `lces validate` invalidates it; reusing it would ship an unverified
+    # version under an older pass (PRD §7.4, TDD-001 §11.1).
+    current_version, _bound_files = content_version(project_dir)
+    if not qa.content_version:
+        raise ValidationFailure(
+            "QA report carries no content binding (written before 2026-10-24); "
+            "run `lces validate` again before releasing"
+        )
+    if qa.content_version != current_version:
+        raise ValidationFailure(
+            "course content or build output changed after `lces validate`; "
+            "the old QA pass no longer applies -- run validate again"
+        )
+
     approval = load_approval(project_dir, version)
     if config.release_requires_human_approval and approval is None:
         raise ValidationFailure(
@@ -294,7 +344,21 @@ def build_release(
     if public_path.is_file():
         content_hash = sha256_file(public_path)
 
+    contract = load_contract(project_dir)
+    quality = load_quality(project_dir)
+    course_product = "not_applicable"
+    if contract is not None or quality is not None:
+        course_product = quality.decision if quality is not None else "not_run"
+    disclosed = _conflict_disclosed(project_dir)
+    limitations = [
+        f"{item.check_id}: {item.message}" for item in qa.checks if item.status == "not_run"
+    ]
+    # `approved` means nothing about this course was left unproven. A disclosed
+    # source conflict or any NOT_RUN check makes the honest state
+    # `approved_with_disclosures` (PRD §10.1, TDD §18).
+    decision = "approved_with_disclosures" if (disclosed or limitations) else "approved"
     manifest = ReleaseManifest(
+        manifest_schema_version="2.0",
         project_id=config.project_id,
         version=version,
         package_version=__version__,
@@ -305,6 +369,16 @@ def build_release(
         gates=qa.gate_status(),
         human_approval=approval,
         files=files,
+        course_version=contract.version if contract is not None else "",
+        content_version=current_version,
+        code_version=_code_version(project_dir),
+        input_sha256=_file_digest(project_dir, Path("internal") / "source_registry.json"),
+        quality_sha256=_file_digest(project_dir, QUALITY_RELATIVE_PATH),
+        acceptance_sha256=_file_digest(project_dir, ACCEPTANCE_RELATIVE_PATH),
+        course_product=course_product,
+        decision=decision,
+        disclosures=["course_text_discloses_source_conflict"] if disclosed else [],
+        limitations=limitations,
     )
     write_json(staging / "release_manifest.json", manifest)
 

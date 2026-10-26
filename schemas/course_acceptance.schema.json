@@ -48,6 +48,11 @@
       "title": "Checks Confirmed",
       "type": "boolean"
     },
+    "learner_trial_confirmed": {
+      "default": false,
+      "title": "Learner Trial Confirmed",
+      "type": "boolean"
+    },
     "notes": {
       "default": "",
       "title": "Notes",

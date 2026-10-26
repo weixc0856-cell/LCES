@@ -312,3 +312,52 @@ def test_course_master_rejects_unsupported_schema_major():
             ],
             units=[_unit()],
         )
+
+
+def test_scene_contract_carries_playable_state():
+    scene = SceneContract(
+        scene_id="scene-001",
+        scene_type="concept",
+        duration_ms=6000,
+        objective_ids=["scene-001-objective-00"],
+        claim_refs=["claim-001"],
+        scene_version="1.2",
+        entry_state={"step": 0},
+        exit_state={"step": 3},
+        reset_policy="restore-entry",
+        required_checks=["reset_deterministic"],
+    )
+    assert scene.reset_policy == "restore-entry"
+    assert scene.scene_version == "1.2"
+    assert scene.objective_ids == ["scene-001-objective-00"]
+
+    with pytest.raises(ValidationError, match="unique"):
+        SceneContract(
+            scene_id="scene-001",
+            scene_type="concept",
+            duration_ms=1000,
+            objective_ids=["objective", "objective"],
+        )
+    with pytest.raises(ValidationError, match="entry_state"):
+        SceneContract(
+            scene_id="scene-001",
+            scene_type="concept",
+            duration_ms=1000,
+            reset_policy="restore-entry",
+        )
+    with pytest.raises(ValidationError, match="entry_state == exit_state"):
+        SceneContract(
+            scene_id="scene-001",
+            scene_type="concept",
+            duration_ms=1000,
+            reset_policy="static",
+            entry_state={"step": 0},
+            exit_state={"step": 1},
+        )
+    with pytest.raises(ValidationError):
+        SceneContract(
+            scene_id="scene-001",
+            scene_type="concept",
+            duration_ms=1000,
+            scene_version="v1",
+        )

@@ -71,6 +71,99 @@
       ],
       "title": "CourseObjective",
       "type": "object"
+    },
+    "DeferredDeliverable": {
+      "additionalProperties": false,
+      "description": "An enhancement outside the current release promise.\n\n``prd_basis`` names the PRD section that makes it optional; without that\nbasis a contract cannot quietly move a required deliverable out of scope.",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "default": "out_of_scope_this_release",
+          "enum": [
+            "out_of_scope_this_release",
+            "deferred_to_future_release"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "future_release": {
+          "default": "",
+          "title": "Future Release",
+          "type": "string"
+        },
+        "affects_current_acceptance": {
+          "default": false,
+          "title": "Affects Current Acceptance",
+          "type": "boolean"
+        },
+        "prd_basis": {
+          "default": "",
+          "title": "Prd Basis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "DeferredDeliverable",
+      "type": "object"
+    },
+    "LearnerTrialPlan": {
+      "additionalProperties": false,
+      "description": "Preparation state for the learner trial. Results are never stored here.",
+      "properties": {
+        "status": {
+          "default": "protocol_draft",
+          "enum": [
+            "protocol_draft",
+            "scheduled",
+            "completed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "sample_size_min": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size Min"
+        },
+        "pass_threshold": {
+          "default": "",
+          "title": "Pass Threshold",
+          "type": "string"
+        },
+        "tasks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tasks",
+          "type": "array"
+        },
+        "failure_handling": {
+          "default": "",
+          "title": "Failure Handling",
+          "type": "string"
+        },
+        "record_path": {
+          "default": "",
+          "title": "Record Path",
+          "type": "string"
+        }
+      },
+      "title": "LearnerTrialPlan",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -121,6 +214,13 @@
       "title": "Audience",
       "type": "string"
     },
+    "audience_outcomes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Audience Outcomes",
+      "type": "array"
+    },
     "prerequisites": {
       "items": {
         "type": "string"
@@ -132,6 +232,15 @@
       "exclusiveMinimum": 0,
       "title": "Target Duration Minutes",
       "type": "number"
+    },
+    "duration_status": {
+      "default": "planning_target",
+      "enum": [
+        "planning_target",
+        "measured"
+      ],
+      "title": "Duration Status",
+      "type": "string"
     },
     "timing_rule": {
       "minLength": 1,
@@ -161,6 +270,43 @@
       "minItems": 1,
       "title": "Deliverables",
       "type": "array"
+    },
+    "deferred_deliverables": {
+      "items": {
+        "$ref": "#/$defs/DeferredDeliverable"
+      },
+      "title": "Deferred Deliverables",
+      "type": "array"
+    },
+    "quality_rules": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Quality Rules",
+      "type": "array"
+    },
+    "reacceptance_rules": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reacceptance Rules",
+      "type": "array"
+    },
+    "conflict_policy": {
+      "default": "",
+      "title": "Conflict Policy",
+      "type": "string"
+    },
+    "learner_trial": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LearnerTrialPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "required_formula_count": {
       "default": 3,

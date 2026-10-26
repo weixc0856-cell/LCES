@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from content_studio.content import (
     load_public_content,
     load_reading_edition,
 )
-from content_studio.errors import LCESError, ProviderError, ValidationFailure
+from content_studio.errors import LCESError, ProviderError, ValidationFailure, classify_error
 from content_studio.ingestion import ingest_project, load_registry
 from content_studio.models import ProjectConfig, QAReport, TaskStatus
 from content_studio.paths import template_dir
@@ -26,6 +27,7 @@ from content_studio.research import load_evidence_ledger, load_research_brief, r
 from content_studio.routing import load_routing
 from content_studio.settings import Settings
 from content_studio.storage import TaskStore
+from content_studio.utils import sha256_file, sha256_text
 from content_studio.validation import run_validation
 
 STAGES = ("ingest", "research", "outline", "generate", "build", "validate")
@@ -39,6 +41,55 @@ STAGE_STATUS: dict[str, TaskStatus] = {
     "build": "GENERATING",
     "validate": "VALIDATING",
 }
+
+
+# Primary outputs per stage, relative to the project workspace. The run record
+# keeps references, not copies; a file that is absent is not listed.
+STAGE_ARTIFACTS: dict[str, tuple[str, ...]] = {
+    "ingest": ("internal/source_registry.json", "internal/source_map.json"),
+    "research": (
+        "internal/research_analysis.json",
+        "internal/evidence_ledger.csv",
+        "internal/research_brief.json",
+        "internal/research_brief.md",
+    ),
+    "outline": ("content/outline.json",),
+    "generate": (
+        "content/public_content.json",
+        "internal/speaker_script.json",
+        "content/reading_edition.json",
+    ),
+    "build": ("build/slides/index.html", "build/reading_edition.html"),
+    "validate": ("internal/qa/qa_report.json",),
+}
+
+
+def _input_digest(project_dir: Path, config: ProjectConfig) -> str:
+    """Fingerprint the run inputs (SAD-001 §8.3).
+
+    Once ingestion has run, the source registry is the canonical input; before
+    that, hash the configured local files and URL strings. A missing file keeps
+    its entry with an empty hash so the digest still changes when it appears.
+    """
+
+    registry = project_dir / "internal" / "source_registry.json"
+    if registry.is_file():
+        return sha256_file(registry)
+    entries: list[dict[str, str]] = []
+    for relative in config.input_paths:
+        path = project_dir / relative
+        entries.append({"path": relative, "sha256": sha256_file(path) if path.is_file() else ""})
+    for url in config.source_urls:
+        entries.append({"url": url})
+    return sha256_text(json.dumps(entries, ensure_ascii=False, sort_keys=True))
+
+
+def _stage_artifacts(stage: str, project_dir: Path) -> list[str]:
+    return [
+        relative
+        for relative in STAGE_ARTIFACTS.get(stage, ())
+        if (project_dir / relative).is_file()
+    ]
 
 
 @dataclass
@@ -214,12 +265,24 @@ def run_pipeline(
     task_provider = provider_name or (
         policy.default if policy is not None and policy.default else settings.provider
     )
+    config_snapshot = {
+        "provider": task_provider,
+        "model": settings.model_for(task_provider),
+        "stages": list(stages),
+        "from_stage": from_stage or "",
+        "only_stage": only_stage or "",
+        "routing_file": configured_routing.name if configured_routing else "",
+        "content_mode": config.content_mode,
+        "target_duration_minutes": config.target_duration_minutes,
+    }
     if task_id is None:
         task_id = store.create_task(
             config.project_id,
             config.content_mode,
             task_provider,
             settings.model_for(task_provider),
+            input_sha256=_input_digest(project_dir, config),
+            config=config_snapshot,
         )
     store.log_event(task_id, "info", f"pipeline stages: {', '.join(stages)}")
 
@@ -229,7 +292,7 @@ def run_pipeline(
     for stage in stages:
         provider = provider_for(stage)
         store.update_task(task_id, status=STAGE_STATUS[stage], stage=stage)
-        run_id = store.start_stage(task_id, stage, provider.name, provider.model)
+        run_id = store.start_stage(task_id, stage, provider.name, provider.model, retry_count=0)
         try:
             try:
                 outcome = _STAGE_FUNCS[stage](project_dir, config, settings, provider)
@@ -237,7 +300,13 @@ def run_pipeline(
                 fallback_name = policy.fallback_for(stage, provider.name) if policy else ""
                 if not fallback_name:
                     raise
-                store.finish_stage(run_id, status="fail", error=f"{exc.__class__.__name__}: {exc}")
+                store.finish_stage(
+                    run_id,
+                    status="fail",
+                    error=f"{exc.__class__.__name__}: {exc}",
+                    error_class=classify_error(exc),
+                    artifacts=_stage_artifacts(stage, project_dir),
+                )
                 store.log_event(
                     task_id,
                     "warn",
@@ -245,7 +314,9 @@ def run_pipeline(
                 )
                 _close_provider(provider)
                 provider = build_provider(settings, fallback_name)
-                run_id = store.start_stage(task_id, stage, provider.name, provider.model)
+                run_id = store.start_stage(
+                    task_id, stage, provider.name, provider.model, retry_count=1
+                )
                 outcome = _STAGE_FUNCS[stage](project_dir, config, settings, provider)
             if provider.structured_usage.total_tokens:
                 usage = provider.structured_usage.as_dict()
@@ -253,14 +324,27 @@ def run_pipeline(
                 usage = provider.last_result.usage.as_dict()
             else:
                 usage = {}
-            store.finish_stage(run_id, status="pass", usage=usage)
+            store.finish_stage(
+                run_id,
+                status="pass",
+                usage=usage,
+                artifacts=_stage_artifacts(stage, project_dir),
+            )
+            if stage == "ingest":
+                store.update_task(task_id, input_sha256=_input_digest(project_dir, config))
             completed.append(stage)
             store.log_event(task_id, "info", f"stage {stage} completed")
             if isinstance(outcome, QAReport):
                 qa = outcome
         except Exception as exc:
             message = f"{exc.__class__.__name__}: {exc}"
-            store.finish_stage(run_id, status="fail", error=message)
+            store.finish_stage(
+                run_id,
+                status="fail",
+                error=message,
+                error_class=classify_error(exc),
+                artifacts=_stage_artifacts(stage, project_dir),
+            )
             store.update_task(task_id, status="FAILED", stage=stage, error=message)
             store.log_event(task_id, "error", f"stage {stage} failed: {message}")
             return PipelineResult(

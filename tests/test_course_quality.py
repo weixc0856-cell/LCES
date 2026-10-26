@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from content_studio.course_quality import (
     CourseContract,
     CourseModule,
     CourseObjective,
+    LearnerTrialPlan,
     TimingEvidence,
     load_quality,
     run_course_quality_audit,
@@ -35,7 +37,7 @@ from content_studio.paths import ensure_project_layout, template_dir
 from content_studio.release import approve, build_release
 from content_studio.rendering import build_public_html
 from content_studio.utils import sha256_file, utc_now, write_json, write_text
-from content_studio.validation import run_release_checks
+from content_studio.validation import content_version, run_release_checks
 
 
 def _content(formula: bool = True, check: bool = True) -> PublicContent:
@@ -81,6 +83,9 @@ def _project(
     project_target: float = 20,
     timing: str = "measured",
     acceptance: bool = True,
+    timing_method: str = "human_recording",
+    duration_status: str | None = None,
+    learner_trial_confirmed: bool = True,
 ) -> Path:
     root = ensure_project_layout(tmp_path / "project")
     (root / "project.yaml").write_text(
@@ -141,11 +146,14 @@ def _project(
     )
     write_text(root / "build" / "slides" / "index.html", "<html><body>课程</body></html>")
     write_text(root / "build" / "reading_edition.html", "<html><body>阅读版</body></html>")
+    _qa_version, _qa_files = content_version(root)
     write_json(
         root / "internal" / "qa" / "qa_report.json",
         QAReport(
             project_id="quality-course",
             provider="local",
+            content_version=_qa_version,
+            content_files=_qa_files,
             checks=[
                 CheckResult(
                     check_id="browser_pages_load",
@@ -169,7 +177,15 @@ def _project(
         approved_by="product-owner" if status == "approved" else "",
         audience="测试受众",
         target_duration_minutes=contract_target,
+        duration_status=duration_status
+        or ("measured" if timing == "measured" else "planning_target"),
         timing_rule="实测",
+        quality_rules=["公式须有解释"],
+        reacceptance_rules=["内容变化后重跑审计"],
+        conflict_policy="冲突在证据层裁决",
+        learner_trial=LearnerTrialPlan(
+            status="protocol_draft", tasks=["解释注意力"], record_path="trial.md"
+        ),
         objectives=[
             CourseObjective(
                 objective_id="objective-attention",
@@ -196,7 +212,7 @@ def _project(
             root / "internal" / "qa" / "timing_evidence.json",
             TimingEvidence(
                 project_id="quality-course",
-                method="tts_readthrough",
+                method=timing_method,  # type: ignore[arg-type]
                 measured_seconds=1200,
                 target_minutes=20,
                 script_sha256=sha256_file(root / "internal" / "speaker_script.json"),
@@ -231,6 +247,7 @@ def _project(
                 timing_confirmed=True,
                 visual_confirmed=True,
                 checks_confirmed=True,
+                learner_trial_confirmed=learner_trial_confirmed,
             ),
         )
         write_quality(root, run_course_quality_audit(root))
@@ -405,3 +422,328 @@ def test_check_block_renders_question_and_answer(tmp_path):
     assert "缩放发生在 softmax 之前还是之后？" in html
     assert "<details>" in html
     assert "缩放控制点积方差。" in html
+
+
+def _minimal_contract(**overrides) -> CourseContract:
+    values = {
+        "project_id": "contract-course",
+        "audience": "具备基础的学习者",
+        "target_duration_minutes": 20,
+        "timing_rule": "以实测为准",
+        "objectives": [
+            CourseObjective(
+                objective_id="objective-01", statement="解释注意力", slide_ids=["slide-001"]
+            )
+        ],
+        "modules": [
+            CourseModule(
+                module_id="module-01", title="注意力", target_minutes=20, slide_ids=["slide-001"]
+            )
+        ],
+        "deliverables": ["幻灯片"],
+    }
+    values.update(overrides)
+    return CourseContract(**values)
+
+
+def test_contract_defaults_keep_duration_as_a_planning_target():
+    contract = _minimal_contract()
+
+    assert contract.duration_status == "planning_target"
+    assert contract.audience_outcomes == []
+    assert contract.deferred_deliverables == []
+    assert contract.quality_rules == []
+    assert contract.reacceptance_rules == []
+
+
+def test_contract_accepts_deferred_deliverables_and_rules():
+    contract = _minimal_contract(
+        deferred_deliverables=["字幕"],
+        quality_rules=["公式须有解释"],
+        reacceptance_rules=["内容变化后重跑审计"],
+        manual_items=["学习者试测"],
+    )
+
+    assert [item.name for item in contract.deferred_deliverables] == ["字幕"]
+    assert contract.quality_rules == ["公式须有解释"]
+    assert contract.manual_items == ["学习者试测"]
+
+
+def test_contract_rejects_overlapping_deferred_deliverables():
+    with pytest.raises(ValueError, match="overlap"):
+        _minimal_contract(deferred_deliverables=["幻灯片"])
+
+
+def test_tts_timing_is_not_a_human_measurement(tmp_path):
+    root = _project(tmp_path, timing_method="tts_readthrough")
+
+    report = load_quality(root)
+
+    assert report is not None
+    assert _check_ids(report)["timing_method_human"] == "human"
+    assert report.decision == "needs_human_review"
+
+
+def test_measured_timing_requires_the_contract_duration_status_to_be_measured(tmp_path):
+    root = _project(tmp_path, duration_status="planning_target")
+
+    report = load_quality(root)
+
+    assert report is not None
+    assert _check_ids(report)["duration_status_not_updated"] == "human"
+
+
+def test_acceptance_requires_learner_trial_confirmation(tmp_path):
+    root = _project(tmp_path, learner_trial_confirmed=False)
+
+    report = load_quality(root)
+
+    assert report is not None
+    assert _check_ids(report)["acceptance_flags"] == "human"
+    assert report.decision == "needs_human_review"
+
+
+def test_contract_without_substantive_rules_needs_human(tmp_path):
+    from content_studio.course_quality import contract_path, load_contract
+
+    root = _project(tmp_path, status="draft")
+    contract = load_contract(root)
+    assert contract is not None
+    write_json(
+        contract_path(root),
+        contract.model_copy(
+            update={"quality_rules": [], "reacceptance_rules": [], "learner_trial": None}
+        ),
+    )
+
+    report = run_course_quality_audit(root)
+
+    assert _check_ids(report)["contract_rules_recorded"] == "human"
+
+
+def test_approved_contract_requires_substantive_rules():
+    with pytest.raises(ValueError, match="quality_rules"):
+        _minimal_contract(status="approved", approved_by="owner")
+
+
+def test_approved_contract_requires_a_basis_for_deferred_scope():
+    with pytest.raises(ValueError, match="prd_basis"):
+        _minimal_contract(
+            status="approved",
+            approved_by="owner",
+            quality_rules=["规则"],
+            reacceptance_rules=["重验"],
+            conflict_policy="证据层裁决",
+            learner_trial=LearnerTrialPlan(tasks=["试测"]),
+            deferred_deliverables=["字幕"],
+        )
+
+
+def test_cli_approval_requires_a_basis_and_refuses_an_incomplete_contract(tmp_path):
+    from typer.testing import CliRunner
+
+    from content_studio.cli import app
+    from content_studio.course_quality import contract_path, load_contract
+
+    root = _project(tmp_path, status="draft")
+    runner = CliRunner()
+
+    missing_notes = runner.invoke(app, ["approve-course-contract", str(root), "--by", "owner"])
+    assert missing_notes.exit_code == 1
+    assert "--notes" in missing_notes.output
+
+    contract = load_contract(root)
+    assert contract is not None
+    write_json(contract_path(root), contract.model_copy(update={"quality_rules": []}))
+    incomplete = runner.invoke(
+        app,
+        ["approve-course-contract", str(root), "--by", "owner", "--notes", "依据"],
+    )
+    assert incomplete.exit_code == 1
+    assert "quality_rules" in incomplete.output
+
+    write_json(contract_path(root), contract)
+    approved = runner.invoke(
+        app,
+        ["approve-course-contract", str(root), "--by", "owner", "--notes", "依据"],
+    )
+    assert approved.exit_code == 0, approved.output
+    assert load_contract(root).status == "approved"  # type: ignore[union-attr]
+
+
+def test_cli_accept_course_requires_learner_trial_confirmation(tmp_path):
+    from typer.testing import CliRunner
+
+    from content_studio.cli import app
+
+    root = _project(tmp_path, status="approved")
+    runner = CliRunner()
+    base = [
+        "accept-course",
+        str(root),
+        "--by",
+        "owner",
+        "--timing-confirmed",
+        "--visual-confirmed",
+        "--checks-confirmed",
+    ]
+
+    without_trial = runner.invoke(app, base)
+    assert without_trial.exit_code == 1
+    assert "学习者试测" in without_trial.output
+
+    with_trial = runner.invoke(app, [*base, "--learner-trial-confirmed"])
+    assert with_trial.exit_code == 0, with_trial.output
+
+
+def test_legacy_contract_with_string_deferred_entries_still_loads():
+    contract = CourseContract.model_validate(
+        {
+            **_minimal_contract().model_dump(mode="json"),
+            "deferred_deliverables": ["字幕"],
+            "learner_trial": None,
+        }
+    )
+
+    assert [item.name for item in contract.deferred_deliverables] == ["字幕"]
+    assert contract.deferred_deliverables[0].prd_basis == ""
+    assert contract.learner_trial is None
+
+
+def test_scheduled_learner_trial_requires_thresholds_and_failure_handling():
+    with pytest.raises(ValueError, match="pass_threshold"):
+        _minimal_contract(learner_trial=LearnerTrialPlan(status="scheduled", tasks=["试测"]))
+
+    with pytest.raises(ValueError, match="failure_handling"):
+        _minimal_contract(
+            learner_trial=LearnerTrialPlan(
+                status="scheduled",
+                sample_size_min=3,
+                pass_threshold="至少 2/3 完成",
+                tasks=["试测"],
+            )
+        )
+
+
+def test_approved_contract_requires_reacceptance_rules():
+    with pytest.raises(ValueError, match="reacceptance_rules"):
+        _minimal_contract(
+            status="approved",
+            approved_by="owner",
+            quality_rules=["规则"],
+            conflict_policy="证据层裁决",
+            learner_trial=LearnerTrialPlan(tasks=["试测"]),
+        )
+
+
+def test_deferred_to_future_release_requires_a_named_release():
+    with pytest.raises(ValueError, match="future_release"):
+        _minimal_contract(
+            deferred_deliverables=[
+                {
+                    "name": "字幕",
+                    "status": "deferred_to_future_release",
+                    "prd_basis": "PRD §3.2",
+                }
+            ]
+        )
+
+    contract = _minimal_contract(
+        deferred_deliverables=[
+            {
+                "name": "字幕",
+                "status": "deferred_to_future_release",
+                "future_release": "v2 候选",
+                "prd_basis": "PRD §3.2",
+            }
+        ]
+    )
+    assert contract.deferred_deliverables[0].future_release == "v2 候选"
+
+
+def test_approval_does_not_require_timing_or_gate_b(tmp_path):
+    """Contract approval checks the contract only; it must not wait for P9-D."""
+
+    root = _project(tmp_path, status="draft", timing="none")
+    (root / "internal" / "qa" / "course_quality_audit.json").unlink(missing_ok=True)
+    (root / "internal" / "qa" / "qa_report.json").unlink(missing_ok=True)
+
+    from typer.testing import CliRunner
+
+    from content_studio.cli import app
+    from content_studio.course_quality import load_contract
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "approve-course-contract",
+            str(root),
+            "--by",
+            "owner",
+            "--notes",
+            "1.3 有条件批准；试测参数已冻结",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    contract = load_contract(root)
+    assert contract is not None and contract.status == "approved"
+
+
+def _timing_findings(root: Path, **updates) -> set[str]:
+    path = root / "internal" / "qa" / "timing_evidence.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.update(updates)
+    write_json(path, payload)
+    report = run_course_quality_audit(root)
+    return {finding.check_id for finding in report.findings}
+
+
+def test_timing_evidence_must_match_the_current_script(tmp_path):
+    root = _project(tmp_path)
+
+    assert "timing_matches_script" in _timing_findings(root, script_sha256="0" * 64)
+
+
+@pytest.mark.parametrize(
+    ("minutes", "blocked"),
+    [(15.9, True), (16.0, False), (26.0, False), (26.1, True)],
+)
+def test_timing_must_stay_within_eighty_to_one_hundred_thirty_percent(tmp_path, minutes, blocked):
+    root = _project(tmp_path)
+
+    findings = _timing_findings(root, measured_seconds=minutes * 60)
+
+    assert ("timing_in_range" in findings) is blocked
+
+
+def test_timing_audio_must_exist_and_match_its_hash(tmp_path):
+    root = _project(tmp_path)
+    findings = _timing_findings(root, audio_path="var/timing/narration.wav", audio_sha256="0" * 64)
+    assert "timing_audio_exists" in findings
+
+    audio = root / "var" / "timing" / "narration.wav"
+    audio.parent.mkdir(parents=True, exist_ok=True)
+    audio.write_bytes(b"not really audio")
+    findings = _timing_findings(root, audio_path="var/timing/narration.wav", audio_sha256="0" * 64)
+    assert "timing_audio_hash" in findings
+
+
+def test_production_decision_is_separate_from_release_records(tmp_path):
+    root = _project(tmp_path, acceptance=False)
+
+    report = run_course_quality_audit(root)
+
+    assert report.decision == "needs_human_review"
+    assert report.production_decision == "passed"
+    assert report.disclosures
+
+
+def test_production_decision_blocks_on_an_automated_failure(tmp_path):
+    root = _project(tmp_path)
+    _timing_findings(root, script_sha256="0" * 64)
+
+    report = run_course_quality_audit(root)
+
+    assert report.production_decision == "blocked"
+    assert report.decision == "blocked"

@@ -269,6 +269,11 @@
           "default": "",
           "title": "Explanation",
           "type": "string"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
         }
       },
       "required": [
@@ -308,6 +313,56 @@
         "alt"
       ],
       "title": "GraphBlock",
+      "type": "object"
+    },
+    "InteractiveBlock": {
+      "additionalProperties": false,
+      "description": "A deterministic Canvas lab driven by the page's own runtime.\n\nThe block carries only a scene name and numeric parameters; the drawing\ncode is one fixed script shipped with the template. Content can therefore\nnever inject logic into the public page.",
+      "properties": {
+        "type": {
+          "const": "interactive",
+          "default": "interactive",
+          "title": "Type",
+          "type": "string"
+        },
+        "scene": {
+          "enum": [
+            "complexity-crossover",
+            "variance-saturation",
+            "sinusoidal-rotation",
+            "cost-comparison"
+          ],
+          "title": "Scene",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scene",
+        "title"
+      ],
+      "title": "InteractiveBlock",
       "type": "object"
     },
     "ParagraphBlock": {
@@ -358,8 +413,10 @@
                 "figure": "#/$defs/FigureBlock",
                 "formula": "#/$defs/FormulaBlock",
                 "graph": "#/$defs/GraphBlock",
+                "interactive": "#/$defs/InteractiveBlock",
                 "paragraph": "#/$defs/ParagraphBlock",
                 "quote": "#/$defs/QuoteBlock",
+                "svg": "#/$defs/SvgBlock",
                 "table": "#/$defs/TableBlock"
               },
               "propertyName": "type"
@@ -403,6 +460,12 @@
               },
               {
                 "$ref": "#/$defs/QuoteBlock"
+              },
+              {
+                "$ref": "#/$defs/SvgBlock"
+              },
+              {
+                "$ref": "#/$defs/InteractiveBlock"
               }
             ]
           },
@@ -450,6 +513,39 @@
         "text"
       ],
       "title": "QuoteBlock",
+      "type": "object"
+    },
+    "SvgBlock": {
+      "additionalProperties": false,
+      "description": "A deterministic, authored SVG diagram inlined at build time.\n\nThe file lives under ``content/figures/`` so a diagram is reviewable as\nits own asset. Build inlines it after the same sanitisation the renderer\nregistry applies to custom SVG: no script, no external reference, no\ninline event handler. Nothing is fetched or generated at build time, so\nthe same source always produces the same page.",
+      "properties": {
+        "type": {
+          "const": "svg",
+          "default": "svg",
+          "title": "Type",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "alt"
+      ],
+      "title": "SvgBlock",
       "type": "object"
     },
     "TableBlock": {

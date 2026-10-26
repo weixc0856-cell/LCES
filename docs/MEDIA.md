@@ -30,8 +30,9 @@ the content is correct.
 
 ## Boundaries
 
-- LCES does not generate animation or video yet. Manim, Remotion, and
-  ParaView are not integrated; FFmpeg is used for inspection only.
+- LCES generates animation/video through the Motion Canvas adapter (frames, manifest,
+  encode report, Gate 4 checks). Manim, Remotion and ParaView are not integrated;
+  FFmpeg is used for encoding and inspection.
 - Do not present a schematic animation as measured simulation output.
 - Do not change a colour scale to hide differences in results.
 - Record data source, units, parameters, and any interpolation or smoothing

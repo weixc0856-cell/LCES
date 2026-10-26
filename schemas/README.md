@@ -31,8 +31,8 @@ which belongs to Phase 3).
 | `public_content.schema.json` | `PublicContent` (public only) |
 | `speaker_script.schema.json` | `SpeakerScript` (internal only) |
 | `reading_edition.schema.json` | `ReadingEdition` |
-| `qa_report.schema.json` | `QAReport` |
-| `release_manifest.schema.json` | `ReleaseManifest` |
+| `qa_report.schema.json` | `QAReport` (自 2026-10-24 起绑定 `content_version`) |
+| `release_manifest.schema.json` | `ReleaseManifest` (1.0 只读兼容；2.0 记录课程/内容/代码/审核血缘) |
 | `visual_spec.schema.json` | `VisualSpec` (renderer input) |
 | `visual_asset.schema.json` | `VisualAsset` (rendered artifact provenance) |
 | `scene_contract.schema.json` | `SceneContract` (one timeline shot, integer ms) |

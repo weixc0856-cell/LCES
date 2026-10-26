@@ -1,0 +1,85 @@
+{
+  "schema": "lces-content-snapshot/1",
+  "generated_for": "P7 人工核验包",
+  "project_id": "attention-is-all-you-need",
+  "course_version": "66cb122afbb2bf5cd6cc7aca60ba95ab543a90effdb84a33d91b3fb13321ff3c",
+  "content_version": "0e286692862b25d105f7731ce3c1340f0f887a4c3592641d4cb434f7d84f59a9",
+  "contract_version": "1.1",
+  "contract_status": "draft",
+  "delivery_form": "16:9 逐页演示 deck + 连续阅读视图 + 深度阅读版",
+  "counts": {
+    "slides": 14,
+    "formulas": 7,
+    "checks": 14,
+    "claims": 34,
+    "review_items": 14
+  },
+  "files": [
+    {
+      "path": "content/public_content.json",
+      "sha256": "d9326e536ad382bf5ee9216215240384aa7001c72c735d3e8397966823aea0b3",
+      "bytes": "38691"
+    },
+    {
+      "path": "content/reading_edition.json",
+      "sha256": "55166aff97f74a4ebaa6cbd8f6bf93d088d83aae3fb921a2341c70b8d04dd144",
+      "bytes": "55966"
+    },
+    {
+      "path": "content/outline.json",
+      "sha256": "4e27bcf44882e9b4a67da188373bbbd19184a42070c00cb0e02ecb4132bc13c8",
+      "bytes": "10186"
+    },
+    {
+      "path": "internal/plan/course_contract.json",
+      "sha256": "633524b7065c5460438baed1164e0b5ce1c9aa6f0fadb6c6d907944f9231e4cd",
+      "bytes": "6849"
+    },
+    {
+      "path": "internal/plan/course_guards.json",
+      "sha256": "9a2103e93105f2aa0d9fab623fbd9d0bfbde805b7efc5ff4b65b28bd07653f00",
+      "bytes": "1411"
+    },
+    {
+      "path": "internal/claims.json",
+      "sha256": "e44328cb8d3109d921a4111e1ad981af510ff60f7846a94a6257c69c669df28c",
+      "bytes": "15819"
+    },
+    {
+      "path": "internal/evidence_ledger.csv",
+      "sha256": "ff5a2c13da1d681075c7028848e8fff427bec824e3ec6d2ecc2cd268c0bf0678",
+      "bytes": "26031"
+    },
+    {
+      "path": "internal/qa/structured_evidence_review.json",
+      "sha256": "d258c3edcc2ce55c5f1c27ceee8dcfa083e484f3d5a388f921120549054a9758",
+      "bytes": "42093"
+    },
+    {
+      "path": "internal/qa/course_content_audit.json",
+      "sha256": "1f0c7a8c3173e06bfdc479a33a620aa515a8205ab5871be4c66f65cabb442608",
+      "bytes": "1224"
+    },
+    {
+      "path": "internal/qa/course_quality_audit.json",
+      "sha256": "9ebb5a232cc1db4e8fc8590850023b3bdc352533c3f89c244e2bd6cce3cb4ca2",
+      "bytes": "2371"
+    },
+    {
+      "path": "build/slides/index.html",
+      "sha256": "4369098523558ca4773d76752ad8036a76487c199d277d665ede200a78581657",
+      "bytes": "87607"
+    },
+    {
+      "path": "build/reading_edition.html",
+      "sha256": "d634bb1c60c5a48d08e85dac2ab663d00109eb3783657f5727b7a1391ff1f101",
+      "bytes": "81888"
+    }
+  ],
+  "internal_not_copied": {
+    "path": "internal/speaker_script.json",
+    "sha256": "1e3180b9da594d0ed52d2bca0ec810d5a02cad6bb53d478f7da9a10297e5ea61",
+    "bytes": "10500",
+    "reason": "公开/内部边界：口播稿不进入公开产物，也不进入核验包副本的课程目录；恢复时单独校验哈希。"
+  }
+}

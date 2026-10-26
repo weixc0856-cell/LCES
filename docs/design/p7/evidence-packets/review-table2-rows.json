@@ -1,0 +1,96 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "c73ab6e62e4f962bd137f8096f8317916f97e584682ddcc75ac304a77ad2c690",
+  "review_id": "review-table2-rows",
+  "generated_at": "2026-10-24T04:32:36.548158Z",
+  "claim": "Table 2 对照行：ByteNet 23.75；Deep-Att+PosUnk 39.2；GNMT+RL 24.6/39.92；ConvS2S 25.16/40.46；MoE 26.03/40.56；Deep-Att+PosUnk Ensemble 40.4；GNMT+RL Ensemble 26.30/41.16；ConvS2S Ensemble 26.36/41.29；Transformer (base) 27.3/38.1；Transformer (big) 28.4/41.8（arXiv v7 Table 2）。",
+  "evidence_kind": "table",
+  "paper_id": "paper-025",
+  "paper_title": "Table 2：BLEU 与训练成本对比",
+  "paper_locator": "§6.1 Table 2",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0047",
+  "locator": "§6.1 · Table 2 (arXiv:1706.03762v7)",
+  "program_status": "needs_review",
+  "program_reason": "table_semantics_manual",
+  "research_finding": "needs_review",
+  "external_source_url": "https://arxiv.org/html/1706.03762v7",
+  "external_source_version": "arXiv:1706.03762v7",
+  "external_source_locator": "§6.1 · Table 2 (arXiv:1706.03762v7)",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§6.1 · Table 2 (arXiv:1706.03762v7)",
+    "chunk_id": "source-001:b0047",
+    "chunk_section": "5.3 Optimizer",
+    "char_start": 25299,
+    "char_end": 26271,
+    "excerpt": "achieves better BLEU scores than previous state-of-the-art models on the English-to-German and English-to-French newstest2014 tests at a fraction of the training cost.\nModel\nBLEU\nTraining Cost (FLOPs)\nEN-DE\nEN-FR\nEN-DE\nEN-FR\nByteNet\n[\n18\n]\n23.75\nDeep-Att + PosUnk\n[\n39\n]\n39.2\n1.0\n⋅\n10\n20\n1.0\\cdot 10^{20}\nGNMT + RL\n[\n38\n]\n24.6\n39.92\n2.3\n⋅\n10\n19\n2.3\\cdot 10^{19}\n1.4\n⋅\n10\n20\n1.4\\cdot 10^{20}\nConvS2S\n[\n9\n]\n25.16\n40.46\n9.6\n⋅\n10\n18\n9.6\\cdot 10^{18}\n1.5\n⋅\n10\n20\n1.5\\cdot 10^{20}\nMoE\n[\n32\n]\n26.03\n40.56\n2.0\n⋅\n10\n19\n2.0\\cdot 10^{19}\n1.2\n⋅\n10\n20\n1.2\\cdot 10^{20}\nDeep-Att + PosUnk Ensemble\n[\n39\n]\n40.4\n8.0\n⋅\n10\n20\n8.0\\cdot 10^{20}\nGNMT + RL Ensemble\n[\n38\n]\n2",
+    "excerpt_sha256": "77b1ac6b31f230444f08d2a0fdf126b3c15652abe1b494f0bbb4debd67097dbc",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:paragraph[0]",
+      "text": "Table 2 在 WMT 2014 newstest2014 测试集上比较翻译质量与训练成本：EN-DE 方向 Transformer (base) 27.3 BLEU、Transformer (big) 28.4 BLEU；EN-FR 方向 big 报告 41.8 BLEU（arXiv v7 Table 2），但 §6.1 正文与 NeurIPS 2017 Table 2 写 41.0。成本列是训练消耗的浮点运算次数（FLOPs），不是推理成本。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "Table 2（arXiv:1706.03762v7）：BLEU 与训练成本。EN-FR 的 41.8 属来源冲突，见下方说明"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "ByteNet | 23.75 | — | — | —"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "Deep-Att + PosUnk | — | 39.2 | — | 1.0×10^20"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "GNMT + RL | 24.6 | 39.92 | 2.3×10^19 | 1.4×10^20"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "ConvS2S | 25.16 | 40.46 | 9.6×10^18 | 1.5×10^20"
+    }
+  ],
+  "support_scope": "research_finding=needs_review；program=needs_review/table_semantics_manual",
+  "counter_evidence": "",
+  "limitations": "本地来源为 arXiv v7；NeurIPS 版本未逐行对照。正式人工签署仍待完成。",
+  "ambiguities": [
+    "正式人工签署；Table 3 列语义需人工确认。",
+    "Table slice located; values transcribed; row/column semantics not verified by program."
+  ],
+  "reviewer_questions": [
+    "该数值是否确实属于该行、该列、该模型规模、该语言方向和该数据集？",
+    "表格脚注或正文是否改变了这个数值的适用范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-table2-rows --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

@@ -1,0 +1,65 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "caf8d22f18ddfb732739c4768ebf8deac5bcf740db4d4b753b2883fbcca71a36",
+  "review_id": "review-formula-postln",
+  "generated_at": "2026-10-24T04:32:36.531253Z",
+  "claim": "Post-LN 残差结构：LayerNorm(x + Sublayer(x))；所有子层与嵌入层输出 d_model=512。",
+  "evidence_kind": "formula",
+  "paper_id": "paper-005",
+  "paper_title": "编码器与解码器堆叠",
+  "paper_locator": "§3.1",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0031",
+  "locator": "§3.1 Encoder and Decoder Stacks",
+  "program_status": "needs_review",
+  "program_reason": "formula_semantics_manual",
+  "research_finding": "needs_review",
+  "external_source_url": "https://arxiv.org/html/1706.03762v7",
+  "external_source_version": "arXiv:1706.03762v7",
+  "external_source_locator": "§3.1 Encoder and Decoder Stacks",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§3.1 Encoder and Decoder Stacks",
+    "chunk_id": "source-001:b0031",
+    "chunk_section": "3.1 Encoder and Decoder Stacks",
+    "char_start": 9013,
+    "char_end": 10537,
+    "excerpt": "f the two sub-layers, followed by layer normalization\n[\n1\n]\n. That is, the output of each sub-layer is\nLayerNorm\n⁡\n(\nx\n+\nSublayer\n⁡\n(\nx\n)\n)\n\\mathrm{LayerNorm}(x+\\mathrm{Sublayer}(x))\n, where\nSublayer\n⁡\n(\nx\n)\n\\mathrm{Sublayer}(x)\nis the function implemented by the sub-layer itself. To facilitate these residual connections, all sub-layers in the model, as well as the embedding layers, produce outputs of dimension\nd\nmodel\n=\n512\nd_{\\text{model}}=512\n.\nDecoder:\nThe decoder is also composed of a stack of\nN\n=\n6\nN=6\nidentical layers. In addition to the two sub-layers in each encoder layer, the decoder inserts a third sub-layer, which performs multi-head attention over the output of the encoder stack. Similar to the encoder, we employ residual connections around each of the sub-layers, followed by ",
+    "excerpt_sha256": "61e94dcc0e9a4125eb72453077cc182605ce63f2b4ea5b5cbf1b7259ac51e36a",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "no keyword matched inside the chunk; the first 800 characters are shown"
+  },
+  "course_usage": [],
+  "support_scope": "research_finding=needs_review；program=needs_review/formula_semantics_manual",
+  "counter_evidence": "",
+  "limitations": "本地来源为 arXiv v7；NeurIPS 版本未逐项对照。正式人工签署仍待完成。",
+  "ambiguities": [
+    "正式人工签署；课程是否展示并正确解释该公式由课程内容审计单独检查。",
+    "Formula element found; LaTeX/Unicode normalisation matches the transcribed expression; algebra not verified."
+  ],
+  "reviewer_questions": [
+    "公式的转录、符号、上下标、运算符和维度是否与原文逐项一致？",
+    "课程对该公式的解释是否超出原文支持范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-formula-postln --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

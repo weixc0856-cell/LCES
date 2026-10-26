@@ -73,6 +73,24 @@
           "title": "Sha256",
           "type": "string"
         },
+        "raw_archive_sha256": {
+          "default": "",
+          "pattern": "^(|[0-9a-f]{64})$",
+          "title": "Raw Archive Sha256",
+          "type": "string"
+        },
+        "extracted_txt_sha256": {
+          "default": "",
+          "pattern": "^(|[0-9a-f]{64})$",
+          "title": "Extracted Txt Sha256",
+          "type": "string"
+        },
+        "normalized_locator_sha256": {
+          "default": "",
+          "pattern": "^(|[0-9a-f]{64})$",
+          "title": "Normalized Locator Sha256",
+          "type": "string"
+        },
         "parser": {
           "default": "",
           "title": "Parser",

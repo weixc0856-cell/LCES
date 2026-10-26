@@ -21,6 +21,7 @@ from content_studio.models import (
     PublicSlide,
     ReadingEdition,
     ResearchBrief,
+    ScriptSection,
     SourceRegistry,
     SpeakerScript,
 )
@@ -516,3 +517,243 @@ def render_script_markdown(
     if script.warnings:
         lines += ["## 生成警告", ""] + [f"- {item}" for item in script.warnings] + [""]
     return "\n".join(lines)
+
+
+def _outline_section(outline: ContentOutline, slide_id: str):
+    section = next((item for item in outline.sections if item.slide_id == slide_id), None)
+    if section is None:
+        raise ValidationFailure(f"outline has no section {slide_id}")
+    return section
+
+
+def _neighbour_titles(outline: ContentOutline, slide_id: str) -> list[str]:
+    titles: list[str] = []
+    for offset in (-1, 1):
+        position = next(
+            (index for index, item in enumerate(outline.sections) if item.slide_id == slide_id),
+            -1,
+        )
+        neighbour = position + offset
+        if 0 <= position and 0 <= neighbour < len(outline.sections):
+            item = outline.sections[neighbour]
+            titles.append(f"{item.slide_id}: {item.title}")
+    return titles
+
+
+def _build_public_slide(
+    project_dir: Path,
+    config: ProjectConfig,
+    outline: ContentOutline,
+    ledger: EvidenceLedger,
+    registry: SourceRegistry,
+    provider: ModelProvider,
+    slide_id: str,
+    *,
+    current: PublicSlide | None = None,
+    max_output_tokens: int | None = None,
+) -> PublicSlide:
+    """Generate exactly one public slide, without touching the others."""
+
+    section = _outline_section(outline, slide_id)
+    prompt = (
+        f"项目: {config.title}（{config.project_id}）\n"
+        f"语言: {config.language}\n"
+        f"受众: {config.audience}\n\n"
+        f"只生成这一个场景: {slide_id}\n"
+        "章节大纲:\n"
+        f"{_compact_json(section.model_dump(mode='json'))}\n\n"
+        "相邻场景（保持衔接，但不要生成它们）:\n"
+        f"{chr(10).join(_neighbour_titles(outline, slide_id)) or '无'}\n\n"
+        "当前版本（若存在，按需改写得更好，不要复制占位文本）:\n"
+        f"{_compact_json(current.model_dump(mode='json')) if current is not None else '无'}\n\n"
+        "内部证据台账（仅供理解，不要把 evidence-xxx 写入 source_ids）:\n"
+        f"{_evidence_table(ledger)}\n\n"
+        "可用 source_id（公开页只能从这里选择）:\n"
+        f"{', '.join(_source_ids(registry))}\n\n"
+        f"请只返回 slide_id 为 {slide_id} 的场景。"
+    )
+    request = GenerationRequest(
+        messages=[Message("system", PUBLIC_SYSTEM), Message("user", prompt)],
+        max_tokens=max_output_tokens or DEFAULT_MAX_TOKENS,
+        metadata={
+            "project_id": config.project_id,
+            "title": config.title,
+            "source_ids": ",".join(_source_ids(registry)),
+            "slide_id": slide_id,
+            "stage": "public_content_slide",
+        },
+    )
+    slide = provider.generate_structured(request, PublicSlide)
+    if slide.slide_id != slide_id:
+        raise ValidationFailure(
+            f"generator returned {slide.slide_id} while regenerating {slide_id}; "
+            "the existing course was left unchanged"
+        )
+
+    text = json.dumps(slide.model_dump(mode="json"), ensure_ascii=False)
+    for marker in PUBLIC_MARKERS:
+        if marker.lower() in text.lower():
+            raise ValidationFailure(
+                f"slide {slide_id} contains internal marker '{marker}'; generation rejected"
+            )
+
+    known_sources = set(_source_ids(registry))
+    unknown = {
+        source_id
+        for source_id in slide.source_ids
+        if not SOURCE_ID_PATTERN.fullmatch(source_id) or source_id not in known_sources
+    }
+    if unknown:
+        raise ValidationFailure(
+            f"slide {slide_id} cites unknown source ids: " + ", ".join(sorted(unknown))
+        )
+
+    wrapper = PublicContent(
+        project_id=config.project_id,
+        title=config.title,
+        language=config.language,
+        slides=[slide],
+    )
+    wrapper, _dropped = _drop_missing_figures(project_dir, wrapper)
+    return wrapper.slides[0]
+
+
+def _build_script_section(
+    config: ProjectConfig,
+    outline: ContentOutline,
+    ledger: EvidenceLedger,
+    provider: ModelProvider,
+    slide_id: str,
+    *,
+    max_output_tokens: int | None = None,
+) -> ScriptSection:
+    section = _outline_section(outline, slide_id)
+    prompt = (
+        f"项目: {config.title}（{config.project_id}）\n"
+        f"语言: {config.language}\n\n"
+        f"只写这一个场景的口播稿: {slide_id}\n"
+        "章节大纲:\n"
+        f"{_compact_json(section.model_dump(mode='json'))}\n\n"
+        "证据台账:\n"
+        f"{_evidence_table(ledger)}\n\n"
+        "返回 ScriptSection，narration 必须是可直接口播的自然语言。"
+    )
+    request = GenerationRequest(
+        messages=[Message("system", SCRIPT_SYSTEM), Message("user", prompt)],
+        max_tokens=max_output_tokens or DEFAULT_MAX_TOKENS,
+        metadata={
+            "project_id": config.project_id,
+            "title": config.title,
+            "slide_id": slide_id,
+            "stage": "speaker_script_slide",
+        },
+    )
+    script_section = provider.generate_structured(request, ScriptSection)
+    if script_section.slide_id != slide_id:
+        raise ValidationFailure(
+            f"generator returned {script_section.slide_id} while regenerating {slide_id}; "
+            "the existing script was left unchanged"
+        )
+    return script_section.model_copy(
+        update={"estimated_seconds": estimate_narration_seconds(script_section.narration)}
+    )
+
+
+def regenerate_slide(
+    project_dir: Path,
+    config: ProjectConfig,
+    outline: ContentOutline,
+    ledger: EvidenceLedger,
+    registry: SourceRegistry,
+    provider: ModelProvider,
+    slide_id: str,
+    *,
+    include_script: bool = True,
+    max_output_tokens: int | None = None,
+) -> PublicContent:
+    """Regenerate one scene and its narration; leave every other scene untouched.
+
+    Both artifacts are produced in memory first. Nothing is written until the
+    generator, the public-boundary checks and the script section all succeed, so
+    a failed single-scene run cannot corrupt a previously valid course.
+    """
+
+    existing = load_public_content(project_dir)
+    if existing is None:
+        raise ValidationFailure("public content missing; run the full generate stage first")
+    if not any(slide.slide_id == slide_id for slide in existing.slides):
+        raise ValidationFailure(f"slide {slide_id} is not part of this course")
+
+    current = next(slide for slide in existing.slides if slide.slide_id == slide_id)
+    slide = _build_public_slide(
+        project_dir,
+        config,
+        outline,
+        ledger,
+        registry,
+        provider,
+        slide_id,
+        current=current,
+        max_output_tokens=max_output_tokens,
+    )
+
+    script = load_speaker_script(project_dir) if include_script else None
+    script_section: ScriptSection | None = None
+    if script is not None:
+        script_section = _build_script_section(
+            config, outline, ledger, provider, slide_id, max_output_tokens=max_output_tokens
+        )
+
+    slides = [slide if item.slide_id == slide_id else item for item in existing.slides]
+    expected = [section.slide_id for section in outline.sections]
+    if [item.slide_id for item in slides] != expected:
+        raise ValidationFailure("single-scene merge changed slide ids or order")
+    updated = existing.model_copy(update={"slides": slides})
+    # Splice the regenerated slide into the raw document instead of serialising
+    # the loaded model: round-tripping untouched slides rewrites integers as
+    # floats and makes every other scene look modified.
+    content_path = project_dir / "content" / "public_content.json"
+    raw_content = json.loads(content_path.read_text(encoding="utf-8"))
+    for position, item in enumerate(raw_content.get("slides", [])):
+        if item.get("slide_id") == slide_id:
+            raw_content["slides"][position] = slide.model_dump(mode="json")
+            break
+    write_json(content_path, raw_content)
+    _trace(
+        project_dir,
+        "public_content_slide",
+        provider,
+        "PublicSlide",
+        extra={"slide_id": slide_id},
+    )
+
+    if script is not None and script_section is not None:
+        sections = [
+            script_section if item.slide_id == slide_id else item for item in script.sections
+        ]
+        updated_script = script.model_copy(
+            update={
+                "sections": sections,
+                "total_estimated_seconds": sum(item.estimated_seconds for item in sections),
+            }
+        )
+        script_path = project_dir / "internal" / "speaker_script.json"
+        raw_script = json.loads(script_path.read_text(encoding="utf-8"))
+        for position, item in enumerate(raw_script.get("sections", [])):
+            if item.get("slide_id") == slide_id:
+                raw_script["sections"][position] = script_section.model_dump(mode="json")
+                break
+        raw_script["total_estimated_seconds"] = updated_script.total_estimated_seconds
+        write_json(script_path, raw_script)
+        write_text(
+            project_dir / "internal" / "speaker_script.md",
+            render_script_markdown(updated_script, outline, config),
+        )
+        _trace(
+            project_dir,
+            "speaker_script_slide",
+            provider,
+            "ScriptSection",
+            extra={"slide_id": slide_id},
+        )
+    return updated

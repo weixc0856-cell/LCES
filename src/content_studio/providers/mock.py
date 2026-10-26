@@ -171,6 +171,68 @@ def _script_payload(request: GenerationRequest) -> dict[str, Any]:
     }
 
 
+def _public_slide_payload(request: GenerationRequest) -> dict[str, Any]:
+    slide_id = request.metadata.get("slide_id", "slide-001")
+    sources = _source_ids(request)
+    return {
+        "slide_id": slide_id,
+        "title": f"MOCK 单场景 {slide_id}",
+        "body": [
+            {
+                "type": "paragraph",
+                "text": "MOCK 单场景占位正文：仅用于验证按场景重生成，不得发布。",
+            },
+            {
+                "type": "callout",
+                "kind": "limitation",
+                "text": "MOCK：该场景尚未接入真实模型与研究证据。",
+            },
+        ],
+        "source_ids": sources[:1],
+    }
+
+
+def _script_section_payload(request: GenerationRequest) -> dict[str, Any]:
+    slide_id = request.metadata.get("slide_id", "slide-001")
+    return {
+        "slide_id": slide_id,
+        "narration": f"这是 {slide_id} 的单场景口播占位稿，Mock provider 不生成可发布讲稿。",
+        "pronunciation_notes": [],
+        "estimated_seconds": 60,
+    }
+
+
+def _expansion_payload(request: GenerationRequest) -> dict[str, Any]:
+    unit_id = request.metadata.get("unit_id", "unit-101")
+    budget = int(request.metadata.get("budget_seconds", "60") or 60)
+    target = max(120, int(budget * 4.2 * 0.9))
+    numerals = "一二三四五六七八九十"
+    parts: list[str] = []
+    index = 0
+    while len("".join(parts)) < target:
+        mark = numerals[index % len(numerals)]
+        parts.append(
+            f"这是第{mark}段 MOCK 教学解释，用来说明当前单元的视觉元素与学习目标之间的关系。"
+        )
+        index += 1
+    claims = [item for item in request.metadata.get("claim_ids", "").split(",") if item]
+    evidence = [item for item in request.metadata.get("evidence_ids", "").split(",") if item]
+    blocks = [
+        int(item) for item in request.metadata.get("required_blocks", "").split(",") if item.strip()
+    ]
+    return {
+        "unit_id": unit_id,
+        "narration": "".join(parts),
+        "kinds": ["concept", "visual_sync"],
+        "claims_used": claims[:1],
+        "evidence_used": evidence[:1],
+        "visual_sync": [
+            {"block": block, "note": f"MOCK：第 {block} 个视觉元素的对应讲解。"} for block in blocks
+        ],
+        "uncertainty_notes": ["MOCK：该扩展为占位内容，不得发布。"],
+    }
+
+
 def _reading_payload(request: GenerationRequest) -> dict[str, Any]:
     sections = [
         {
@@ -238,7 +300,10 @@ _BUILDERS: dict[str, Callable[[GenerationRequest], dict[str, Any]]] = {
     "SectionAnalysis": _section_payload,
     "ContentOutline": _outline_payload,
     "PublicContent": _public_payload,
+    "PublicSlide": _public_slide_payload,
     "SpeakerScript": _script_payload,
+    "ScriptSection": _script_section_payload,
+    "UnitExpansion": _expansion_payload,
     "ReadingEdition": _reading_payload,
 }
 

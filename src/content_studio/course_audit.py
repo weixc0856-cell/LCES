@@ -23,6 +23,7 @@ inheriting an old pass.
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import re
@@ -35,6 +36,7 @@ from pydantic import Field
 
 from content_studio.errors import ValidationFailure
 from content_studio.models import StrictModel
+from content_studio.number_audit import extract_quantities, normalize_quantity
 from content_studio.structured_review import (
     ReviewDocument,
     ReviewItem,
@@ -81,6 +83,10 @@ CheckType = Literal[
     "review_links_valid",
     "evidence_review_present",
     "course_content_readable",
+    "number_coverage",
+    "raw_latex_leak",
+    "external_asset_dependency",
+    "protected_condition_present",
 ]
 
 
@@ -283,51 +289,63 @@ def _fact_from_item(item: ReviewItem) -> _ReviewedFact:
     )
 
 
+def _block_texts(block: dict, base: str) -> list[tuple[str, str, str]]:
+    """Flatten one content block into ``(kind, text, location)`` triples."""
+
+    block_type = block.get("type", "")
+    texts: list[tuple[str, str, str]] = []
+    if block_type == "paragraph":
+        texts.append(("text", str(block.get("text", "")), base))
+    elif block_type == "bullets":
+        for item_index, item in enumerate(block.get("items", [])):
+            texts.append(("text", str(item), f"{base}.item[{item_index}]"))
+    elif block_type == "formula":
+        texts.append(("formula", str(block.get("latex", "")), base))
+        if block.get("explanation"):
+            texts.append(("text", str(block["explanation"]), f"{base}.explanation"))
+    elif block_type == "callout":
+        texts.append(("text", str(block.get("text", "")), base))
+    elif block_type == "check":
+        texts.append(("text", str(block.get("question", "")), f"{base}.question"))
+        texts.append(("text", str(block.get("answer", "")), f"{base}.answer"))
+        if block.get("rationale"):
+            texts.append(("text", str(block["rationale"]), f"{base}.rationale"))
+    elif block_type == "quote":
+        texts.append(("text", str(block.get("text", "")), base))
+    elif block_type in {"code", "figure"}:
+        texts.append(("text", str(block.get("caption", "")), base))
+    elif block_type == "svg":
+        texts.append(("text", str(block.get("alt", "")), f"{base}.alt"))
+        texts.append(("text", str(block.get("caption", "")), base))
+    elif block_type == "interactive":
+        texts.append(("text", str(block.get("title", "")), f"{base}.title"))
+        texts.append(("text", str(block.get("description", "")), base))
+        if block.get("caption"):
+            texts.append(("text", str(block["caption"]), f"{base}.caption"))
+    elif block_type == "table":
+        for row_index, row in enumerate(block.get("rows", [])):
+            texts.append(
+                ("text", " | ".join(str(cell) for cell in row), f"{base}.row[{row_index}]")
+            )
+    return texts
+
+
 def _content_units(project_dir: Path) -> list[_TextUnit]:
     units: list[_TextUnit] = []
+    slide_sources: dict[str, list[str]] = {}
     public = project_dir / "content" / "public_content.json"
     if public.is_file():
         payload = json.loads(public.read_text(encoding="utf-8"))
         for slide in payload.get("slides", []):
             slide_id = str(slide.get("slide_id", "slide"))
             sources = [str(item) for item in slide.get("source_ids", [])]
+            slide_sources[slide_id] = sources
             for index, block in enumerate(slide.get("body", [])):
                 if not isinstance(block, dict):
                     continue
                 block_type = block.get("type", "")
                 base = f"content/public_content.json#{slide_id}:{block_type}[{index}]"
-                texts: list[tuple[str, str, str]] = []
-                if block_type == "paragraph":
-                    texts.append(("text", str(block.get("text", "")), base))
-                elif block_type == "bullets":
-                    for item_index, item in enumerate(block.get("items", [])):
-                        texts.append(("text", str(item), f"{base}.item[{item_index}]"))
-                elif block_type == "formula":
-                    texts.append(("formula", str(block.get("latex", "")), base))
-                    if block.get("explanation"):
-                        texts.append(("text", str(block["explanation"]), f"{base}.explanation"))
-                elif block_type == "callout":
-                    texts.append(("text", str(block.get("text", "")), base))
-                elif block_type == "check":
-                    texts.append(("text", str(block.get("question", "")), f"{base}.question"))
-                    texts.append(("text", str(block.get("answer", "")), f"{base}.answer"))
-                    if block.get("rationale"):
-                        texts.append(("text", str(block["rationale"]), f"{base}.rationale"))
-                elif block_type == "quote":
-                    texts.append(("text", str(block.get("text", "")), base))
-                elif block_type == "code":
-                    texts.append(("text", str(block.get("caption", "")), base))
-                elif block_type == "figure":
-                    texts.append(("text", str(block.get("caption", "")), base))
-                elif block_type == "table":
-                    for row_index, row in enumerate(block.get("rows", [])):
-                        texts.append(
-                            (
-                                "text",
-                                " | ".join(str(cell) for cell in row),
-                                f"{base}.row[{row_index}]",
-                            )
-                        )
+                texts: list[tuple[str, str, str]] = _block_texts(block, base)
                 for kind, text, location in texts:
                     if not text.strip():
                         continue
@@ -360,6 +378,40 @@ def _content_units(project_dir: Path) -> list[_TextUnit]:
                         source_ids=sources,
                     )
                 )
+            for index, block in enumerate(section.get("body", [])):
+                if not isinstance(block, dict):
+                    continue
+                base = f"content/reading_edition.json#{slide_id}:{block.get('type', '')}[{index}]"
+                for kind, text, location in _block_texts(block, base):
+                    if not text.strip():
+                        continue
+                    units.append(
+                        _TextUnit(
+                            path="content/reading_edition.json",
+                            group=slide_id,
+                            location=location,
+                            text=text,
+                            source_ids=sources,
+                            kind="formula" if kind == "formula" else "text",
+                        )
+                    )
+    script = project_dir / "internal" / "speaker_script.json"
+    if script.is_file():
+        payload = json.loads(script.read_text(encoding="utf-8"))
+        for index, section in enumerate(payload.get("sections", [])):
+            slide_id = str(section.get("slide_id", "section"))
+            narration = str(section.get("narration", "")).strip()
+            if not narration:
+                continue
+            units.append(
+                _TextUnit(
+                    path="internal/speaker_script.json",
+                    group=slide_id,
+                    location=f"internal/speaker_script.json#{slide_id}:narration[{index}]",
+                    text=narration,
+                    source_ids=slide_sources.get(slide_id, []),
+                )
+            )
     return units
 
 
@@ -367,7 +419,7 @@ def _html_units(path: Path, relative: str) -> list[_TextUnit]:
     soup = BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
     for tag in soup(["script", "style"]):
         tag.decompose()
-    articles = soup.find_all("article") or [soup]
+    articles = soup.select("article, section.slide, section.reading-section") or [soup]
     units: list[_TextUnit] = []
     for article_index, article in enumerate(articles):
         group = str(article.get("id") or f"article-{article_index}")
@@ -383,6 +435,11 @@ def _html_units(path: Path, relative: str) -> list[_TextUnit]:
             text = element.get_text(" ", strip=True)
             if not text:
                 continue
+            is_formula = "formula" in classes
+            if is_formula:
+                # The visible text is typeset HTML; the audit compares the
+                # LaTeX that produced it, which the build records as data.
+                text = str(element.get("data-latex") or text)
             key = element.name
             counters[key] = counters.get(key, 0) + 1
             units.append(
@@ -611,6 +668,265 @@ def _audit_formulas(
     return checked
 
 
+def _load_json(path: Path) -> object | None:
+    if not path.is_file():
+        return None
+    try:
+        payload: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return payload
+
+
+def _quantities_in(text: str) -> set[str]:
+    return {quantity.value for quantity in extract_quantities(text) if quantity.value}
+
+
+def _claim_quantities(project_dir: Path) -> dict[str, set[str]]:
+    """Numbers stated by recorded claims (and by reviewed evidence items)."""
+
+    numbers: dict[str, set[str]] = {}
+    claims = _load_json(project_dir / "internal" / "claims.json")
+    if isinstance(claims, list):
+        for claim in claims:
+            if not isinstance(claim, dict):
+                continue
+            claim_id = str(claim.get("claim_id") or "")
+            if claim_id:
+                numbers.setdefault(claim_id, set()).update(
+                    _quantities_in(str(claim.get("statement") or ""))
+                )
+    review = _load_json(project_dir / "internal" / "qa" / "structured_evidence_review.json")
+    if isinstance(review, dict):
+        for item in review.get("items", []):
+            if not isinstance(item, dict):
+                continue
+            claim_id = str(item.get("claim_id") or "")
+            if claim_id:
+                numbers.setdefault(claim_id, set()).update(
+                    _quantities_in(str(item.get("claim") or ""))
+                )
+    return numbers
+
+
+def _ledger_rows(project_dir: Path) -> dict[str, dict[str, str]]:
+    path = project_dir / "internal" / "evidence_ledger.csv"
+    if not path.is_file():
+        return {}
+    rows: dict[str, dict[str, str]] = {}
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                evidence_id = (row.get("evidence_id") or "").strip()
+                if evidence_id:
+                    rows[evidence_id] = {key: value or "" for key, value in row.items()}
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return {}
+    return rows
+
+
+def _number_whitelist(project_dir: Path) -> tuple[set[str], dict[str, set[str]]]:
+    """Structural constants that are not evidence claims.
+
+    Entries must state why; a whitelist entry without a reason is ignored, so
+    a silent exception cannot become policy.
+    """
+
+    payload = _load_json(project_dir / "internal" / "plan" / "number_whitelist.json")
+    global_values: set[str] = set()
+    per_slide: dict[str, set[str]] = {}
+    if not isinstance(payload, dict):
+        return global_values, per_slide
+    for entry in payload.get("entries", []):
+        if not isinstance(entry, dict):
+            continue
+        if not str(entry.get("reason") or "").strip():
+            continue
+        value = normalize_quantity(str(entry.get("value") or ""))
+        if not value:
+            continue
+        slides = [str(item) for item in entry.get("slides", [])]
+        if not slides:
+            global_values.add(value)
+        for slide in slides:
+            per_slide.setdefault(slide, set()).add(value)
+    return global_values, per_slide
+
+
+def _allowed_numbers(project_dir: Path) -> tuple[dict[str, set[str]], set[str]]:
+    """Map each slide to the numbers its registered evidence can support."""
+
+    claims = _claim_quantities(project_dir)
+    ledger = _ledger_rows(project_dir)
+    whitelist_global, whitelist_slides = _number_whitelist(project_dir)
+
+    evidence_numbers: dict[str, set[str]] = {}
+    for evidence_id, row in ledger.items():
+        values = set(claims.get((row.get("claim_id") or "").strip(), set()))
+        values.update(_quantities_in(row.get("source_excerpt") or ""))
+        evidence_numbers[evidence_id] = values
+
+    global_allowed = set(whitelist_global)
+    for values in claims.values():
+        global_allowed.update(values)
+    for values in evidence_numbers.values():
+        global_allowed.update(values)
+
+    per_slide: dict[str, set[str]] = {}
+    outline = _load_json(project_dir / "content" / "outline.json")
+    if isinstance(outline, dict):
+        for section in outline.get("sections", []):
+            if not isinstance(section, dict):
+                continue
+            slide_id = str(section.get("slide_id") or "")
+            if not slide_id:
+                continue
+            allowed = set(whitelist_slides.get(slide_id, set()))
+            for evidence_id in section.get("evidence_ids", []):
+                allowed.update(evidence_numbers.get(str(evidence_id), set()))
+            per_slide[slide_id] = allowed
+    return per_slide, global_allowed
+
+
+def _audit_number_coverage(
+    units: list[_TextUnit], project_dir: Path, findings: list[AuditFinding]
+) -> int:
+    """Every quantity the course states must be registered or whitelisted.
+
+    This is the check that would have caught the P6 narration drift
+    (``beta2 = 0.98``, ``eps = 1e-9``, ``warmup 4000``) before a reviewer had
+    to find it by reading. It is a coverage check, not a correctness proof:
+    registration means "the ledger records this number", not "the number is
+    right".
+    """
+
+    per_slide, global_allowed = _allowed_numbers(project_dir)
+    missing: dict[str, dict[str, str]] = {}
+    checked = 0
+    for unit in units:
+        allowed = per_slide.get(unit.group, global_allowed)
+        for quantity in extract_quantities(unit.text):
+            if not quantity.value:
+                continue
+            # Sub/superscript indices such as \sum_{i=1} are structural, not
+            # claims. Formula units still audit decimals and scientific
+            # notation (the constants that carry meaning).
+            if unit.kind == "formula" and quantity.raw.isdigit():
+                continue
+            checked += 1
+            if quantity.value in allowed:
+                continue
+            bucket = missing.setdefault(unit.group or "project", {})
+            bucket.setdefault(quantity.value, unit.location)
+    for group, values in sorted(missing.items()):
+        sample = "、".join(sorted(values)[:8])
+        first = next(iter(values.values()))
+        _add(
+            findings,
+            "number_coverage",
+            "major",
+            first,
+            "每个定量数字都能追溯到该节绑定的 claims/evidence，"
+            "或在 number_whitelist.json 中说明理由",
+            f"{group} 出现未登记数字：{sample}"
+            + ("…" if len(values) > 8 else "")
+            + "（可能是口播或正文写入了台账之外的数值）",
+        )
+    return checked
+
+
+_EXTERNAL_ASSET = re.compile(r"^(?:https?:)?//", re.IGNORECASE)
+
+
+def _audit_guards(project_dir: Path, units: list[_TextUnit], findings: list[AuditFinding]) -> int:
+    """Check the reviewed conditions a course has locked as protected.
+
+    A phrase lock is not semantic understanding: it can only notice that a
+    condition the reviewer marked as required disappeared from the course.
+    That is exactly the tamper it targets (removing "when n < d", replacing
+    "the authors hypothesise" with "it proves", or flipping Post-LN wording).
+    Each guard must state why it is protected.
+    """
+
+    payload = _load_json(project_dir / "internal" / "plan" / "course_guards.json")
+    if not isinstance(payload, dict):
+        return 0
+    by_group: dict[str, str] = {}
+    locations: dict[str, str] = {}
+    for unit in units:
+        by_group[unit.group] = f"{by_group.get(unit.group, '')} {unit.text}".strip()
+        locations.setdefault(unit.group, unit.location)
+    checked = 0
+    for guard in payload.get("guards", []):
+        if not isinstance(guard, dict):
+            continue
+        required = [str(item) for item in guard.get("required", []) if str(item).strip()]
+        if not required or not str(guard.get("reason") or "").strip():
+            continue
+        slide_id = str(guard.get("slide_id") or "")
+        guard_id = str(guard.get("guard_id") or "guard")
+        text = by_group.get(slide_id, "").lower()
+        checked += 1
+        missing = [item for item in required if item.lower() not in text]
+        if missing:
+            _add(
+                findings,
+                "protected_condition_present",
+                "blocker",
+                locations.get(slide_id, f"guard:{guard_id}"),
+                "受保护条件必须原样保留：" + "、".join(required),
+                f"{guard_id}: 缺少 {'、'.join(missing)}（条件被删除或改写）",
+            )
+    return checked
+
+
+def _audit_build_rendering(
+    project_dir: Path, files: list[Path], findings: list[AuditFinding]
+) -> int:
+    """The build must be offline-safe and must not show raw LaTeX."""
+
+    checked = 0
+    for path in files:
+        if path.suffix.lower() not in {".html", ".htm"}:
+            continue
+        checked += 1
+        relative = _relative(project_dir, path)
+        soup = BeautifulSoup(path.read_text(encoding="utf-8", errors="replace"), "html.parser")
+        for tag in soup(["script", "style", "pre", "code"]):
+            tag.decompose()
+        text = soup.get_text(" ", strip=True)
+        leaks = sorted({match.group(0) for match in _LATEX_COMMAND.finditer(text)})
+        if leaks:
+            _add(
+                findings,
+                "raw_latex_leak",
+                "blocker",
+                relative,
+                "公式在构建时已排版；页面可见文本不得出现 LaTeX 命令",
+                "发现未渲染的 LaTeX：" + " ".join(leaks[:6]),
+            )
+        external: list[str] = []
+        for tag in BeautifulSoup(
+            path.read_text(encoding="utf-8", errors="replace"), "html.parser"
+        ).find_all(["script", "link", "img", "video", "source"]):
+            reference = str(tag.get("src") or tag.get("href") or "")
+            if reference and _EXTERNAL_ASSET.match(reference):
+                external.append(reference[:120])
+        if external:
+            _add(
+                findings,
+                "external_asset_dependency",
+                "blocker",
+                relative,
+                "课件离线可用：不引用外部脚本、样式或媒体",
+                "发现外部资源：" + "、".join(sorted(set(external))[:4]),
+            )
+    return checked
+
+
+_LATEX_COMMAND = re.compile(r"\\[A-Za-z]{2,}")
+
+
 def run_course_audit(
     project_dir: Path,
     *,
@@ -698,6 +1014,9 @@ def run_course_audit(
     items_checked = len(facts)
     checked_numbers = _audit_numbers(units, facts, findings)
     checked_formulas = _audit_formulas(units, facts, findings, review_present=review is not None)
+    checked_quantities = _audit_number_coverage(units, project_dir, findings)
+    checked_builds = _audit_build_rendering(project_dir, files, findings)
+    checked_guards = _audit_guards(project_dir, units, findings)
 
     findings = _merge_findings(findings)
     summary = {
@@ -722,7 +1041,9 @@ def run_course_audit(
     )
     notes = (
         f"检查 {len(units)} 个文本/公式单元、{checked_numbers} 处 BLEU 数值、"
-        f"{checked_formulas} 个公式、{items_checked} 条复核记录。"
+        f"{checked_formulas} 个公式、{items_checked} 条复核记录、"
+        f"{checked_quantities} 个定量数字、{checked_builds} 个构建页面、"
+        f"{checked_guards} 条受保护条件。"
         "审计只证明列出的检查项；未列出的语义问题仍需人工判断。"
     )
     return CourseAuditReport(

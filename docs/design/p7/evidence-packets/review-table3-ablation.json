@@ -1,0 +1,96 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "e7d4883ad762716fe7179753ca2681f8089b4c8829db79d48ffc5f000c9ad0f7",
+  "review_id": "review-table3-ablation",
+  "generated_at": "2026-10-24T04:32:36.552302Z",
+  "claim": "Table 3 在 EN-DE 开发集 newstest2013 的 BLEU (dev)：base 25.8；单头 24.9（低 0.9）；h=4 为 25.5；h=16 为 25.8；h=32 为 25.4；d_k=16 为 25.1；d_k=32 为 25.4；N=2 为 23.7；N=4 为 25.3；N=8 为 25.5；d_model=256 为 24.5；d_model=1024 为 26.0；d_ff=1024 为 25.4；d_ff=4096 为 26.2；P_drop=0.0 为 24.6；P_drop=0.2 为 25.5；ε_ls=0.0 时 PPL 4.67、BLEU 25.3；ε_ls=0.2 为 25.7；可学习位置嵌入 25.7；big 26.4。未列出的取值继承 base 行；解码用 beam search，无 checkpoint averaging。",
+  "evidence_kind": "table",
+  "paper_id": "paper-027",
+  "paper_title": "Table 3：模型变体结果",
+  "paper_locator": "§6.2 Table 3",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0051",
+  "locator": "§6.2 · Table 3 (BLEU dev, newstest2013)",
+  "program_status": "needs_review",
+  "program_reason": "table_semantics_manual",
+  "research_finding": "needs_review",
+  "external_source_url": "https://arxiv.org/html/1706.03762v7",
+  "external_source_version": "arXiv:1706.03762v7",
+  "external_source_locator": "§6.2 · Table 3 (BLEU dev, newstest2013)",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§6.2 · Table 3 (BLEU dev, newstest2013)",
+    "chunk_id": "source-001:b0051",
+    "chunk_section": "6.1 Machine Translation",
+    "char_start": 28938,
+    "char_end": 29968,
+    "excerpt": "9\n24.9\n4\n128\n128\n5.00\n25.5\n16\n32\n32\n4.91\n25.8\n32\n16\n16\n5.01\n25.4\n(B)\n16\n5.16\n25.1\n58\n32\n5.01\n25.4\n60\n(C)\n2\n6.11\n23.7\n36\n4\n5.19\n25.3\n50\n8\n4.88\n25.5\n80\n256\n32\n32\n5.75\n24.5\n28\n1024\n128\n128\n4.66\n26.0\n168\n1024\n5.12\n25.4\n53\n4096\n4.75\n26.2\n90\n(D)\n0.0\n5.77\n24.6\n0.2\n4.95\n25.5\n0.0\n4.67\n25.3\n0.2\n5.47\n25.7\n(E)\npositional embedding instead of sinusoids\n4.92\n25.7\nbig\n6\n1024\n4096\n16\n0.3\n300K\n4.33\n26.4\n213\nTo evaluate the importance of different components of the Transformer, we varied our base model in different ways, measuring the change in performance on English-to-German translation on the development set, newstest2013. We used beam search as described in the prev",
+    "excerpt_sha256": "abf648e68ae1d036f5a24a23681209af5a23aeb946df042e54b2b6b78d5d4547",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-008:bullets[2]",
+      "text": "优化器：Adam，β1=0.9、β2=0.98、ε=1e-9。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-008:callout[3]",
+      "text": "标签平滑是一个反直觉结果：它让困惑度变差（Table 3 中 ε_ls=0.0 时 PPL 4.67，低于 base 的 4.92），却提升准确率与 BLEU。不要用困惑度单独判断模型好坏，指标取决于解码目标。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "ByteNet | 23.75 | — | — | —"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "GNMT + RL | 24.6 | 39.92 | 2.3×10^19 | 1.4×10^20"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "ConvS2S | 25.16 | 40.46 | 9.6×10^18 | 1.5×10^20"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "MoE | 26.03 | 40.56 | 2.0×10^19 | 1.2×10^20"
+    }
+  ],
+  "support_scope": "research_finding=needs_review；program=needs_review/table_semantics_manual",
+  "counter_evidence": "",
+  "limitations": "本地来源为 arXiv v7；NeurIPS 版本未逐行对照。正式人工签署仍待完成。",
+  "ambiguities": [
+    "正式人工签署；Table 3 列语义需人工确认。",
+    "Table slice located; values transcribed; row/column semantics not verified by program."
+  ],
+  "reviewer_questions": [
+    "该数值是否确实属于该行、该列、该模型规模、该语言方向和该数据集？",
+    "表格脚注或正文是否改变了这个数值的适用范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-table3-ablation --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

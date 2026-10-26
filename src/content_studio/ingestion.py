@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 from docx import Document as DocxDocument
 from pypdf import PdfReader
 
@@ -142,8 +143,34 @@ def _html_parts(data: bytes) -> tuple[str, str]:
     title = soup.title.get_text(strip=True) if soup.title else ""
     for tag in soup(["script", "style", "noscript", "template", "svg"]):
         tag.decompose()
+    _collapse_math(soup)
     text = _normalize(soup.get_text("\n", strip=True))
     return title, text
+
+
+def _collapse_math(soup: BeautifulSoup) -> None:
+    """Replace each ``<math>`` subtree with one readable inline token.
+
+    LaTeXML (which arXiv HTML uses) splits a formula into ``<mi>``/``<mn>``
+    nodes *and* repeats it as an ``<annotation encoding="application/x-tex">``.
+    Calling ``get_text`` on that tree emits one character per line, which is
+    how evidence excerpts ended up as ``(\\nx\\n1\\n,\\n…``.
+
+    The TeX annotation is the clean, single-line form, so it is preferred;
+    without one the visible tokens are joined with single spaces. Replacing
+    the whole subtree also removes the duplicate rendering.
+    """
+
+    for math in soup.find_all("math"):
+        annotation = math.find("annotation")
+        if annotation is not None:
+            rendered = annotation.get_text(" ", strip=True)
+        else:
+            rendered = math.get_text(" ", strip=True)
+        if not rendered:
+            math.decompose()
+            continue
+        math.replace_with(NavigableString(f" {rendered} "))
 
 
 def load_local(path: Path, settings: Settings) -> LoadedDocument:

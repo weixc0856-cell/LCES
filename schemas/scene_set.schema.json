@@ -98,6 +98,53 @@
           "title": "Fallback Policy",
           "type": "string"
         },
+        "objective_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Objective Ids",
+          "type": "array"
+        },
+        "claim_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Refs",
+          "type": "array"
+        },
+        "scene_version": {
+          "default": "1",
+          "pattern": "^[0-9]+(\\.[0-9]+){0,2}$",
+          "title": "Scene Version",
+          "type": "string"
+        },
+        "entry_state": {
+          "additionalProperties": true,
+          "title": "Entry State",
+          "type": "object"
+        },
+        "exit_state": {
+          "additionalProperties": true,
+          "title": "Exit State",
+          "type": "object"
+        },
+        "reset_policy": {
+          "default": "replay",
+          "enum": [
+            "replay",
+            "restore-entry",
+            "static"
+          ],
+          "title": "Reset Policy",
+          "type": "string"
+        },
+        "required_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Checks",
+          "type": "array"
+        },
         "data": {
           "additionalProperties": true,
           "title": "Data",

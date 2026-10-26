@@ -13,9 +13,25 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from content_studio.errors import RenderError
-from content_studio.models import AnimationBlock, ChartBlock, PublicContent, ReadingEdition
-from content_studio.paths import BUILD_MARKER, symlinks_in_tree
-from content_studio.renderers import RendererRegistry
+from content_studio.latex_render import LatexRenderError, render_latex
+from content_studio.models import (
+    AnimationBlock,
+    ChartBlock,
+    FormulaBlock,
+    PublicContent,
+    ReadingEdition,
+    SvgBlock,
+)
+from content_studio.paths import BUILD_MARKER, require_inside, symlinks_in_tree
+from content_studio.renderers import RendererRegistry, inline_svg_figure
+from content_studio.scenes import (
+    build_scene_inputs,
+    derive_deck_scenes,
+    scene_payload,
+    write_generated_plan,
+    write_scene_contracts,
+)
+from content_studio.units import write_materialized_course
 from content_studio.utils import utc_now_iso, write_json_atomic, write_text_atomic
 from content_studio.visuals import (
     RenderedVisual,
@@ -78,6 +94,52 @@ def _reject_registry_only_blocks(content: PublicContent) -> None:
                 )
 
 
+def _prepare_blocks(
+    blocks: list[object],
+    data: list[dict[str, object]],
+    *,
+    project_dir: Path | None,
+    page_label: str,
+) -> None:
+    """Attach build-time HTML for blocks the template cannot render itself.
+
+    Formulas are converted from the stored LaTeX subset here, not in the
+    browser: the page must never depend on a CDN or a client-side math engine,
+    and an unsupported formula must stop the build instead of leaking raw
+    source. Authored SVG files are sanitised and inlined the same way.
+    """
+
+    for block, block_data in zip(blocks, data, strict=True):
+        if isinstance(block, FormulaBlock):
+            try:
+                block_data["formula_html"] = render_latex(block.latex)
+            except LatexRenderError as exc:
+                raise RenderError(
+                    f"{page_label}: formula could not be rendered: {exc}",
+                    code="invalid_input",
+                    stage="render",
+                ) from exc
+        elif isinstance(block, SvgBlock):
+            if project_dir is None:
+                raise RenderError(
+                    f"{page_label}: svg block requires a project directory to read {block.path}",
+                    code="invalid_input",
+                    stage="input",
+                )
+            figure_path = require_inside(
+                project_dir / block.path, project_dir, what=f"{page_label} svg path"
+            )
+            if not figure_path.is_file():
+                raise RenderError(
+                    f"{page_label}: svg file not found: {block.path}",
+                    code="invalid_input",
+                    stage="input",
+                )
+            block_data["svg_html"] = inline_svg_figure(
+                figure_path.read_text(encoding="utf-8"), block.alt, block.caption
+            )
+
+
 def _video_src(project_dir: Path | None, page_path: Path, spec_visual: RenderedVisual) -> str:
     output_path = str(spec_visual.spec.data.get("video", {}).get("output_path") or "")
     if project_dir is None or not output_path:
@@ -96,6 +158,16 @@ def build_public_html(
     registry: RendererRegistry | None = None,
 ) -> Path:
     data = content.model_dump(mode="json")
+    # The deck and the scene contract must be derived from the same model.
+    # A broken plan or an unresolvable evidence reference stops the build here,
+    # before any HTML is written.
+    scene_inputs = build_scene_inputs(project_dir, content) if project_dir is not None else None
+    deck_scenes = (
+        scene_inputs.scenes
+        if scene_inputs is not None
+        else derive_deck_scenes(content, project_dir=None)
+    )
+    data["scenes"] = scene_payload(deck_scenes)
     rendered: list[RenderedVisual] = []
     if not use_registry:
         _reject_registry_only_blocks(content)
@@ -135,6 +207,14 @@ def build_public_html(
                     block_data["video_rendered"] = True
                     block_data["video_src"] = _video_src(project_dir, output_path, item)
 
+    for slide_data, slide in zip(data["slides"], content.slides, strict=True):
+        _prepare_blocks(
+            list(slide.body),
+            slide_data["body"],
+            project_dir=project_dir,
+            page_label=f"slide {slide.slide_id}",
+        )
+
     rendered_html = _environment(template_dir).get_template("course.html.j2").render(content=data)
     write_text_atomic(output_path, rendered_html)
     if project_dir is not None:
@@ -151,7 +231,23 @@ def build_public_html(
                 )
             if marker is not None:
                 marker.unlink()
+        write_scene_contracts(project_dir, deck_scenes)
+        if scene_inputs is not None:
+            write_materialized_course(project_dir, scene_inputs.master)
+            write_generated_plan(project_dir, scene_inputs.generated_plan)
     return output_path
+
+
+def _reading_data(edition: ReadingEdition, *, project_dir: Path | None) -> dict[str, object]:
+    data = edition.model_dump(mode="json")
+    for section_data, section in zip(data["sections"], edition.sections, strict=True):
+        _prepare_blocks(
+            list(section.body),
+            section_data["body"],
+            project_dir=project_dir,
+            page_label=f"reading section {section.slide_id}",
+        )
+    return data
 
 
 def build_reading_html(
@@ -164,7 +260,7 @@ def build_reading_html(
     rendered = (
         _environment(template_dir)
         .get_template("reading.html.j2")
-        .render(edition=edition.model_dump(mode="json"))
+        .render(edition=_reading_data(edition, project_dir=project_dir))
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(rendered, encoding="utf-8")

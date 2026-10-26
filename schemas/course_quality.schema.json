@@ -105,6 +105,24 @@
       "title": "Decision",
       "type": "string"
     },
+    "production_decision": {
+      "default": "not_run",
+      "enum": [
+        "passed",
+        "needs_human_review",
+        "blocked",
+        "not_run"
+      ],
+      "title": "Production Decision",
+      "type": "string"
+    },
+    "disclosures": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Disclosures",
+      "type": "array"
+    },
     "notes": {
       "default": "",
       "title": "Notes",

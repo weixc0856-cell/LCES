@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import uuid
 from contextlib import closing
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,10 @@ CREATE TABLE IF NOT EXISTS tasks (
     stage TEXT NOT NULL DEFAULT '',
     error TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    run_id TEXT NOT NULL DEFAULT '',
+    input_sha256 TEXT NOT NULL DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id, created_at DESC);
 
@@ -36,7 +40,10 @@ CREATE TABLE IF NOT EXISTS stage_runs (
     usage_json TEXT NOT NULL DEFAULT '{}',
     error TEXT NOT NULL DEFAULT '',
     started_at TEXT NOT NULL,
-    finished_at TEXT
+    finished_at TEXT,
+    error_class TEXT NOT NULL DEFAULT '',
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    artifacts_json TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_stage_runs_task ON stage_runs(task_id, id);
 
@@ -71,12 +78,35 @@ CREATE TABLE IF NOT EXISTS approvals (
 """
 
 
+# Columns added after the first schema version. `CREATE TABLE IF NOT EXISTS`
+# does not touch an existing database, so each is added explicitly when absent.
+TASK_COLUMNS = {
+    "run_id": "TEXT NOT NULL DEFAULT ''",
+    "input_sha256": "TEXT NOT NULL DEFAULT ''",
+    "config_json": "TEXT NOT NULL DEFAULT '{}'",
+}
+STAGE_COLUMNS = {
+    "error_class": "TEXT NOT NULL DEFAULT ''",
+    "retry_count": "INTEGER NOT NULL DEFAULT 0",
+    "artifacts_json": "TEXT NOT NULL DEFAULT '[]'",
+}
+
+
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, declaration in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}")
+
+
 class TaskStore:
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as conn, conn:
             conn.executescript(SCHEMA)
+            _ensure_columns(conn, "tasks", TASK_COLUMNS)
+            _ensure_columns(conn, "stage_runs", STAGE_COLUMNS)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=30)
@@ -86,14 +116,36 @@ class TaskStore:
 
     # --- tasks ---------------------------------------------------------
     def create_task(
-        self, project_id: str, content_mode: str, provider: str = "", model: str = ""
+        self,
+        project_id: str,
+        content_mode: str,
+        provider: str = "",
+        model: str = "",
+        *,
+        run_id: str = "",
+        input_sha256: str = "",
+        config: dict[str, Any] | None = None,
     ) -> int:
         now = utc_now_iso()
+        config_json = json.dumps(config or {}, ensure_ascii=False, sort_keys=True)
         with closing(self._connect()) as conn, conn:
             cursor = conn.execute(
                 "INSERT INTO tasks (project_id, content_mode, provider, model, status, stage,"
-                " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (project_id, content_mode, provider, model, "CREATED", "", now, now),
+                " created_at, updated_at, run_id, input_sha256, config_json)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    project_id,
+                    content_mode,
+                    provider,
+                    model,
+                    "CREATED",
+                    "",
+                    now,
+                    now,
+                    run_id or uuid.uuid4().hex,
+                    input_sha256,
+                    config_json,
+                ),
             )
             return int(cursor.lastrowid or 0)
 
@@ -104,6 +156,8 @@ class TaskStore:
         status: TaskStatus | None = None,
         stage: str | None = None,
         error: str | None = None,
+        input_sha256: str | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         sets: list[str] = ["updated_at = ?"]
         values: list[Any] = [utc_now_iso()]
@@ -116,6 +170,12 @@ class TaskStore:
         if error is not None:
             sets.append("error = ?")
             values.append(error)
+        if input_sha256 is not None:
+            sets.append("input_sha256 = ?")
+            values.append(input_sha256)
+        if config is not None:
+            sets.append("config_json = ?")
+            values.append(json.dumps(config, ensure_ascii=False, sort_keys=True))
         values.append(task_id)
         with closing(self._connect()) as conn, conn:
             conn.execute(f"UPDATE tasks SET {', '.join(sets)} WHERE id = ?", values)
@@ -147,12 +207,20 @@ class TaskStore:
         return [dict(row) for row in rows]
 
     # --- stage runs ----------------------------------------------------
-    def start_stage(self, task_id: int, stage: str, provider: str = "", model: str = "") -> int:
+    def start_stage(
+        self,
+        task_id: int,
+        stage: str,
+        provider: str = "",
+        model: str = "",
+        *,
+        retry_count: int = 0,
+    ) -> int:
         with closing(self._connect()) as conn, conn:
             cursor = conn.execute(
-                "INSERT INTO stage_runs (task_id, stage, status, provider, model, started_at)"
-                " VALUES (?, ?, 'running', ?, ?, ?)",
-                (task_id, stage, provider, model, utc_now_iso()),
+                "INSERT INTO stage_runs (task_id, stage, status, provider, model, started_at,"
+                " retry_count) VALUES (?, ?, 'running', ?, ?, ?, ?)",
+                (task_id, stage, provider, model, utc_now_iso(), retry_count),
             )
             return int(cursor.lastrowid or 0)
 
@@ -163,12 +231,22 @@ class TaskStore:
         status: str,
         usage: dict[str, int] | None = None,
         error: str = "",
+        error_class: str = "",
+        artifacts: list[str] | None = None,
     ) -> None:
         with closing(self._connect()) as conn, conn:
             conn.execute(
-                "UPDATE stage_runs SET status = ?, usage_json = ?, error = ?, finished_at = ?"
-                " WHERE id = ?",
-                (status, json.dumps(usage or {}, ensure_ascii=False), error, utc_now_iso(), run_id),
+                "UPDATE stage_runs SET status = ?, usage_json = ?, error = ?, finished_at = ?,"
+                " error_class = ?, artifacts_json = ? WHERE id = ?",
+                (
+                    status,
+                    json.dumps(usage or {}, ensure_ascii=False),
+                    error,
+                    utc_now_iso(),
+                    error_class,
+                    json.dumps(artifacts or [], ensure_ascii=False),
+                    run_id,
+                ),
             )
 
     def stage_runs(self, task_id: int) -> list[dict[str, Any]]:

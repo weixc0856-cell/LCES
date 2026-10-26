@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import functools
+import json
 import os
+import subprocess
 import sys
 import traceback
 from collections.abc import Callable
@@ -15,6 +17,12 @@ import yaml
 from pydantic import BaseModel
 
 from content_studio import __version__
+from content_studio.content import (
+    load_outline,
+    load_public_content,
+    load_speaker_script,
+    regenerate_slide,
+)
 from content_studio.course_audit import run_course_audit, write_audit
 from content_studio.course_quality import (
     CourseAcceptance,
@@ -29,11 +37,13 @@ from content_studio.course_quality import (
     write_acceptance,
     write_quality,
 )
+from content_studio.duration import build_duration_budget, write_duration_budget
 from content_studio.errors import ConfigurationError, LCESError, RenderError
 from content_studio.eval import build_report, load_tasks, run_tasks, write_report
-from content_studio.evidence import review_claim
+from content_studio.evidence import load_claims, review_claim
 from content_studio.evidence_locator import QuoteAudit, QuoteCandidate
-from content_studio.ingestion import ingest_project
+from content_studio.expansion import ProvidedProvider, UnitExpansion, expand_unit
+from content_studio.ingestion import ingest_project, load_registry
 from content_studio.media import extract_frames, probe_media
 from content_studio.models import (
     ContentOutline,
@@ -80,7 +90,7 @@ from content_studio.planning import (
     paper_map_sha256,
     unknown_paper_items,
 )
-from content_studio.providers.base import GenerationRequest, Message
+from content_studio.providers.base import GenerationRequest, Message, ModelProvider
 from content_studio.providers.factory import LOCAL_NAMES, build_provider
 from content_studio.providers.local_llama_cpp import LocalLlamaProvider
 from content_studio.release import (
@@ -97,11 +107,20 @@ from content_studio.renderers import (
     graphviz_status,
     mermaid_status,
 )
+from content_studio.research import load_evidence_ledger
 from content_studio.review_packets import build_packets
 from content_studio.settings import get_settings
 from content_studio.storage import TaskStore
 from content_studio.structured_review import record_review, record_substantive_review
 from content_studio.supply_chain import audit_supply_chain
+from content_studio.units import (
+    affected_units,
+    delivered_units,
+    load_materialized_course,
+    materialize_project_course,
+    stale_units,
+    write_materialized_course,
+)
 from content_studio.usage import apply_pricing, collect_usage, load_pricing, total_cost
 from content_studio.utils import (
     read_json,
@@ -328,11 +347,50 @@ def outline(
 def generate(
     project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
     provider: str | None = typer.Option(None, help="mock | deepseek | anthropic"),
+    slide: list[str] = typer.Option([], "--slide", help="只重生成指定场景，可重复"),
+    unit: list[str] = typer.Option([], "--unit", help="只重生成指定教学单元，可重复"),
+    force: bool = typer.Option(False, "--force", help="输入未变时也重新生成"),
 ) -> None:
-    """Generate public content, the internal speaker script, and the reading edition."""
+    """Generate the whole course, or regenerate named units/scenes only."""
 
+    if slide and unit:
+        _exit("--slide 与 --unit 不能同时使用")
+    if unit:
+        _regenerate_units(project_dir, provider, unit, force)
+        return
+    if slide:
+        _regenerate_slides(project_dir, provider, slide)
+        return
     _run_single(project_dir, "generate", provider)
     typer.echo("公开内容、口播稿与研究阅读版已生成。")
+
+
+def _regenerate_slides(project_dir: Path, provider_name: str | None, slide_ids: list[str]) -> None:
+    root, config = _project(project_dir)
+    settings = get_settings()
+    outline = load_outline(root)
+    ledger = load_evidence_ledger(root)
+    registry = load_registry(root)
+    if outline is None:
+        _exit("大纲缺失；先运行完整 generate 或 outline")
+    if registry is None:
+        _exit("来源登记缺失；先运行 ingest")
+    provider = build_provider(settings, provider_name or settings.provider)
+    for slide_id in dict.fromkeys(slide_ids):
+        try:
+            regenerate_slide(
+                root,
+                config,
+                outline,
+                ledger,
+                registry,
+                provider,
+                slide_id,
+                max_output_tokens=settings.max_output_tokens,
+            )
+        except LCESError as exc:
+            _exit(f"场景 {slide_id} 重生成失败（现有内容保持不变）: {exc}")
+        typer.echo(f"已重生成场景: {slide_id}（其余场景未改动）")
 
 
 @app.command()
@@ -409,7 +467,12 @@ def audit_course(
 
 @app.command("audit-product")
 @guarded
-def audit_product(project_dir: Path = typer.Argument(..., exists=True, file_okay=False)) -> None:
+def audit_product(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    production: bool = typer.Option(
+        False, "--production", help="只判断自动化生产质量，不把发布记录当作阻断"
+    ),
+) -> None:
     """Run Gate B: course product qualification against the frozen contract."""
 
     root, _config = _project(project_dir)
@@ -420,6 +483,7 @@ def audit_product(project_dir: Path = typer.Argument(..., exists=True, file_okay
         f"课程内容版本: {report.content_version[:16] or '-'} | 契约:"
         f" {report.contract_version or '-'} | blocker={report.summary.get('blocker', 0)}"
         f" human={report.summary.get('human', 0)} | decision={report.decision}"
+        f" | production={report.production_decision}"
     )
     for finding in report.findings:
         color = typer.colors.RED if finding.severity == "blocker" else typer.colors.YELLOW
@@ -427,6 +491,13 @@ def audit_product(project_dir: Path = typer.Argument(..., exists=True, file_okay
             f"[{finding.severity}] {finding.check_id}: {finding.message} ({finding.finding_id})",
             fg=color,
         )
+    if production:
+        for item in report.disclosures:
+            typer.echo(f"[release-disclosure] {item}")
+        if report.production_decision == "blocked":
+            _exit("自动生产质量存在阻断项", code=1)
+        typer.echo("自动生产质量通过；发布记录另行处理，不阻断构建、播放和录屏。")
+        return
     if report.decision == "blocked":
         _exit("Gate B 课程产品验收存在阻断项", code=1)
     if report.decision == "needs_human_review":
@@ -474,14 +545,20 @@ def approve_course_contract(
         _exit("缺少课程产品契约 internal/plan/course_contract.json")
     if not by.strip():
         _exit("必须提供产品负责人 --by")
-    updated = contract.model_copy(
-        update={
-            "status": "approved",
-            "approved_by": by.strip(),
-            "approved_at": utc_now(),
-            "notes": (contract.notes + " | " + notes).strip(" |"),
-        }
-    )
+    if not notes.strip():
+        _exit("批准必须提供 --notes 说明决定依据")
+    try:
+        updated = CourseContract.model_validate(
+            {
+                **contract.model_dump(mode="json"),
+                "status": "approved",
+                "approved_by": by.strip(),
+                "approved_at": utc_now(),
+                "notes": (contract.notes + " | " + notes).strip(" |"),
+            }
+        )
+    except ValueError as exc:
+        _exit(f"契约缺少批准所需内容: {exc}")
     write_json_atomic(contract_path(root), updated)
     typer.echo(f"课程产品契约已批准: {contract.version} by {updated.approved_by}")
 
@@ -495,6 +572,9 @@ def accept_course(
     timing_confirmed: bool = typer.Option(False, "--timing-confirmed", help="已确认计时证据"),
     visual_confirmed: bool = typer.Option(False, "--visual-confirmed", help="已确认视觉呈现"),
     checks_confirmed: bool = typer.Option(False, "--checks-confirmed", help="已确认学习检查"),
+    learner_trial_confirmed: bool = typer.Option(
+        False, "--learner-trial-confirmed", help="已确认学习者试测记录"
+    ),
     notes: str = typer.Option("", "--notes", help="验收说明"),
 ) -> None:
     """Record the human Gate B acceptance (never generated by an AI)."""
@@ -517,8 +597,10 @@ def accept_course(
         _exit("Gate B 报告已过期，课程内容在报告后变更：" + ", ".join(stale))
     if report.decision == "blocked":
         _exit("Gate B 仍有阻断项，不能记录通过验收")
-    if decision == "pass" and not (timing_confirmed and visual_confirmed and checks_confirmed):
-        _exit("结论为 pass 时必须同时确认计时、视觉与学习检查")
+    if decision == "pass" and not (
+        timing_confirmed and visual_confirmed and checks_confirmed and learner_trial_confirmed
+    ):
+        _exit("结论为 pass 时必须同时确认计时、视觉、学习检查与学习者试测")
     acceptance = CourseAcceptance(
         project_id=contract.project_id,
         contract_version=contract.version,
@@ -529,6 +611,7 @@ def accept_course(
         timing_confirmed=timing_confirmed,
         visual_confirmed=visual_confirmed,
         checks_confirmed=checks_confirmed,
+        learner_trial_confirmed=learner_trial_confirmed,
         notes=notes.strip(),
     )
     path = write_acceptance(root, acceptance)
@@ -798,12 +881,18 @@ def status(
         if task is None:
             _exit(f"任务不存在: {task_id}")
         typer.echo(
-            f"任务 {task['id']} | {task['project_id']} | {task['status']} |"
-            f" stage={task['stage']} | {task['updated_at']}"
+            f"任务 {task['id']} | run_id={task.get('run_id', '')} | {task['project_id']} |"
+            f" {task['status']} | stage={task['stage']} | {task['updated_at']}"
+        )
+        typer.echo(
+            f"  input_sha256={task.get('input_sha256') or '-'}"
+            f" config={task.get('config_json') or '{}'}"
         )
         for run in store.stage_runs(task_id):
             typer.echo(
                 f"  {run['stage']:<10} {run['status']:<8} {run['provider']}/{run['model']}"
+                f" retry={run.get('retry_count', 0)} class={run.get('error_class') or '-'}"
+                f" artifacts={run.get('artifacts_json') or '[]'}"
                 f" usage={run['usage_json']} error={run['error']}"
             )
         return
@@ -1273,6 +1362,284 @@ def _print_qa(report: QAReport) -> None:
             "NOT_RUN（不代表通过）: " + ", ".join(item.check_id for item in report.not_run),
             fg=typer.colors.YELLOW,
         )
+
+
+def _regenerate_units(
+    project_dir: Path, provider_name: str | None, unit_ids: list[str], force: bool
+) -> None:
+    root, config = _project(project_dir)
+    settings = get_settings()
+    content = load_public_content(root)
+    if content is None:
+        _exit("公开内容缺失；先运行完整 generate")
+    outline = load_outline(root)
+    ledger = load_evidence_ledger(root)
+    registry = load_registry(root)
+    if outline is None or registry is None:
+        _exit("大纲或来源登记缺失；先运行完整流水线")
+    master = load_materialized_course(root) or materialize_project_course(root, content)
+    stale = set(stale_units(root, content, master))
+    provider = build_provider(settings, provider_name or settings.provider)
+    delivered = {unit.unit_id: unit for unit in delivered_units(master)}
+    processed: list[str] = []
+    for unit_id in dict.fromkeys(unit_ids):
+        unit = delivered.get(unit_id)
+        if unit is None:
+            _exit(f"单元 {unit_id} 不存在或没有已交付场景")
+        if not force and unit_id not in stale:
+            typer.echo(f"跳过 {unit_id}：输入未变化（使用 --force 可强制重生成）")
+            continue
+        for scene_id in unit.scene_ids:
+            try:
+                regenerate_slide(
+                    root,
+                    config,
+                    outline,
+                    ledger,
+                    registry,
+                    provider,
+                    scene_id,
+                    max_output_tokens=settings.max_output_tokens,
+                )
+            except LCESError as exc:
+                _exit(f"单元 {unit_id} 的场景 {scene_id} 重生成失败（现有内容保持不变）: {exc}")
+        typer.echo(f"已重生成单元: {unit_id} -> {', '.join(unit.scene_ids)}")
+        processed.append(unit_id)
+    refreshed = materialize_project_course(root, load_public_content(root) or content)
+    # Only the units regenerated above get a new fingerprint. Re-stamping every
+    # unit would mark the other stale units fresh without regenerating them.
+    previous = {item.unit_id: item.input_sha256 for item in master.units}
+    regenerated = set(processed)
+    units = [
+        item.model_copy(update={"input_sha256": previous[item.unit_id]})
+        if item.unit_id in previous and item.unit_id not in regenerated
+        else item
+        for item in refreshed.units
+    ]
+    write_materialized_course(root, refreshed.model_copy(update={"units": units}))
+
+
+@app.command("plan-impact")
+@guarded
+def plan_impact(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    claim: str | None = typer.Option(None, "--claim", help="只看引用该主张的单元"),
+) -> None:
+    """Report stale units, or the units/scenes that reference a claim."""
+
+    root, _config = _project(project_dir)
+    content = load_public_content(root)
+    if content is None:
+        _exit("公开内容缺失；先运行 generate")
+    master = load_materialized_course(root) or materialize_project_course(root, content)
+    if claim:
+        units = affected_units(master, claim)
+        scenes = [
+            scene_id
+            for unit in master.units
+            if unit.unit_id in units
+            for scene_id in unit.scene_ids
+        ]
+        typer.echo(f"主张 {claim}: 单元 {len(units)} 个，场景 {len(scenes)} 个")
+        for unit_id in units:
+            unit = next(item for item in master.units if item.unit_id == unit_id)
+            typer.echo(f"  {unit_id} -> {', '.join(unit.scene_ids)}")
+        return
+    stale = stale_units(root, content, master)
+    if not stale:
+        typer.echo("没有失效单元：所有单元指纹与当前输入一致。")
+        return
+    typer.secho(f"失效单元: {len(stale)} 个", fg=typer.colors.YELLOW)
+    for unit_id in stale:
+        unit = next(item for item in master.units if item.unit_id == unit_id)
+        typer.echo(f"  {unit_id} -> {', '.join(unit.scene_ids)}")
+
+
+@app.command("duration-plan")
+@guarded
+def duration_plan(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    as_json: bool = typer.Option(False, "--json", help="输出 JSON"),
+) -> None:
+    """Show the per-unit duration budget, current estimates and measurements."""
+
+    root, _config = _project(project_dir)
+    content = load_public_content(root)
+    if content is None:
+        _exit("公开内容缺失；先运行 generate")
+    master = load_materialized_course(root) or materialize_project_course(root, content)
+    budget = build_duration_budget(root, master, content, load_speaker_script(root))
+    path = write_duration_budget(root, budget)
+    if as_json:
+        typer.echo(json.dumps(budget.as_dict(), ensure_ascii=False, indent=2))
+        return
+    typer.echo(
+        f"目标 {budget.target_minutes:.1f} 分钟"
+        f"（允许 {budget.lower_seconds / 60:.1f}–{budget.upper_seconds / 60:.1f} 分钟）"
+    )
+    typer.echo(f"{'UNIT':<10}{'SCENE':<12}{'BUDGET':>8}{'EST':>7}{'MEAS':>8}{'GAP':>7}  TITLE")
+    for unit in budget.units:
+        measured = f"{unit.measured_seconds:.1f}" if unit.measured_seconds is not None else "-"
+        typer.echo(
+            f"{unit.unit_id:<10}{unit.scene_id:<12}{unit.budget_seconds:>8}"
+            f"{unit.estimated_seconds:>7}{measured:>8}{unit.gap_seconds:>7}  {unit.title[:24]}"
+        )
+    total = (
+        budget.total_measured_seconds
+        if budget.measured_valid and budget.total_measured_seconds is not None
+        else budget.total_estimated_seconds
+    )
+    label = (
+        "实测" if budget.measured_valid and budget.total_measured_seconds is not None else "估算"
+    )
+    if not budget.measured_valid:
+        evidence_state = "无效/缺失"
+    elif budget.total_measured_seconds is None:
+        evidence_state = "哈希有效但缺逐单元秒数"
+    else:
+        evidence_state = "有效"
+    typer.echo(
+        f"合计预算 {budget.total_budget_seconds / 60:.2f} 分钟 | "
+        f"{label} {total / 60:.2f} 分钟 | 计时证据{evidence_state}"
+    )
+    typer.echo(f"预算文件: {path}")
+
+
+def _unit_inputs(root: Path):
+    content = load_public_content(root)
+    if content is None:
+        _exit("公开内容缺失；先运行 generate")
+    master = load_materialized_course(root) or materialize_project_course(root, content)
+    script = load_speaker_script(root)
+    if script is None:
+        _exit("口播稿缺失；先运行 generate")
+    outline = load_outline(root)
+    ledger = load_evidence_ledger(root)
+    claims = load_claims(root)
+    return content, master, script, outline, ledger, claims
+
+
+def _expand_one(
+    root, config, settings, provider_name, unit_id, force, from_file: Path | None = None
+) -> bool:
+    content, master, script, outline, ledger, claims = _unit_inputs(root)
+    budget = build_duration_budget(root, master, content, script)
+    unit_budget = next((item for item in budget.units if item.unit_id == unit_id), None)
+    if unit_budget is None:
+        _exit(f"单元 {unit_id} 不存在或没有已交付场景")
+    unit = next(item for item in delivered_units(master) if item.unit_id == unit_id)
+    slide = next(item for item in content.slides if item.slide_id == unit.scene_ids[0])
+    if not force and unit_budget.estimated_seconds >= unit_budget.budget_seconds * 0.85:
+        typer.echo(
+            f"跳过 {unit_id}：估算 {unit_budget.estimated_seconds}s 已达到预算 "
+            f"{unit_budget.budget_seconds}s 的 85%（--force 可强制扩展）"
+        )
+        return False
+    provided = None
+    provider: ModelProvider
+    if from_file is not None:
+        provided = UnitExpansion.model_validate_json(from_file.read_text(encoding="utf-8"))
+        provider = ProvidedProvider()
+    else:
+        provider = build_provider(settings, provider_name or settings.provider)
+    result = expand_unit(
+        root,
+        config,
+        unit,
+        slide,
+        script,
+        outline,
+        ledger,
+        claims,
+        unit_budget.budget_seconds,
+        provider,
+        max_tokens=settings.max_output_tokens,
+        expansion_override=provided,
+    )
+    typer.echo(
+        f"已扩展 {result.unit_id} / {result.scene_id}: "
+        f"{result.before_chars} → {result.after_chars} 字，"
+        f"{result.before_seconds} → {result.after_seconds}s（预算 {result.budget_seconds}s）"
+    )
+    typer.echo(
+        "  使用主张: "
+        + (", ".join(result.claims_used) or "无")
+        + " | 证据: "
+        + (", ".join(result.evidence_used) or "无")
+        + " | 视觉同步 block: "
+        + (", ".join(map(str, result.visual_sync_blocks)) or "无")
+    )
+    return True
+
+
+@app.command("expand-unit")
+@guarded
+def expand_unit_command(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    unit: str = typer.Option(..., "--unit", help="教学单元 ID"),
+    provider: str | None = typer.Option(None, help="mock | local | deepseek | anthropic"),
+    force: bool = typer.Option(False, "--force", help="达到预算也重新扩展"),
+    from_file: Path | None = typer.Option(
+        None, "--from-file", exists=True, dir_okay=False, help="读取已撰写的 UnitExpansion JSON"
+    ),
+) -> None:
+    """Expand one unit's narration under its evidence and visual constraints."""
+
+    root, config = _project(project_dir)
+    _expand_one(root, config, get_settings(), provider, unit, force, from_file)
+
+
+@app.command()
+@guarded
+def rebalance(
+    project_dir: Path = typer.Argument(..., exists=True, file_okay=False),
+    provider: str | None = typer.Option(None, help="mock | local | deepseek | anthropic"),
+    max_rounds: int = typer.Option(2, "--max-rounds", min=1, max=5),
+    max_units: int = typer.Option(4, "--max-units", min=1, max=14),
+    measure: bool = typer.Option(True, "--measure/--no-measure", help="扩展后用 TTS 实测"),
+) -> None:
+    """Expand under-budget units, measure, and report the remaining gap."""
+
+    root, config = _project(project_dir)
+    settings = get_settings()
+    for round_index in range(1, max_rounds + 1):
+        content, master, script, _outline, _ledger, _claims = _unit_inputs(root)
+        budget = build_duration_budget(root, master, content, script)
+        gaps = [
+            item
+            for item in budget.units
+            if item.gap_seconds > 0 and item.estimated_seconds < item.budget_seconds * 0.85
+        ]
+        if not gaps:
+            typer.echo("没有低于预算 85% 的单元。")
+            return
+        expanded = 0
+        for item in gaps[:max_units]:
+            if _expand_one(root, config, settings, provider, item.unit_id, False):
+                expanded += 1
+        if expanded == 0:
+            return
+        if not measure:
+            typer.echo("已扩展；使用 --measure 运行 TTS 实测。")
+            return
+        script_path = repository_root() / "scripts" / "measure-narration-timing.py"
+        result = subprocess.run(
+            [sys.executable, str(script_path), str(root), "--per-unit"],
+            check=False,
+        )
+        if result.returncode != 0:
+            typer.secho("TTS 测量失败；计时保持 NOT_RUN，不用估算值填充。", fg=typer.colors.YELLOW)
+            return
+        content, master, script, _o, _l, _c = _unit_inputs(root)
+        budget = build_duration_budget(root, master, content, script)
+        total = budget.total_measured_seconds
+        if not budget.measured_valid or total is None:
+            typer.secho("测量结果未绑定当前讲稿；计时保持无效。", fg=typer.colors.YELLOW)
+            return
+        typer.echo(f"第 {round_index} 轮: 实测 {total / 60:.2f} 分钟")
+        if budget.lower_seconds <= total <= budget.upper_seconds:
+            typer.echo("已达到契约允许的时长范围。")
+            return
 
 
 if __name__ == "__main__":

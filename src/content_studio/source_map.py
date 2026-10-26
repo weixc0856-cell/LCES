@@ -12,6 +12,7 @@ newline or sentence boundary so no chunk exceeds ``MAX_CHUNK_CHARS``.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -22,7 +23,7 @@ from content_studio.models import (
     SourceMap,
     SourceRegistry,
 )
-from content_studio.utils import read_text_utf8, utc_now, write_json
+from content_studio.utils import normalize_quote, read_text_utf8, utc_now, write_json
 
 MAX_CHUNK_CHARS = 2000
 # Bump when chunk/section boundaries change; maps without this marker are rebuilt.
@@ -255,6 +256,7 @@ def build_document_map(
     pages: list[tuple[int, str]] | None = None,
     sha256: str = "",
     parser: str = "",
+    raw_archive_sha256: str = "",
 ) -> SourceDocumentMap:
     if not text:
         raise IngestionError(f"cannot build a source map for empty source {source_id}")
@@ -306,11 +308,34 @@ def build_document_map(
     mode = "sections" if headings else "paragraphs"
     return SourceDocumentMap(
         source_id=source_id,
-        sha256=sha256,
+        sha256=sha256 or raw_archive_sha256,
+        raw_archive_sha256=raw_archive_sha256 or sha256,
+        extracted_txt_sha256=sha256_text(text),
+        normalized_locator_sha256=normalized_locator_sha256(text),
         parser=f"{base}+v{SOURCE_MAP_VERSION}+{mode}",
         text_chars=len(text),
         chunks=chunks,
     )
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def normalized_locator_sha256(text: str) -> str:
+    """Hash of the text exactly as the quote locator compares it.
+
+    Three different byte objects appear around one source, and reviewers need
+    to know which is which:
+
+    - ``raw_archive_sha256``: the downloaded/original file bytes;
+    - ``extracted_txt_sha256``: ``internal/sources/<id>.txt`` as stored;
+    - ``normalized_locator_sha256``: the same text after
+      :func:`content_studio.utils.normalize_quote` (typography and whitespace
+      only), which is what quote matching actually sees.
+    """
+
+    return sha256_text(normalize_quote(text))
 
 
 def load_source_map(project_dir: Path) -> SourceMap | None:
@@ -340,7 +365,9 @@ def ensure_source_map(
     if existing is not None:
         mapped = {document.source_id for document in existing.documents}
         current = all(
-            f"+v{SOURCE_MAP_VERSION}+" in document.parser for document in existing.documents
+            f"+v{SOURCE_MAP_VERSION}+" in document.parser
+            and bool(document.extracted_txt_sha256 and document.normalized_locator_sha256)
+            for document in existing.documents
         )
         if current and {record.source_id for record in registry.sources} <= mapped:
             return existing

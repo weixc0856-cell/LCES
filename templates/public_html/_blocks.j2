@@ -1,0 +1,79 @@
+{% macro render_blocks(blocks) %}
+{% for block in blocks %}
+<div class="block" data-block-index="{{ loop.index0 }}" data-block-type="{{ block.type }}">
+  {% if block.type == "paragraph" %}
+<p>{{ block.text }}</p>
+  {% elif block.type == "bullets" %}
+<ul>{% for item in block["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% elif block.type == "formula" %}
+<figure class="formula-block formula-figure">
+<div class="formula" role="math" data-latex="{{ block.latex }}" aria-label="{{ block.label or '公式' }}">{{ block.formula_html | safe }}</div>
+{% if block.explanation %}<figcaption>{{ block.explanation }}</figcaption>{% endif %}
+</figure>
+  {% elif block.type == "code" %}
+<pre class="code"><code>{{ block.code }}</code></pre>
+{% if block.caption %}<p class="code-caption">{{ block.caption }}</p>{% endif %}
+  {% elif block.type == "figure" %}
+{% if block.visual_html %}{{ block.visual_html | safe }}{% else %}
+<figure>
+<img src="{{ block.path }}" alt="{{ block.alt }}" loading="lazy">
+{% if block.caption %}<figcaption class="figure-caption">{{ block.caption }}</figcaption>{% endif %}
+</figure>
+{% endif %}
+  {% elif block.type == "svg" %}
+{{ block.svg_html | safe }}
+  {% elif block.type == "table" %}
+{% if block.visual_html %}{{ block.visual_html | safe }}{% else %}
+<table>
+{% if block.caption %}<caption class="table-caption">{{ block.caption }}</caption>{% endif %}
+<thead><tr>{% for column in block.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
+<tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+  {% elif block.type == "chart" %}
+{{ block.visual_html | safe }}
+  {% elif block.type == "diagram" %}
+{{ block.visual_html | safe }}
+  {% elif block.type == "graph" %}
+{{ block.visual_html | safe }}
+  {% elif block.type == "animation" %}
+{% if block.video_rendered %}
+<figure>
+<video controls preload="metadata" aria-label="{{ block.alt }}">
+<source src="{{ block.video_src }}" type="video/mp4">
+{{ block.alt }}
+</video>
+{% if block.caption %}<figcaption class="figure-caption">{{ block.caption }}</figcaption>{% endif %}
+</figure>
+{% else %}
+<p class="figure-caption">{{ block.alt }}</p>
+{% endif %}
+  {% elif block.type == "callout" %}
+<div class="callout {{ block.kind }}">
+<span class="tag">{{ {"note": "说明", "warning": "注意", "limitation": "局限", "assumption": "假设"}[block.kind] }}</span>
+{{ block.text }}
+</div>
+  {% elif block.type == "check" %}
+<div class="check">
+<p class="check-question"><strong>学习检查：</strong>{{ block.question }}</p>
+<details><summary>查看参考答案</summary>
+<p class="check-answer">{{ block.answer }}</p>
+{% if block.rationale %}<p class="check-rationale">{{ block.rationale }}</p>{% endif %}
+</details>
+</div>
+  {% elif block.type == "quote" %}
+<blockquote>{{ block.text }}{% if block.attribution %}<cite>— {{ block.attribution }}</cite>{% endif %}</blockquote>
+  {% elif block.type == "interactive" %}
+<div class="lab" data-scene="{{ block.scene }}" data-params="{{ block.params | tojson }}">
+<p class="lab-kicker">交互实验室</p>
+<h3>{{ block.title }}</h3>
+{% if block.description %}<p class="lab-desc">{{ block.description }}</p>{% endif %}
+<canvas aria-label="{{ block.title }}" role="img"></canvas>
+<div class="lab-controls" aria-label="参数"></div>
+<p class="lab-readout" aria-live="polite"></p>
+{% if block.caption %}<p class="lab-caption">{{ block.caption }}</p>{% endif %}
+</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endmacro %}

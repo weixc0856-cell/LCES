@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from content_studio.content import (
     load_outline,
@@ -71,6 +71,34 @@ class CourseModule(StrictModel):
     slide_ids: list[str] = Field(min_length=1)
 
 
+class DeferredDeliverable(StrictModel):
+    """An enhancement outside the current release promise.
+
+    ``prd_basis`` names the PRD section that makes it optional; without that
+    basis a contract cannot quietly move a required deliverable out of scope.
+    """
+
+    name: str = Field(min_length=1)
+    status: Literal["out_of_scope_this_release", "deferred_to_future_release"] = (
+        "out_of_scope_this_release"
+    )
+    future_release: str = ""
+    affects_current_acceptance: bool = False
+    # Empty on a legacy/draft entry; approval refuses an empty basis.
+    prd_basis: str = ""
+
+
+class LearnerTrialPlan(StrictModel):
+    """Preparation state for the learner trial. Results are never stored here."""
+
+    status: Literal["protocol_draft", "scheduled", "completed"] = "protocol_draft"
+    sample_size_min: int | None = Field(default=None, ge=1)
+    pass_threshold: str = ""
+    tasks: list[str] = Field(default_factory=list)
+    failure_handling: str = ""
+    record_path: str = ""
+
+
 class CourseContract(StrictModel):
     schema_version: str = "1.0"
     project_id: str
@@ -79,12 +107,30 @@ class CourseContract(StrictModel):
     approved_by: str = ""
     approved_at: datetime | None = None
     audience: str = Field(min_length=1)
+    # What a learner can do after the course, and what the course does not
+    # promise. Split from `audience` so re-review can check both explicitly.
+    audience_outcomes: list[str] = Field(default_factory=list)
     prerequisites: list[str] = Field(default_factory=list)
     target_duration_minutes: float = Field(gt=0)
+    # A planning target is not evidence: only a measured recording may set
+    # `measured`, and the Gate B timing checks still apply independently.
+    duration_status: Literal["planning_target", "measured"] = "planning_target"
     timing_rule: str = Field(min_length=1)
     objectives: list[CourseObjective] = Field(min_length=1)
     modules: list[CourseModule] = Field(min_length=1)
     deliverables: list[str] = Field(min_length=1)
+    # On-demand enhancements explicitly outside this release promise. A plain
+    # string is accepted for 1.2 compatibility and means "out of scope".
+    deferred_deliverables: list[DeferredDeliverable] = Field(default_factory=list)
+    # Substantive rules that counts alone cannot express (see the 2026-10-24
+    # review): formula completeness, objective-to-check evidence, non-substitution
+    # of automatic checks for human acceptance, per-scene recording criteria.
+    quality_rules: list[str] = Field(default_factory=list)
+    # Which reports must be rerun when each kind of input changes.
+    reacceptance_rules: list[str] = Field(default_factory=list)
+    # The 41.0/41.8 conflict is decided in the evidence layer; this records how.
+    conflict_policy: str = ""
+    learner_trial: LearnerTrialPlan | None = None
     required_formula_count: int = Field(default=3, ge=0)
     required_check_count: int = Field(default=6, ge=0)
     manual_items: list[str] = Field(default_factory=list)
@@ -98,9 +144,47 @@ class CourseContract(StrictModel):
             raise ValueError("objective_id values must be unique")
         if len(module_ids) != len(set(module_ids)):
             raise ValueError("module_id values must be unique")
+        for item in self.deferred_deliverables:
+            if item.status == "deferred_to_future_release" and not item.future_release.strip():
+                raise ValueError(f"deferred deliverable {item.name!r} needs future_release")
+        trial = self.learner_trial
+        if trial is not None and trial.status in {"scheduled", "completed"}:
+            if trial.sample_size_min is None or not trial.pass_threshold.strip():
+                raise ValueError(
+                    "a scheduled learner trial needs sample_size_min and pass_threshold"
+                )
+            if not trial.failure_handling.strip():
+                raise ValueError("a scheduled learner trial needs failure_handling")
         if self.status == "approved" and not self.approved_by.strip():
             raise ValueError("an approved contract needs approved_by")
+        deferred_names = [item.name for item in self.deferred_deliverables]
+        overlap = set(self.deliverables) & set(deferred_names)
+        if overlap:
+            raise ValueError(
+                "deliverables and deferred_deliverables overlap: " + ", ".join(sorted(overlap))
+            )
+        if self.status == "approved":
+            missing: list[str] = []
+            if not self.quality_rules:
+                missing.append("quality_rules")
+            if not self.reacceptance_rules:
+                missing.append("reacceptance_rules")
+            if not self.conflict_policy.strip():
+                missing.append("conflict_policy")
+            if self.learner_trial is None:
+                missing.append("learner_trial")
+            if any(not item.prd_basis.strip() for item in self.deferred_deliverables):
+                missing.append("deferred_deliverables.prd_basis")
+            if missing:
+                raise ValueError("an approved contract needs " + ", ".join(missing))
         return self
+
+    @field_validator("deferred_deliverables", mode="before")
+    @classmethod
+    def _accept_plain_strings(cls, value: object) -> object:
+        if isinstance(value, list):
+            return [{"name": item} if isinstance(item, str) else item for item in value]
+        return value
 
 
 class TimingEvidence(StrictModel):
@@ -112,6 +196,9 @@ class TimingEvidence(StrictModel):
     audio_path: str = ""
     audio_sha256: str = ""
     voice: str = ""
+    # Optional per-scene measured seconds (slide_id -> seconds). The total is
+    # `measured_seconds`; gaps are pauses/transitions, so the sum may be lower.
+    scene_seconds: dict[str, float] = Field(default_factory=dict)
     generated_at: datetime
     notes: str = ""
 
@@ -126,6 +213,7 @@ class CourseAcceptance(StrictModel):
     timing_confirmed: bool = False
     visual_confirmed: bool = False
     checks_confirmed: bool = False
+    learner_trial_confirmed: bool = False
     notes: str = ""
 
 
@@ -148,6 +236,10 @@ class CourseQualityReport(StrictModel):
     findings: list[QualityFinding] = Field(default_factory=list)
     summary: dict[str, int] = Field(default_factory=dict)
     decision: Decision = "not_run"
+    # Production quality is judged by automated findings only. Human records
+    # remain release disclosures, so they do not block build/playback/recording.
+    production_decision: Decision = "not_run"
+    disclosures: list[str] = Field(default_factory=list)
     notes: str = ""
 
     @property
@@ -331,6 +423,24 @@ def run_course_quality_audit(project_dir: Path) -> CourseQualityReport:
             location="internal/plan/course_contract.json",
         )
 
+    missing_rules: list[str] = []
+    if not contract.quality_rules:
+        missing_rules.append("quality_rules")
+    if not contract.reacceptance_rules:
+        missing_rules.append("reacceptance_rules")
+    if not contract.conflict_policy.strip():
+        missing_rules.append("conflict_policy")
+    if contract.learner_trial is None:
+        missing_rules.append("learner_trial")
+    if missing_rules:
+        _add(
+            findings,
+            "contract_rules_recorded",
+            "human",
+            "契约未记录批准所需的实质规则：" + ", ".join(missing_rules),
+            location="internal/plan/course_contract.json",
+        )
+
     target = _project_target(project_dir)
     if target and abs(contract.target_duration_minutes - target) > 0.01:
         _add(
@@ -478,6 +588,24 @@ def run_course_quality_audit(project_dir: Path) -> CourseQualityReport:
                 "blocker",
                 "计时证据的方法仍是 estimate；必须有完整讲解或录制的实测时长",
             )
+        if timing.method == "tts_readthrough":
+            _add(
+                findings,
+                "timing_method_human",
+                "human",
+                "计时方法为 TTS 试读；TTS 不能替代人工口播或录制的实测时长",
+                location="internal/qa/timing_evidence.json",
+            )
+        if timing.method in {"human_readthrough", "human_recording"} and (
+            contract.duration_status != "measured"
+        ):
+            _add(
+                findings,
+                "duration_status_not_updated",
+                "human",
+                "已有实测计时，但契约 duration_status 仍是 planning_target",
+                location="internal/plan/course_contract.json",
+            )
         expected = contract.target_duration_minutes * 60
         if not (0.8 * expected <= timing.measured_seconds <= 1.3 * expected):
             _add(
@@ -566,6 +694,7 @@ def run_course_quality_audit(project_dir: Path) -> CourseQualityReport:
             (acceptance.timing_confirmed, "计时"),
             (acceptance.visual_confirmed, "视觉"),
             (acceptance.checks_confirmed, "学习检查"),
+            (acceptance.learner_trial_confirmed, "学习者试测"),
         ):
             if not flag:
                 _add(
@@ -626,6 +755,10 @@ def _report(
         findings=ordered,
         summary={"blocker": blockers, "human": human},
         decision=decision,
+        production_decision="blocked" if blockers else "passed",
+        disclosures=[
+            f"{item.check_id}: {item.message}" for item in ordered if item.severity == "human"
+        ],
         notes=notes,
     )
 

@@ -1,0 +1,188 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-10-24T06:25:01+00:00",
+  "project_id": "attention-is-all-you-need",
+  "note": "P9-B read-only baseline. No course content, narration, contract, evidence or build output was regenerated or edited.",
+  "course_contract": {
+    "version": "1.1",
+    "status": "draft",
+    "target_duration_minutes": 20.0
+  },
+  "counts": {
+    "claims": 34,
+    "evidence_rows": 50,
+    "review_items": 14,
+    "review_pending": 14
+  },
+  "qa": {
+    "content_version": "91d0fe3c5b67b2cff91dd0cdaafa3c671bff5f398b25b96b9515c5aa9d1647ea",
+    "gates": {
+      "gate_1_research": [
+        "not_run",
+        "pass",
+        "warn"
+      ],
+      "gate_2_content": [
+        "pass",
+        "warn"
+      ],
+      "gate_3_engineering": [
+        "pass",
+        "warn"
+      ]
+    }
+  },
+  "course_content_audit": {
+    "decision": "passed",
+    "course_version": "66cb122afbb2bf5cd6cc7aca60ba95ab543a90effdb84a33d91b3fb13321ff3c",
+    "summary": {
+      "blocker": 0,
+      "major": 0,
+      "advisory": 0
+    }
+  },
+  "course_product": {
+    "decision": "blocked",
+    "content_version": "0e286692862b25d105f7731ce3c1340f0f887a4c3592641d4cb434f7d84f59a9",
+    "summary": {
+      "blocker": 1,
+      "human": 2
+    }
+  },
+  "timing": {
+    "method": "tts_readthrough",
+    "measured_seconds": 1197.62,
+    "script_sha256": "1d54ef0a51585d2a1804d1cef1349a774cdcc1da9c44db3fd73f8a36c7d08be3"
+  },
+  "command_results": [
+    {
+      "command": "lces validate projects/attention-is-all-you-need",
+      "date": "2026-10-24",
+      "exit_code": 0,
+      "result": "Gate 1/2/3 warn, no fail; scientific_review=NOT_RUN; QA bound to content"
+    },
+    {
+      "command": "lces audit-course projects/attention-is-all-you-need",
+      "date": "2026-10-24",
+      "exit_code": 0,
+      "result": "decision=passed; blocker/major/advisory=0/0/0"
+    },
+    {
+      "command": "lces audit-product projects/attention-is-all-you-need",
+      "date": "2026-10-24",
+      "exit_code": 1,
+      "result": "decision=blocked; blocker=1, human=2; timing_matches_script is the blocker"
+    },
+    {
+      "command": "lces release-check projects/attention-is-all-you-need --version v1",
+      "date": "2026-10-24",
+      "exit_code": 1,
+      "result": "decision=blocked (unsigned evidence, unacknowledged conflict, release does not match current audit, Gate B blocked)"
+    }
+  ],
+  "not_rerun": [
+    "lces validate was not re-run in P9-B: it rewrites internal/qa/qa_report.json. The existing report was verified to be bound to the current bytes."
+  ],
+  "files": [
+    {
+      "path": "content/public_content.json",
+      "present": true,
+      "size_bytes": 38691,
+      "sha256": "d9326e536ad382bf5ee9216215240384aa7001c72c735d3e8397966823aea0b3"
+    },
+    {
+      "path": "content/reading_edition.json",
+      "present": true,
+      "size_bytes": 55966,
+      "sha256": "55166aff97f74a4ebaa6cbd8f6bf93d088d83aae3fb921a2341c70b8d04dd144"
+    },
+    {
+      "path": "content/outline.json",
+      "present": true,
+      "size_bytes": 10186,
+      "sha256": "4e27bcf44882e9b4a67da188373bbbd19184a42070c00cb0e02ecb4132bc13c8"
+    },
+    {
+      "path": "internal/speaker_script.json",
+      "present": true,
+      "size_bytes": 10500,
+      "sha256": "1e3180b9da594d0ed52d2bca0ec810d5a02cad6bb53d478f7da9a10297e5ea61"
+    },
+    {
+      "path": "internal/plan/course_contract.json",
+      "present": true,
+      "size_bytes": 6849,
+      "sha256": "633524b7065c5460438baed1164e0b5ce1c9aa6f0fadb6c6d907944f9231e4cd"
+    },
+    {
+      "path": "internal/source_registry.json",
+      "present": true,
+      "size_bytes": 673,
+      "sha256": "501b0cb6ea1cbd177699f39d96bd6737d751c1d5f0f0eefb689c6826ce6b6491"
+    },
+    {
+      "path": "internal/evidence_ledger.csv",
+      "present": true,
+      "size_bytes": 26031,
+      "sha256": "ff5a2c13da1d681075c7028848e8fff427bec824e3ec6d2ecc2cd268c0bf0678"
+    },
+    {
+      "path": "internal/claims.json",
+      "present": true,
+      "size_bytes": 15819,
+      "sha256": "e44328cb8d3109d921a4111e1ad981af510ff60f7846a94a6257c69c669df28c"
+    },
+    {
+      "path": "internal/qa/structured_evidence_review.json",
+      "present": true,
+      "size_bytes": 42093,
+      "sha256": "d258c3edcc2ce55c5f1c27ceee8dcfa083e484f3d5a388f921120549054a9758"
+    },
+    {
+      "path": "internal/qa/course_content_audit.json",
+      "present": true,
+      "size_bytes": 1224,
+      "sha256": "3562eeacbf692df1dd3254f5c37f546786a954da6188147d247e7955f4bc6179"
+    },
+    {
+      "path": "internal/qa/course_quality_audit.json",
+      "present": true,
+      "size_bytes": 2371,
+      "sha256": "e6a247350ce09c7bec437259e5792140e86b81c8310ae506d21125dabcab7d21"
+    },
+    {
+      "path": "internal/qa/qa_report.json",
+      "present": true,
+      "size_bytes": 8678,
+      "sha256": "27eeecd79ea3cb78590510cca59be5e804f4eed8c17c531e6c10448ba870556e"
+    },
+    {
+      "path": "internal/qa/timing_evidence.json",
+      "present": true,
+      "size_bytes": 593,
+      "sha256": "c525429539c8f3ba5f8dbd811b7af040f5aca9629dd3bbcb7fc9db4e5018a214"
+    },
+    {
+      "path": "internal/qa/visual_assets.json",
+      "present": true,
+      "size_bytes": 15970,
+      "sha256": "8b10554471cebfd3995c8df36a7a160e6d151bb0e28318590331389918b589c8"
+    },
+    {
+      "path": "internal/qa/quote_audit.json",
+      "present": false
+    },
+    {
+      "path": "build/slides/index.html",
+      "present": true,
+      "size_bytes": 87607,
+      "sha256": "4369098523558ca4773d76752ad8036a76487c199d277d665ede200a78581657"
+    },
+    {
+      "path": "build/reading_edition.html",
+      "present": true,
+      "size_bytes": 81888,
+      "sha256": "d634bb1c60c5a48d08e85dac2ab663d00109eb3783657f5727b7a1391ff1f101"
+    }
+  ]
+}

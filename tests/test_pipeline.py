@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -97,6 +98,9 @@ def test_pipeline_retries_stage_with_fallback(tmp_path, monkeypatch):
     runs = TaskStore(settings.database_path).stage_runs(result.task_id)
     assert [run["status"] for run in runs] == ["fail", "pass"]
     assert [run["provider"] for run in runs] == ["local", "mock"]
+    assert [run["retry_count"] for run in runs] == [0, 1]
+    assert runs[0]["error_class"] == "provider"
+    assert runs[1]["error_class"] == ""
 
 
 def test_pipeline_stops_when_no_fallback_is_configured(tmp_path, monkeypatch):
@@ -168,3 +172,26 @@ def test_pipeline_applies_stage_routing(tmp_path):
     assert runs["outline"]["provider"] == "mock"
     assert runs["generate"]["provider"] == "mock"
     assert runs["ingest"]["provider"] == "none"
+
+
+def test_run_records_capture_lineage(tmp_path):
+    root, config = _project(tmp_path)
+    settings = _settings(tmp_path)
+    result = run_pipeline(root, config, settings, provider_name="mock")
+    assert result.failed_stage is None
+
+    task = TaskStore(settings.database_path).get_task(result.task_id)
+    assert task is not None
+    assert len(task["run_id"]) == 32
+    # After ingestion the source registry is the canonical input fingerprint.
+    from content_studio.utils import sha256_file
+
+    assert task["input_sha256"] == sha256_file(root / "internal" / "source_registry.json")
+    snapshot = json.loads(task["config_json"])
+    assert snapshot["provider"] == "mock"
+    assert snapshot["stages"] == list(STAGES)
+
+    runs = TaskStore(settings.database_path).stage_runs(result.task_id)
+    assert {run["error_class"] for run in runs} == {""}
+    generate = next(run for run in runs if run["stage"] == "generate")
+    assert "content/public_content.json" in json.loads(generate["artifacts_json"])
