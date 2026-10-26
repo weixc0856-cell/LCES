@@ -158,3 +158,38 @@ class MediaError(LCESError):
 
 class ToolPermissionError(LCESError):
     """A tool call exceeds the caller's access level."""
+
+
+def classify_error(exc: BaseException) -> str:
+    """A bounded class name for run records (SAD-001 §8.3).
+
+    This is deliberately coarser than the exception message: the class decides
+    whether a later step may retry, and the message carries the detail. Unknown
+    exceptions fall back to the class name, never to an empty value.
+    """
+
+    if isinstance(exc, RenderError):
+        return exc.code
+    if isinstance(exc, OutputTruncatedError):
+        return "output_truncated"
+    if isinstance(exc, ProviderResponseError):
+        return "provider_response"
+    if isinstance(exc, ProviderError):
+        return "provider"
+    if isinstance(exc, ConfigurationError):
+        return "configuration"
+    if isinstance(exc, IngestionError):
+        return "ingestion"
+    if isinstance(exc, ValidationFailure):
+        return "validation"
+    if isinstance(exc, MediaError):
+        return "media"
+    if isinstance(exc, UnsupportedVisualType):
+        return "unsupported_visual"
+    if isinstance(exc, ToolPermissionError):
+        return "tool_permission"
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    if isinstance(exc, OSError):
+        return "io"
+    return exc.__class__.__name__

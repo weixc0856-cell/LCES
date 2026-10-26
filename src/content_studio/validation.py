@@ -6,6 +6,7 @@ browser, media decoder, or human scientific review is reported NOT_RUN.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -716,6 +717,35 @@ def release_decision(checks: list[CheckResult], *, conflict_disclosed: bool = Fa
     return "blocked"
 
 
+VALIDATION_FILES = (
+    Path("content") / "public_content.json",
+    Path("content") / "reading_edition.json",
+    Path("content") / "outline.json",
+    Path("internal") / "speaker_script.json",
+    Path("build") / "slides" / "index.html",
+    Path("build") / "reading_edition.html",
+)
+
+
+def content_version(project_dir: Path) -> tuple[str, list[dict[str, str]]]:
+    """Fingerprint the artefacts a validation pass is about.
+
+    Content, narration and the built HTML -- what Gates 1-3 read. Gate B's
+    fingerprint adds the product contract, because a contract change must
+    invalidate the human acceptance; validation deliberately excludes it.
+    Editing any bound file after ``lces validate`` makes the report stale and
+    the release gate refuses to reuse it (SAD-001 §9.3, TDD-001 §11.1).
+    """
+
+    files: list[dict[str, str]] = []
+    for relative in VALIDATION_FILES:
+        path = project_dir / relative
+        if path.is_file():
+            files.append({"path": relative.as_posix(), "sha256": sha256_file(path)})
+    payload = "\n".join(f"{item['path']}:{item['sha256']}" for item in files)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest(), files
+
+
 def run_validation(
     project_dir: Path,
     config: ProjectConfig,
@@ -1046,11 +1076,14 @@ def run_validation(
     checks.append(_build_committed_check(project_dir))
     checks.extend(_browser_checks(project_dir, enabled=browser_qa))
 
+    version, bound_files = content_version(project_dir)
     report = QAReport(
         project_id=config.project_id,
         provider=",".join(sorted(providers)),
         model="",
         checks=checks,
+        content_version=version,
+        content_files=bound_files,
     )
     write_json(project_dir / "internal" / "qa" / "qa_report.json", report)
     return report
@@ -1232,6 +1265,41 @@ def run_release_checks(
                 "项目配置不要求人工审批（不建议用于正式发布）",
             )
         )
+
+    if manifest is not None and manifest.manifest_schema_version.split(".", 1)[0] != "1":
+        problems: list[str] = []
+        if not manifest.content_version:
+            problems.append("content_version 为空")
+        if manifest.decision not in {"approved", "approved_with_disclosures"}:
+            problems.append(f"decision={manifest.decision or '空'}")
+        if manifest.disclosures and manifest.decision != "approved_with_disclosures":
+            problems.append("记录了披露但 decision 不是 approved_with_disclosures")
+        if manifest.limitations and manifest.decision != "approved_with_disclosures":
+            problems.append("存在 NOT_RUN 限制但 decision 不是 approved_with_disclosures")
+        checks.append(
+            _check(
+                "gate_4_release",
+                "manifest_lineage",
+                "fail" if problems else "pass",
+                "发布清单的版本绑定不完整：" + "; ".join(problems)
+                if problems
+                else (
+                    f"发布清单绑定了内容 {manifest.content_version[:12]}、"
+                    f"课程 {manifest.course_version or '-'}、"
+                    f"代码 {manifest.code_version[:12] or '-'}"
+                ),
+            )
+        )
+        if not manifest.code_version:
+            checks.append(
+                _check(
+                    "gate_4_release",
+                    "manifest_code_version",
+                    "warn",
+                    "发布清单没有记录代码版本（构建不在 Git 工作区内）",
+                    blocking=False,
+                )
+            )
 
     if project_dir is not None:
         checks.extend(_course_release_checks(project_dir, release_root))

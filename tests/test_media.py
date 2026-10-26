@@ -8,6 +8,7 @@ from content_studio.errors import MediaError
 from content_studio.media import (
     extract_frames,
     media_problems,
+    probe_duration,
     probe_media,
     subtitle_problems,
     tool_status,
@@ -163,3 +164,30 @@ def test_gate4_fails_a_corrupt_video(tmp_path):
     checks = {check.check_id: check for check in _media_checks(tmp_path)}
     assert checks["media_decodable"].status == "fail"
     assert checks["media_decodable"].blocking is True
+
+
+@needs_ffmpeg
+def test_probe_duration_reads_audio_only_media(tmp_path: Path):
+    audio = tmp_path / "tone.m4a"
+    subprocess.run(
+        [
+            FFMPEG,
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=1.5",
+            "-c:a",
+            "aac",
+            str(audio),
+        ],
+        check=True,
+    )
+
+    assert probe_duration(audio) == pytest.approx(1.5, abs=0.2)
+
+
+def test_probe_duration_rejects_missing_files(tmp_path: Path):
+    with pytest.raises(MediaError, match="not found"):
+        probe_duration(tmp_path / "absent.m4a")

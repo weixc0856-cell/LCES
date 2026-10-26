@@ -75,6 +75,21 @@
       },
       "title": "Checks",
       "type": "array"
+    },
+    "content_version": {
+      "default": "",
+      "title": "Content Version",
+      "type": "string"
+    },
+    "content_files": {
+      "items": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "title": "Content Files",
+      "type": "array"
     }
   },
   "required": [

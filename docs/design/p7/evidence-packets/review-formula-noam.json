@@ -1,0 +1,81 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "cdfd1ae5d758bcc4774d4ec8ee812d8eca6face7c93d0a4561ba34ab35c87cf2",
+  "review_id": "review-formula-noam",
+  "generated_at": "2026-10-24T04:32:36.543917Z",
+  "claim": "Noam 学习率：lrate=d_model^{-0.5}·min(step^{-0.5}, step·warmup_steps^{-1.5})，warmup_steps=4000。",
+  "evidence_kind": "formula",
+  "paper_id": "paper-022",
+  "paper_title": "优化器与学习率调度",
+  "paper_locator": "§5.3",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0045",
+  "locator": "§5.3 Optimizer · Eq. (3)",
+  "program_status": "needs_review",
+  "program_reason": "formula_semantics_manual",
+  "research_finding": "needs_review",
+  "external_source_url": "https://arxiv.org/html/1706.03762v7",
+  "external_source_version": "arXiv:1706.03762v7",
+  "external_source_locator": "§5.3 Optimizer · Eq. (3)",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§5.3 Optimizer · Eq. (3)",
+    "chunk_id": "source-001:b0045",
+    "chunk_section": "5.1 Training Data and Batching",
+    "char_start": 24229,
+    "char_end": 24868,
+    "excerpt": "8\nand\nϵ\n=\n10\n−\n9\n\\epsilon=10^{-9}\n. We varied the learning rate over the course of training, according to the formula:\nl\n​\nr\n​\na\n​\nt\n​\ne\n=\nd\nmodel\n−\n0.5\n⋅\nmin\n⁡\n(\ns\n​\nt\n​\ne\n​\np\n​\n_\n​\nn\n​\nu\n​\nm\n−\n0.5\n,\ns\n​\nt\n​\ne\n​\np\n​\n_\n​\nn\n​\nu\n​\nm\n⋅\nw\n​\na\n​\nr\n​\nm\n​\nu\n​\np\n​\n_\n​\ns\n​\nt\n​\ne\n​\np\n​\ns\n−\n1.5\n)\nlrate=d_{\\text{model}}^{-0.5}\\cdot\\min({step\\_num}^{-0.5},{step\\_num}\\cdot{warmup\\_steps}^{-1.5})\n(3)\nThis corresponds to increasing the learning rate linearly for the first\nw\n​\na\n​\nr\n​\nm\n​\nu\n​\np\n​\n_\n​\ns\n​\nt\n​\ne\n​\np\n​\ns\nwarmup\\_steps\ntraining steps, and decreasing it thereafter pro",
+    "excerpt_sha256": "f9818e30727da43f18dd85eab3fdc088ebef420a40808227fa4ecc10efad6d8d",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-008:formula[1]",
+      "text": "\\mathrm{lrate}=d_{\\mathrm{model}}^{-0.5}\\cdot\\min(\\mathrm{step\\_num}^{-0.5},\\mathrm{step\\_num}\\cdot\\mathrm{warmup\\_steps}^{-1.5})"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "ConvS2S | 25.16 | 40.46 | 9.6×10^18 | 1.5×10^20"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "MoE | 26.03 | 40.56 | 2.0×10^19 | 1.2×10^20"
+    }
+  ],
+  "support_scope": "research_finding=needs_review；program=needs_review/formula_semantics_manual",
+  "counter_evidence": "",
+  "limitations": "本地来源为 arXiv v7；NeurIPS 版本未逐项对照。正式人工签署仍待完成。",
+  "ambiguities": [
+    "正式人工签署；课程是否展示并正确解释该公式由课程内容审计单独检查。",
+    "Formula element found; LaTeX/Unicode normalisation matches the transcribed expression; algebra not verified."
+  ],
+  "reviewer_questions": [
+    "公式的转录、符号、上下标、运算符和维度是否与原文逐项一致？",
+    "课程对该公式的解释是否超出原文支持范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-formula-noam --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

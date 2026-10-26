@@ -16,6 +16,7 @@ import hashlib
 import subprocess
 import sys
 import tempfile
+import wave
 from pathlib import Path
 
 sys.path.insert(0, "src")
@@ -56,6 +57,22 @@ def _duration(audio: Path) -> float:
     return float(result.stdout.strip())
 
 
+def _concat_wavs(paths: list[Path], out: Path) -> None:
+    """Concatenate same-format PCM WAV files without re-encoding."""
+
+    if not paths:
+        raise SystemExit("no section audio to concatenate")
+    with wave.open(str(paths[0]), "rb") as first:
+        params = first.getparams()
+    with wave.open(str(out), "wb") as writer:
+        writer.setparams(params)
+        for path in paths:
+            with wave.open(str(path), "rb") as reader:
+                if reader.getparams()[:3] != params[:3]:
+                    raise SystemExit(f"section WAV format differs: {path.name}")
+                writer.writeframes(reader.readframes(reader.getnframes()))
+
+
 def _synthesize(text: str, audio: Path, voice: str) -> None:
     with tempfile.TemporaryDirectory() as temp:
         text_path = Path(temp) / "narration.txt"
@@ -84,17 +101,36 @@ def main() -> int:
     parser.add_argument("--voice", default=DEFAULT_VOICE)
     parser.add_argument("--audio", type=Path, default=Path("var/timing/narration.wav"))
     parser.add_argument("--target-minutes", type=float, default=0.0)
+    parser.add_argument(
+        "--per-unit",
+        action="store_true",
+        help="synthesize each section separately and record scene_seconds",
+    )
     args = parser.parse_args()
 
     project = args.project_dir.resolve()
     script = load_speaker_script(project)
     if script is None:
         raise SystemExit("speaker script is missing")
-    text = "\n".join(section.narration for section in script.sections)
     audio = args.audio if args.audio.is_absolute() else project / args.audio
     audio.parent.mkdir(parents=True, exist_ok=True)
-    _synthesize(text, audio, args.voice)
-    seconds = _duration(audio)
+    scene_seconds: dict[str, float] = {}
+    if args.per_unit:
+        with tempfile.TemporaryDirectory() as temp:
+            parts: list[Path] = []
+            for section in script.sections:
+                part = Path(temp) / f"{section.slide_id}.wav"
+                _synthesize(section.narration, part, args.voice)
+                measured = round(_duration(part), 2)
+                scene_seconds[section.slide_id] = measured
+                parts.append(part)
+                print(f"{section.slide_id}: {measured:.1f}s")
+            _concat_wavs(parts, audio)
+        seconds = round(sum(scene_seconds.values()), 2)
+    else:
+        text = chr(10).join(section.narration for section in script.sections)
+        _synthesize(text, audio, args.voice)
+        seconds = _duration(audio)
 
     target = args.target_minutes
     if not target:
@@ -114,6 +150,7 @@ def main() -> int:
         else str(audio),
         audio_sha256=_sha256(audio),
         voice=args.voice,
+        scene_seconds=scene_seconds,
         generated_at=utc_now(),
         notes=(
             "TTS read-through of the full narration. This is a measured audio duration, "

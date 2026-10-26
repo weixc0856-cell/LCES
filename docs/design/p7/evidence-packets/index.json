@@ -1,0 +1,107 @@
+{
+  "packet_version": "1.0",
+  "project_id": "attention-is-all-you-need",
+  "generated_at": "2026-10-24T04:32:36.555851Z",
+  "review_file_sha256": "d258c3edcc2ce55c5f1c27ceee8dcfa083e484f3d5a388f921120549054a9758",
+  "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+  "packets": [
+    {
+      "review_id": "review-table2-base-27.3",
+      "claim": "Transformer (base) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 27.3（Table 2，base 行）",
+      "packet_path": "review-table2-base-27.3.json",
+      "packet_sha256": "a75000f69debebc21d661b306a68188d253df35fa7621e2ebd5fa5e47a6de85c",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table2-big-ende-28.4",
+      "claim": "Transformer (big) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 28.4（Table 2，big 行）",
+      "packet_path": "review-table2-big-ende-28.4.json",
+      "packet_sha256": "f0fc9a612f1841664230aa18b951a80b1e3dd9d1c29ba18929e2ffb3d96fdd10",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table2-big-enfr-conflict",
+      "claim": "Transformer (big) EN-FR BLEU 存在未裁决的来源冲突：本地 arXiv 源 Table 2 行 = 41.8、摘要 = 41.8、§6.1 正文 = 41.0；NeurIPS 2017 会议版 Table 2/§6.1 = 41.0。",
+      "packet_path": "review-table2-big-enfr-conflict.json",
+      "packet_sha256": "d2ddef138a805c11f36ddce80d931e57441fda363a0652e18c96b53048316666",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table3-big-26.4",
+      "claim": "Table 3 big 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 26.4",
+      "packet_path": "review-table3-big-26.4.json",
+      "packet_sha256": "24019affcadd5de518175760e6eaa7e5fcaa53af918cc1430dc86d4dd8261df8",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table3-base-25.8",
+      "claim": "Table 3 base 行：WMT 2014 EN-DE 开发集 newstest2013 的 BLEU (dev) = 25.8（同值也出现在 (A) 组 16 头变体，base 行是表的第一行）",
+      "packet_path": "review-table3-base-25.8.json",
+      "packet_sha256": "1b6570218b791c293217d2eb3a4f4794e462d7522caa6772356446dd9658015e",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-attention",
+      "claim": "Scaled Dot-Product Attention（Eq. 1）：Attention(Q,K,V)=softmax(QK^T/√d_k)V；符号 Q/K/V、d_k",
+      "packet_path": "review-formula-attention.json",
+      "packet_sha256": "7fd6629f51a5526e7b94b37afc4b83431622b15bd0f3d9d02ab367aa6c0e54d8",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-multihead",
+      "claim": "Multi-Head Attention（§3.2.2）：MultiHead(Q,K,V)=Concat(head_1,…,head_h)W^O；head_i=Attention(QW_i^Q,KW_i^K,VW_i^V)",
+      "packet_path": "review-formula-multihead.json",
+      "packet_sha256": "65cdb300bdbc3e9937053feab1ecb9dad4083732b31aec6683a98d8e4f45fa89",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-positional",
+      "claim": "位置编码（§3.5）：PE_{(pos,2i)}=sin(pos/10000^{2i/d_model})；PE_{(pos,2i+1)}=cos(pos/10000^{2i/d_model})",
+      "packet_path": "review-formula-positional.json",
+      "packet_sha256": "f327cdd32d8b381b5a8166240f1f5c83cf50c2b3b747ded0779db56f472c5549",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-postln",
+      "claim": "Post-LN 残差结构：LayerNorm(x + Sublayer(x))；所有子层与嵌入层输出 d_model=512。",
+      "packet_path": "review-formula-postln.json",
+      "packet_sha256": "caf8d22f18ddfb732739c4768ebf8deac5bcf740db4d4b753b2883fbcca71a36",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-variance",
+      "claim": "点积方差：若 q、k 分量独立且均值 0、方差 1，则 Var(q·k)=d_k；缩放后回到 1。",
+      "packet_path": "review-formula-variance.json",
+      "packet_sha256": "c62a81a1cba631aaf8fe738d9435b9544e857b58a201efe998c8962fc4802e82",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-ffn",
+      "claim": "逐位置前馈网络：FFN(x)=max(0, xW_1+b_1)W_2+b_2；输入输出 d_model=512，内层 d_ff=2048。",
+      "packet_path": "review-formula-ffn.json",
+      "packet_sha256": "df7c74038136369587777247f5c5931c4a008220130aaf1b22dfa87b8c3668ad",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-formula-noam",
+      "claim": "Noam 学习率：lrate=d_model^{-0.5}·min(step^{-0.5}, step·warmup_steps^{-1.5})，warmup_steps=4000。",
+      "packet_path": "review-formula-noam.json",
+      "packet_sha256": "cdfd1ae5d758bcc4774d4ec8ee812d8eca6face7c93d0a4561ba34ab35c87cf2",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table2-rows",
+      "claim": "Table 2 对照行：ByteNet 23.75；Deep-Att+PosUnk 39.2；GNMT+RL 24.6/39.92；ConvS2S 25.16/40.46；MoE 26.03/40.56；Deep-Att+PosUnk Ensemble 40.4；GNMT+RL Ensemble 26.30/41.16；ConvS2S Ensemble 26.36/41.29；Transformer (base) 27.3/38.1；Transformer (big) 28.4/41.8（arXiv v7 Table 2）。",
+      "packet_path": "review-table2-rows.json",
+      "packet_sha256": "c73ab6e62e4f962bd137f8096f8317916f97e584682ddcc75ac304a77ad2c690",
+      "current_conclusion": "pending"
+    },
+    {
+      "review_id": "review-table3-ablation",
+      "claim": "Table 3 在 EN-DE 开发集 newstest2013 的 BLEU (dev)：base 25.8；单头 24.9（低 0.9）；h=4 为 25.5；h=16 为 25.8；h=32 为 25.4；d_k=16 为 25.1；d_k=32 为 25.4；N=2 为 23.7；N=4 为 25.3；N=8 为 25.5；d_model=256 为 24.5；d_model=1024 为 26.0；d_ff=1024 为 25.4；d_ff=4096 为 26.2；P_drop=0.0 为 24.6；P_drop=0.2 为 25.5；ε_ls=0.0 时 PPL 4.67、BLEU 25.3；ε_ls=0.2 为 25.7；可学习位置嵌入 25.7；big 26.4。未列出的取值继承 base 行；解码用 beam search，无 checkpoint averaging。",
+      "packet_path": "review-table3-ablation.json",
+      "packet_sha256": "e7d4883ad762716fe7179753ca2681f8089b4c8829db79d48ffc5f000c9ad0f7",
+      "current_conclusion": "pending"
+    }
+  ]
+}

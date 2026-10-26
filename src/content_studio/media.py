@@ -126,6 +126,39 @@ def probe_media(path: Path) -> MediaInfo:
     )
 
 
+def probe_duration(path: Path) -> float:
+    """Duration of any decodable media, including audio-only recordings.
+
+    ``probe_media`` requires a video stream; a narration recording may not have
+    one. P9-D1 needs the real duration, so this uses ffprobe's format entry.
+    """
+
+    binary = ffprobe_path()
+    if binary is None:
+        raise MediaError("ffprobe is not installed; install FFmpeg and retry")
+    if not path.is_file():
+        raise MediaError(f"media file not found: {path}")
+    completed = _run(
+        [
+            binary,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ]
+    )
+    try:
+        duration = float(completed.stdout.strip())
+    except ValueError as exc:
+        raise MediaError(f"duration is missing or invalid in {path.name}") from exc
+    if duration <= 0:
+        raise MediaError(f"duration is not positive in {path.name}")
+    return duration
+
+
 def extract_frames(path: Path, out_dir: Path, count: int = 4) -> list[Path]:
     """Sample ``count`` frames spread across the file for human review."""
 

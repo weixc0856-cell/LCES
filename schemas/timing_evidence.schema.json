@@ -47,6 +47,13 @@
       "title": "Voice",
       "type": "string"
     },
+    "scene_seconds": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Scene Seconds",
+      "type": "object"
+    },
     "generated_at": {
       "format": "date-time",
       "title": "Generated At",

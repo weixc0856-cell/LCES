@@ -1,8 +1,8 @@
 """P2.3-B: filesystem and output-directory boundaries (N01-N05, N07-N11).
 
-The negative matrix in ``docs/design/motion-canvas-p2.3-plan.md`` defines
-what each case must reject. This module covers the cases that need no real
-render; the two Node-side cases run in ``motion/output-dir.test.mjs``.
+The negative matrix in this module defines what each case must reject. This module
+covers the cases that need no real render; the two Node-side cases run in
+``motion/output-dir.test.mjs``.
 """
 
 from __future__ import annotations

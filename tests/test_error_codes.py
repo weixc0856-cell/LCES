@@ -101,3 +101,23 @@ def test_spike_contract_only_uses_shared_codes():
 
 def test_error_codes_file_lives_in_config():
     assert ERROR_CODES_PATH == Path(repository_root() / "config" / "error_codes.json")
+
+
+def test_classify_error_uses_a_bounded_vocabulary():
+    from content_studio.errors import (
+        ConfigurationError,
+        IngestionError,
+        OutputTruncatedError,
+        ProviderError,
+        ValidationFailure,
+        classify_error,
+    )
+
+    assert classify_error(ProviderError("x", provider="local")) == "provider"
+    assert classify_error(OutputTruncatedError("x")) == "output_truncated"
+    assert classify_error(ValidationFailure("x")) == "validation"
+    assert classify_error(ConfigurationError("x")) == "configuration"
+    assert classify_error(IngestionError("x")) == "ingestion"
+    assert classify_error(RenderCancelled("x")) == "cancelled"
+    assert classify_error(TimeoutError("x")) == "timeout"
+    assert classify_error(KeyError("x")) == "KeyError"

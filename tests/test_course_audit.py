@@ -42,6 +42,7 @@ from content_studio.structured_review import (
     record_substantive_review,
 )
 from content_studio.utils import write_json, write_text
+from content_studio.validation import content_version
 
 SOURCE_TEXT = (
     "Transformer (big) on WMT 2014 EN-FR: Table 2 reports 41.0 and the arXiv "
@@ -240,9 +241,12 @@ def _project(
     )
     write_text(root / "build" / "slides" / "index.html", build_html)
     write_text(root / "build" / "reading_edition.html", "<html><body>阅读版</body></html>")
+    _version, _bound = content_version(root)
     report = QAReport(
         project_id=config.project_id,
         provider="local",
+        content_version=_version,
+        content_files=_bound,
         checks=[
             CheckResult(
                 check_id="gate_1_research_ok",
@@ -711,3 +715,213 @@ def test_cli_audit_course_exits_non_zero_on_blockers(tmp_path, monkeypatch):
     assert result.exit_code == 1
     assert "bleu_value_supported" in result.output
     assert load_audit(root) is not None
+
+
+def _write_script(root: Path, narration: str) -> None:
+    write_json(
+        root / "internal" / "speaker_script.json",
+        {
+            "project_id": "audit-course",
+            "language": "zh-CN",
+            "sections": [{"slide_id": "slide-001", "narration": narration}],
+        },
+    )
+
+
+def test_unregistered_narration_number_blocks(tmp_path):
+    """F-01 回归：口播里的超参数必须能在该节绑定的证据里找到。"""
+
+    root, _config = _project(tmp_path, paragraphs=["本节没有数字。"])
+    _write_script(root, "优化器用 Adam，beta2 等于 0.98，warmup 4000 步。")
+
+    report = _audit(root)
+
+    findings = [item for item in report.findings if item.check_type == "number_coverage"]
+    assert findings, "未登记的口播数字必须报出"
+    assert findings[0].severity == "major"
+    assert "0.98" in findings[0].actual or "4000" in findings[0].actual
+
+
+def test_registered_narration_number_is_covered(tmp_path):
+    root, _config = _project(tmp_path, paragraphs=["结果 41.0 BLEU。"])
+    _write_script(root, "英法方向采用 41.0 BLEU 的口径。")
+
+    report = _audit(root)
+
+    assert not [item for item in report.findings if item.check_type == "number_coverage"]
+
+
+def _leak_html() -> str:
+    return (
+        '<html><body><div class="formula">' + "\\mathrm{Attention}(Q,K,V)" + "</div></body></html>"
+    )
+
+
+def test_raw_latex_in_build_is_a_blocker(tmp_path):
+    root, _config = _project(
+        tmp_path,
+        paragraphs=["本节没有数字。"],
+        build_html=_leak_html(),
+    )
+
+    report = _audit(root)
+
+    leaks = [item for item in report.findings if item.check_type == "raw_latex_leak"]
+    assert leaks and leaks[0].severity == "blocker"
+
+
+def test_external_asset_dependency_is_a_blocker(tmp_path):
+    root, _config = _project(
+        tmp_path,
+        paragraphs=["本节没有数字。"],
+        build_html=(
+            '<html><head><script src="https://cdn.example.com/katex.js"></script></head>'
+            "<body><p>正文</p></body></html>"
+        ),
+    )
+
+    report = _audit(root)
+
+    external = [item for item in report.findings if item.check_type == "external_asset_dependency"]
+    assert external and external[0].severity == "blocker"
+
+
+def _post_ln_item() -> ReviewItem:
+    return _review_item(
+        review_id="review-formula-postln",
+        local_evidence_id="evidence-004",
+        paper_id="paper-002",
+        locator="§3.1",
+        evidence_kind="formula",
+        claim="LayerNorm(x + Sublayer(x))",
+        conflict_status="none",
+        research_verification=[
+            {
+                "research_finding": "verified",
+                "details": "§3.1 defines the sub-layer output.",
+                "transcribed_expression": "\\mathrm{LayerNorm}(x+\\mathrm{Sublayer}(x))",
+            }
+        ],
+    )
+
+
+def test_pre_ln_tamper_is_detected(tmp_path):
+    """把 Post-LN 公式改成 Pre-LN 必须触发 blocker。"""
+
+    root, _config = _project(
+        tmp_path,
+        paragraphs=["残差结构。"],
+        formula="\\mathrm{Sublayer}(x)+\\mathrm{LayerNorm}(x)",
+        items=[_post_ln_item()],
+    )
+
+    report = _audit(root)
+
+    mismatches = [item for item in report.findings if item.check_type == "formula_matches_review"]
+    assert mismatches and mismatches[0].severity == "blocker"
+
+
+def test_post_ln_formula_passes_when_unchanged(tmp_path):
+    root, _config = _project(
+        tmp_path,
+        paragraphs=["残差结构。"],
+        formula="\\mathrm{LayerNorm}(x+\\mathrm{Sublayer}(x))",
+        items=[_post_ln_item()],
+    )
+
+    report = _audit(root)
+
+    assert report.decision == "passed", [item.check_type for item in report.findings]
+
+
+def test_removed_protected_condition_blocks(tmp_path):
+    root, _config = _project(tmp_path, paragraphs=["自注意力比循环层更快。"])
+    write_json(
+        root / "internal" / "plan" / "course_guards.json",
+        {
+            "guards": [
+                {
+                    "guard_id": "complexity-condition",
+                    "slide_id": "slide-001",
+                    "required": ["序列长度 n 小于表示维度 d"],
+                    "reason": "删除条件会把有条件的结论夸大为无条件优势。",
+                }
+            ]
+        },
+    )
+
+    report = _audit(root)
+
+    guards = [item for item in report.findings if item.check_type == "protected_condition_present"]
+    assert guards and guards[0].severity == "blocker"
+
+
+def test_quoted_protected_condition_passes(tmp_path):
+    root, _config = _project(
+        tmp_path, paragraphs=["论文的条件是序列长度 n 小于表示维度 d 时更快。"]
+    )
+    write_json(
+        root / "internal" / "plan" / "course_guards.json",
+        {
+            "guards": [
+                {
+                    "guard_id": "complexity-condition",
+                    "slide_id": "slide-001",
+                    "required": ["序列长度 n 小于表示维度 d"],
+                    "reason": "删除条件会把有条件的结论夸大为无条件优势。",
+                }
+            ]
+        },
+    )
+
+    report = _audit(root)
+
+    assert not [
+        item for item in report.findings if item.check_type == "protected_condition_present"
+    ]
+
+
+def test_guard_without_reason_is_ignored(tmp_path):
+    root, _config = _project(tmp_path, paragraphs=["本节没有数字。"])
+    write_json(
+        root / "internal" / "plan" / "course_guards.json",
+        {"guards": [{"guard_id": "silent", "slide_id": "slide-001", "required": ["缺失短语"]}]},
+    )
+
+    report = _audit(root)
+
+    assert not [
+        item for item in report.findings if item.check_type == "protected_condition_present"
+    ]
+
+
+def test_reg_003_big_qualifier_missing_is_reported(tmp_path):
+    """TDD-001 REG-003: 28.4 / 26.4 must stay labelled as the big model."""
+
+    root, _config = _project(
+        tmp_path,
+        paragraphs=["在 EN-DE 开发集 newstest2013 上，模型取得 26.4 BLEU (dev)。"],
+        items=[_table3_item()],
+    )
+
+    report = run_course_audit(root)
+
+    variant = [
+        finding for finding in report.findings if finding.check_type == "bleu_variant_qualifier"
+    ]
+    assert variant and variant[0].severity == "advisory"
+    assert "big" in variant[0].expected
+
+
+def test_reg_003_big_qualifier_present_is_accepted(tmp_path):
+    root, _config = _project(
+        tmp_path,
+        paragraphs=["在 EN-DE 开发集 newstest2013 上，big 模型取得 26.4 BLEU (dev)。"],
+        items=[_table3_item()],
+    )
+
+    report = run_course_audit(root)
+
+    assert not [
+        finding for finding in report.findings if finding.check_type == "bleu_variant_qualifier"
+    ]

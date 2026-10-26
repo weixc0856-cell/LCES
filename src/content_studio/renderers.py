@@ -801,6 +801,24 @@ def _figure(svg: str, alt: str, caption: str, *, css_class: str) -> str:
     return "".join(parts)
 
 
+def inline_svg_figure(
+    svg: str, alt: str, caption: str = "", *, css_class: str = "figure-svg"
+) -> str:
+    """Sanitise an authored SVG and wrap it in a labelled ``<figure>``.
+
+    Raises:
+        RenderError: the SVG is malformed, too large, or contains active
+            content. The course build refuses it rather than sanitising it
+            in place.
+    """
+
+    cleaned = _strip_prolog(svg)
+    problems = svg_problems(cleaned, "inline figure")
+    if problems:
+        raise RenderError("; ".join(problems), code="invalid_input", stage="input")
+    return _figure(cleaned, alt, caption, css_class=css_class)
+
+
 class RendererRegistry:
     """Dispatch a spec to the renderer registered for its ``visual_type``.
 

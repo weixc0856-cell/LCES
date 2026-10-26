@@ -1,123 +1,679 @@
 <!doctype html>
-<html lang="{{ content.language }}">
+{% import "_blocks.j2" as blocks %}
+<html lang="{{ content.language }}" data-stage="1920x1080">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ content.title }}</title>
-<style>
-:root{color-scheme:light;--ink:#232323;--muted:#666;--accent:#c05a1e;--line:#e6e1da;--bg:#fbfaf7;--panel:#fff}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.75 "Noto Serif SC","Source Han Serif SC","Songti SC",system-ui,serif}
-a{color:var(--accent)}
-.skip{position:absolute;left:-999px;top:0;background:#fff;padding:.5rem 1rem}
-.skip:focus{left:1rem;z-index:10}
-main{width:min(1080px,calc(100% - 48px));margin:auto;padding:56px 0 96px}
-header.banner{border-bottom:2px solid var(--ink);padding-bottom:32px;margin-bottom:16px}
-.eyebrow{color:var(--accent);font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px}
-h1{font-size:clamp(2rem,4.6vw,3.4rem);line-height:1.18;margin:0 0 12px}
-.subtitle{color:var(--muted);font-size:1.1rem;margin:0}
-article{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px 36px;margin:28px 0;scroll-margin-top:24px}
-article h2{font-size:clamp(1.35rem,2.6vw,2rem);line-height:1.3;margin:0 0 20px}
-article p{max-width:74ch}
-ul,ol{padding-left:1.4em}
-li{margin:.35em 0}
-blockquote{margin:1.2em 0;padding:.6em 1.2em;border-left:3px solid var(--accent);background:#fdf7f1;color:#3a3a3a}
-.formula{display:block;overflow-x:auto;font-family:"Latin Modern Math","Cambria Math",serif;font-size:1.15rem;padding:1em;background:#f6f3ee;border-radius:8px}
-.code{overflow-x:auto;background:#1f2328;color:#e6edf3;border-radius:10px;padding:16px 18px;font:14px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
-.code-caption,.figure-caption,.table-caption{color:var(--muted);font-size:.9rem;margin-top:.5em}
-figure{margin:1.4em 0}
-figure img,figure svg,video{max-width:100%;height:auto;display:block}
-video{background:#000;border-radius:8px;margin:1em 0}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.95rem}
-th,td{border:1px solid var(--line);padding:.55em .7em;text-align:left;vertical-align:top;overflow-wrap:anywhere}
-th{background:#f3efe9}
-.callout{border-radius:10px;padding:14px 18px;margin:1.2em 0;border:1px solid var(--line);background:#f7f5f1}
-.callout.warning{border-color:#e0b25c;background:#fdf6e7}
-.callout.limitation{border-color:#b9c9d8;background:#f1f6fa}
-.callout.assumption{border-color:#cbb7d8;background:#f8f2fb}
-.check{border:1px solid #c9d8c4;background:#f4f8f2;border-radius:10px;padding:14px 18px;margin:1.2em 0}
-.check-question{margin:0 0 .5em}
-.check details{margin-top:.4em}
-.check summary{cursor:pointer;color:#3c5a34;font-weight:600}
-.check-rationale{color:var(--muted);font-size:.92rem;margin:.4em 0 0}
-.sources{color:var(--muted);font-size:.85rem;margin-top:24px;border-top:1px dashed var(--line);padding-top:12px}
-footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);margin-top:48px;padding-top:20px}
-@media (max-width:640px){body{font-size:17px}article{padding:22px 18px}main{width:calc(100% - 28px)}}
-@media print{body{background:#fff}article{break-inside:avoid;border:1px solid #ddd}.skip{display:none}}
-</style>
-</head>
-<body>
-<a class="skip" href="#content">跳到正文</a>
-<main id="content">
-<header class="banner">
-<p class="eyebrow">课程展示</p>
-<h1>{{ content.title }}</h1>
-{% if content.subtitle %}<p class="subtitle">{{ content.subtitle }}</p>{% endif %}
+<style>{% include "_theme.css" %}</style>
+</head><body data-view="deck" data-record="false" data-total="{{ content.slides | length }}">
+<a class="skip-link" href="#slides">跳到课程正文</a>
+<header class="deck-bar">
+  <div class="brand">
+    <p class="eyebrow">论文精读课件</p>
+    <h1>{{ content.title }}</h1>
+  </div>
+  <div class="spacer"></div>
+  <div class="segmented" role="group" aria-label="视图切换">
+    <button type="button" data-mode="deck" aria-pressed="true">演示</button>
+    <button type="button" data-mode="flow" aria-pressed="false">连续阅读</button>
+    <button type="button" data-mode="evidence" aria-pressed="false">本页证据</button>
+  </div>
+  <div class="counter"><span id="slideIndex">1</span> / {{ content.slides | length }}</div>
+  <div class="progress" id="progress" aria-hidden="true"></div>
 </header>
+
+<main id="slides">
+<div class="deck-viewport" id="viewport">
+<div class="stage" id="stage">
 {% for slide in content.slides %}
-<article id="{{ slide.slide_id }}">
-<p class="eyebrow">第 {{ loop.index }} 节</p>
-<h2>{{ slide.title }}</h2>
-{% for block in slide.body %}
-{% if block.type == "paragraph" %}
-<p>{{ block.text }}</p>
-{% elif block.type == "bullets" %}
-<ul>{% for item in block["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
-{% elif block.type == "formula" %}
-<div class="formula">{{ block.latex }}</div>
-{% if block.explanation %}<p class="figure-caption">{{ block.explanation }}</p>{% endif %}
-{% elif block.type == "code" %}
-<pre class="code"><code>{{ block.code }}</code></pre>
-{% if block.caption %}<p class="code-caption">{{ block.caption }}</p>{% endif %}
-{% elif block.type == "figure" %}
-{% if block.visual_html %}{{ block.visual_html | safe }}{% else %}
-<figure>
-<img src="{{ block.path }}" alt="{{ block.alt }}" loading="lazy">
-{% if block.caption %}<figcaption class="figure-caption">{{ block.caption }}</figcaption>{% endif %}
-</figure>
-{% endif %}
-{% elif block.type == "table" %}
-{% if block.visual_html %}{{ block.visual_html | safe }}{% else %}
-<table>
-{% if block.caption %}<caption class="table-caption">{{ block.caption }}</caption>{% endif %}
-<thead><tr>{% for column in block.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
-<tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
-</table>
-{% endif %}
-{% elif block.type == "chart" %}
-{{ block.visual_html | safe }}
-{% elif block.type == "diagram" %}
-{{ block.visual_html | safe }}
-{% elif block.type == "graph" %}
-{{ block.visual_html | safe }}
-{% elif block.type == "animation" %}
-{% if block.video_rendered %}
-<figure>
-<video controls preload="metadata" aria-label="{{ block.alt }}">
-<source src="{{ block.video_src }}" type="video/mp4">
-{{ block.alt }}
-</video>
-{% if block.caption %}<figcaption class="figure-caption">{{ block.caption }}</figcaption>{% endif %}
-</figure>
-{% else %}
-<p class="figure-caption">{{ block.alt }}</p>
-{% endif %}
-{% elif block.type == "callout" %}
-<div class="callout {{ block.kind }}">{{ block.text }}</div>
-{% elif block.type == "check" %}
-<div class="check">
-<p class="check-question"><strong>学习检查：</strong>{{ block.question }}</p>
-<details><summary>查看参考答案</summary><p>{{ block.answer }}</p>{% if block.rationale %}<p class="check-rationale">{{ block.rationale }}</p>{% endif %}</details>
+  <section class="slide{% if loop.first %} is-active{% endif %}" id="{{ slide.slide_id }}" data-scene-id="{{ slide.slide_id }}" data-index="{{ loop.index }}" aria-label="第 {{ loop.index }} 节：{{ slide.title }}"{% if not loop.first %} aria-hidden="true"{% endif %}>
+    <header class="slide-head">
+      <p class="slide-kicker">第 {{ loop.index }} 节 · 共 {{ content.slides | length }} 节</p>
+      <h2>{{ slide.title }}</h2>
+    </header>
+    <div class="slide-body">
+      {{ blocks.render_blocks(slide.body) }}
+    </div>
+    {% if slide.source_ids %}
+    <footer class="slide-foot">
+      <span>本页来源</span>
+      {% for source in slide.source_ids %}<span class="chip">{{ source }}</span>{% endfor %}
+    </footer>
+    {% endif %}
+  </section>
+{% endfor %}
 </div>
-{% elif block.type == "quote" %}
-<blockquote>{{ block.text }}{% if block.attribution %}<cite>— {{ block.attribution }}</cite>{% endif %}</blockquote>
-{% endif %}
-{% endfor %}
-{% if slide.source_ids %}<p class="sources">来源：{{ slide.source_ids | join("、") }}</p>{% endif %}
-</article>
-{% endfor %}
-<footer>本页由 LCES 从公开内容模型构建。</footer>
+</div>
 </main>
+
+<aside class="evidence-drawer" id="evidenceDrawer" aria-label="本页证据" aria-hidden="true">
+  <h2>本页证据</h2>
+  <p class="hint">只列出本页公开引用的来源编号；原文定位与核验结论保存在内部证据台账，不随课件发布。</p>
+  {% for slide in content.slides %}
+  <section class="evidence-section" data-slide="{{ slide.slide_id }}"{% if not loop.first %} hidden{% endif %}>
+    <h3>第 {{ loop.index }} 节 · {{ slide.title }}</h3>
+    {% if slide.source_ids %}
+    <ul>{% for source in slide.source_ids %}<li><code>{{ source }}</code></li>{% endfor %}</ul>
+    {% else %}
+    <ul><li>本页没有来源标注。</li></ul>
+    {% endif %}
+  </section>
+  {% endfor %}
+</aside>
+
+<footer class="page-foot">
+  <p>{{ content.title }}{% if content.subtitle %} · {{ content.subtitle }}{% endif %}</p>
+  <p>本页由 LCES 从公开内容模型构建。键盘 <kbd>←</kbd> <kbd>→</kbd> 翻页，<kbd>T</kbd> 切换视图，<kbd>E</kbd> 打开本页证据。</p>
+</footer>
+
+<script type="application/json" id="sceneData">{{ content.scenes | tojson }}</script>
+<script>
+(function () {
+  "use strict";
+  var doc = document.documentElement;
+  doc.className += " js";
+  var body = document.body;
+  var stage = document.getElementById("stage");
+  var viewport = document.getElementById("viewport");
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var counter = document.getElementById("slideIndex");
+  var progress = document.getElementById("progress");
+  var drawer = document.getElementById("evidenceDrawer");
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".segmented [data-mode]"));
+  var total = slides.length;
+  var index = 0;
+  var view = "deck";
+  var sceneData = { scenes: [] };
+  try {
+    var sceneNode = document.getElementById("sceneData");
+    if (sceneNode) { sceneData = JSON.parse(sceneNode.textContent || '{"scenes":[]}'); }
+  } catch (error) { sceneData = { scenes: [] }; }
+  var sceneById = {};
+  Array.prototype.forEach.call(sceneData.scenes || [], function (scene) {
+    sceneById[scene.scene_id] = scene;
+  });
+  var recordMode = false;
+  var runtime = {
+    sceneId: null, scene: null, step: 0, total: 0,
+    playing: false, state: "static", elapsed: 0, raf: 0, last: 0
+  };
+
+  function clamp(value, low, high) { return Math.max(low, Math.min(high, value)); }
+
+  var bar = document.querySelector(".deck-bar");
+
+  function fit() {
+    if (view !== "deck" || !stage) {
+      viewport.style.height = "";
+      stage.style.marginTop = "";
+      return;
+    }
+    // The bar's real height depends on wrapping and font metrics; measure it
+    // instead of assuming the CSS fallback of 58px. Record mode removes the
+    // chrome, so the canvas is the whole viewport and the 16:9 stage fills it.
+    var barHeight = recordMode ? 0 : (bar ? bar.getBoundingClientRect().height : 0);
+    var available = recordMode
+      ? window.innerHeight
+      : Math.max(320, window.innerHeight - barHeight);
+    viewport.style.height = available + "px";
+    var scale = Math.min(viewport.clientWidth / 1920, available / 1080);
+    stage.style.transform = "scale(" + scale + ")";
+    stage.style.marginTop = recordMode
+      ? Math.max(0, (available - 1080 * scale) / 2) + "px"
+      : "0px";
+  }
+
+  function sceneBlocks() {
+    return slides[index] ? slides[index].querySelectorAll(".block") : [];
+  }
+
+  function applyStep(step, staticMode) {
+    var blocks = sceneBlocks();
+    var visible = {};
+    if (runtime.scene) {
+      for (var i = 0; i < step && i < runtime.scene.steps.length; i += 1) {
+        visible[runtime.scene.steps[i].block] = true;
+      }
+    }
+    var current = (!staticMode && runtime.scene && step > 0)
+      ? runtime.scene.steps[step - 1]
+      : null;
+    Array.prototype.forEach.call(blocks, function (element) {
+      var blockIndex = Number(element.getAttribute("data-block-index"));
+      var revealed = staticMode || !!visible[blockIndex];
+      element.classList.remove(
+        "is-current", "is-focus", "effect-draw", "effect-lab", "effect-hold"
+      );
+      element.classList.toggle("is-revealed", revealed);
+      element.classList.toggle("is-pending", !revealed);
+      if (current && blockIndex === current.block) {
+        element.classList.add("is-current");
+        if (current.effect === "focus") { element.classList.add("is-focus"); }
+        else if (current.effect === "draw") { element.classList.add("effect-draw"); }
+        else if (current.effect === "lab") { element.classList.add("effect-lab"); }
+        else if (current.effect === "hold") { element.classList.add("effect-hold"); }
+        void element.offsetWidth;
+      }
+    });
+  }
+
+  function enterScene(initialStep) {
+    if (runtime.raf) { window.cancelAnimationFrame(runtime.raf); runtime.raf = 0; }
+    var slide = slides[index];
+    var id = slide ? slide.getAttribute("data-scene-id") : null;
+    runtime.sceneId = id;
+    runtime.scene = id && sceneById[id] ? sceneById[id] : null;
+    runtime.total = runtime.scene ? runtime.scene.steps.length : 0;
+    runtime.playing = false;
+    runtime.elapsed = 0;
+    if (initialStep === null || initialStep === undefined) {
+      runtime.step = runtime.total;
+      runtime.state = "static";
+      applyStep(runtime.step, true);
+    } else {
+      runtime.step = clamp(Math.round(initialStep), 0, runtime.total);
+      runtime.state = "paused";
+      applyStep(runtime.step, false);
+    }
+    refreshLabs();
+  }
+
+  function stopClock() {
+    runtime.playing = false;
+    if (runtime.raf) { window.cancelAnimationFrame(runtime.raf); runtime.raf = 0; }
+  }
+
+  function tick(now) {
+    if (!runtime.playing || !runtime.scene) { return; }
+    // The first rAF timestamp can precede the performance.now() captured in
+    // playScene(); a negative delta would make the first step take longer.
+    runtime.elapsed += Math.max(0, now - runtime.last);
+    runtime.last = now;
+    var moved = false;
+    while (runtime.step < runtime.total) {
+      var current = runtime.scene.steps[runtime.step];
+      if (runtime.elapsed < current.duration_ms) { break; }
+      runtime.elapsed -= current.duration_ms;
+      runtime.step += 1;
+      moved = true;
+    }
+    if (moved) { applyStep(runtime.step, false); }
+    if (runtime.step >= runtime.total) {
+      stopClock();
+      runtime.state = "paused";
+      return;
+    }
+    runtime.raf = window.requestAnimationFrame(tick);
+  }
+
+  function playScene() {
+    if (!runtime.scene || runtime.total === 0) { return false; }
+    if (runtime.playing) { return true; }
+    if (runtime.step >= runtime.total) {
+      applyStep(0, false);
+      runtime.step = 0;
+      runtime.elapsed = 0;
+    }
+    runtime.playing = true;
+    runtime.state = "playing";
+    runtime.last = window.performance.now();
+    runtime.raf = window.requestAnimationFrame(tick);
+    return true;
+  }
+
+  function pauseScene() {
+    if (!runtime.playing) { return; }
+    stopClock();
+    runtime.state = "paused";
+  }
+
+  function replayScene() {
+    if (!runtime.scene) { return false; }
+    stopClock();
+    runtime.step = 0;
+    runtime.elapsed = 0;
+    applyStep(0, false);
+    return playScene();
+  }
+
+  function resetScene() {
+    stopClock();
+    runtime.step = runtime.total;
+    runtime.elapsed = 0;
+    runtime.state = "static";
+    applyStep(runtime.total, true);
+  }
+
+  function seekStep(step) {
+    stopClock();
+    runtime.step = clamp(Math.round(step), 0, runtime.total);
+    runtime.state = "paused";
+    applyStep(runtime.step, false);
+    return runtime.step;
+  }
+
+  function advanceScene(ms) {
+    if (!runtime.scene) { return runtime.step; }
+    runtime.elapsed += Math.max(0, Math.round(ms));
+    runtime.last = window.performance.now();
+    var moved = false;
+    while (runtime.step < runtime.total) {
+      var current = runtime.scene.steps[runtime.step];
+      if (runtime.elapsed < current.duration_ms) { break; }
+      runtime.elapsed -= current.duration_ms;
+      runtime.step += 1;
+      moved = true;
+    }
+    if (moved) { applyStep(runtime.step, false); }
+    if (runtime.step >= runtime.total) { stopClock(); runtime.state = "paused"; }
+    return runtime.step;
+  }
+
+  function markReady() {
+    document.documentElement.setAttribute("data-ready", "true");
+  }
+
+  function waitForAssets() {
+    var pending = [];
+    if (document.fonts && document.fonts.ready) { pending.push(document.fonts.ready); }
+    Array.prototype.forEach.call(document.images, function (image) {
+      if (image.complete) { return; }
+      pending.push(new Promise(function (resolve) {
+        image.addEventListener("load", resolve, { once: true });
+        image.addEventListener("error", resolve, { once: true });
+      }));
+    });
+    if (!pending.length) { markReady(); return; }
+    Promise.all(pending).then(markReady);
+    window.setTimeout(markReady, 4000);
+  }
+
+  function setRecord(on) {
+    recordMode = !!on;
+    body.setAttribute("data-record", recordMode ? "true" : "false");
+    fit();
+    window.scrollTo(0, 0);
+  }
+
+  function show(next, updateHash, initialStep) {
+    index = clamp(next, 0, total - 1);
+    slides.forEach(function (slide, position) {
+      var active = position === index;
+      slide.classList.toggle("is-active", active);
+      if (active) { slide.removeAttribute("aria-hidden"); }
+      else { slide.setAttribute("aria-hidden", "true"); }
+    });
+    if (counter) { counter.textContent = String(index + 1); }
+    if (progress) { progress.style.width = ((index + 1) / total * 100).toFixed(2) + "%"; }
+    Array.prototype.forEach.call(document.querySelectorAll(".evidence-section"), function (section) {
+      section.hidden = section.getAttribute("data-slide") !== slides[index].id;
+    });
+    enterScene(initialStep);
+    // Setting the fragment during the first load makes the browser scroll to
+    // the slide and clip it under the bar; only navigation updates the hash.
+    if (updateHash !== false && history.replaceState) {
+      history.replaceState(null, "", "#" + slides[index].id);
+    }
+    fit();
+  }
+
+  function setView(mode) {
+    if (mode === "evidence") {
+      var open = !drawer.classList.contains("is-open");
+      drawer.classList.toggle("is-open", open);
+      drawer.setAttribute("aria-hidden", open ? "false" : "true");
+      buttons.forEach(function (button) {
+        if (button.getAttribute("data-mode") === "evidence") {
+          button.setAttribute("aria-pressed", open ? "true" : "false");
+        }
+      });
+      return;
+    }
+    view = mode;
+    body.setAttribute("data-view", mode);
+    buttons.forEach(function (button) {
+      var name = button.getAttribute("data-mode");
+      if (name !== "evidence") {
+        button.setAttribute("aria-pressed", name === mode ? "true" : "false");
+      }
+    });
+    if (mode === "flow") {
+      drawer.classList.remove("is-open");
+      drawer.setAttribute("aria-hidden", "true");
+      slides[index].scrollIntoView({ block: "start" });
+    }
+    fit();
+  }
+
+  buttons.forEach(function (button) {
+    button.addEventListener("click", function () { setView(button.getAttribute("data-mode")); });
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.target && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) { return; }
+    var key = event.key;
+    if (key === "ArrowRight" || key === "PageDown" || key === " ") { event.preventDefault(); show(index + 1); }
+    else if (key === "ArrowLeft" || key === "PageUp") { event.preventDefault(); show(index - 1); }
+    else if (key === "Home") { event.preventDefault(); show(0); }
+    else if (key === "End") { event.preventDefault(); show(total - 1); }
+    else if (key === "t" || key === "T") { setView(view === "deck" ? "flow" : "deck"); }
+    else if (key === "e" || key === "E") { setView("evidence"); }
+    else if (key === "p" || key === "P") {
+      event.preventDefault();
+      if (runtime.playing) { pauseScene(); } else { playScene(); }
+    }
+    else if (key === "]") { event.preventDefault(); seekStep(runtime.step + 1); }
+    else if (key === "[") { event.preventDefault(); seekStep(runtime.step - 1); }
+    else if (key === "\\") { event.preventDefault(); replayScene(); }
+    else if (key === "0") { event.preventDefault(); resetScene(); }
+    else if (key === "r" || key === "R") { event.preventDefault(); setRecord(!recordMode); }
+    else if (key === "Escape") {
+      if (recordMode) { setRecord(false); }
+      else { drawer.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
+    }
+  });
+
+  var startX = null;
+  viewport.addEventListener("touchstart", function (event) {
+    if (event.touches.length === 1) { startX = event.touches[0].clientX; }
+  }, { passive: true });
+  viewport.addEventListener("touchend", function (event) {
+    if (startX === null || !event.changedTouches.length) { return; }
+    var delta = event.changedTouches[0].clientX - startX;
+    if (Math.abs(delta) > 60) { show(index + (delta < 0 ? 1 : -1)); }
+    startX = null;
+  }, { passive: true });
+
+  var resizeTimer = 0;
+  window.addEventListener("resize", function () {
+    fit();
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(refreshLabs, 120);
+  });
+
+  /* ---------------- interactive labs ---------------- */
+  var SANS = '13px "Noto Sans SC", system-ui, sans-serif';
+  var MONO = '12px "Cascadia Mono", Consolas, monospace';
+  var INK = "#3b3630", MUTED = "#6b645c", LINE = "#ddd4c6", ACCENT = "#b4471f", COOL = "#4d6a86";
+
+  function setupCanvas(canvas) {
+    var ratio = window.devicePixelRatio || 1;
+    var width = canvas.clientWidth || 600;
+    var height = canvas.clientHeight || 260;
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.font = SANS;
+    ctx.fillStyle = INK;
+    return { ctx: ctx, w: width, h: height };
+  }
+
+  function frame(ctx, w, h, title) {
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+    if (title) {
+      ctx.fillStyle = MUTED;
+      ctx.font = MONO;
+      ctx.fillText(title, 12, 20);
+      ctx.font = SANS;
+    }
+  }
+
+  function slider(label, min, max, value, step, onInput) {
+    var wrapper = document.createElement("label");
+    var span = document.createElement("span");
+    span.textContent = label;
+    var input = document.createElement("input");
+    input.type = "range";
+    input.min = min; input.max = max; input.step = step; input.value = value;
+    input.setAttribute("aria-label", label);
+    wrapper.appendChild(span);
+    wrapper.appendChild(input);
+    input.addEventListener("input", function () { onInput(Number(input.value)); });
+    return { node: wrapper, input: input };
+  }
+
+  var SCENES = {
+    "complexity-crossover": function (lab, canvas, params) {
+      var d = params.d || 512;
+      var controls = lab.querySelector(".lab-controls");
+      var readout = lab.querySelector(".lab-readout");
+      var control = slider("表示维度 d", 64, 2048, d, 64, function (value) { d = value; draw(); });
+      controls.appendChild(control.node);
+      function draw() {
+        var view = setupCanvas(canvas);
+        var ctx = view.ctx, w = view.w, h = view.h;
+        frame(ctx, w, h, "每层计算量（对数坐标）");
+        var left = 54, right = w - 16, top = 34, bottom = h - 34;
+        var minN = 8, maxN = 8192;
+        function xOf(n) { return left + (Math.log(n) - Math.log(minN)) / (Math.log(maxN) - Math.log(minN)) * (right - left); }
+        var maxOps = Math.log(d * maxN * maxN);
+        var minOps = Math.log(minN * d);
+        function yOf(v) { return bottom - (Math.log(v) - minOps) / (maxOps - minOps) * (bottom - top); }
+        ctx.strokeStyle = LINE;
+        ctx.beginPath(); ctx.moveTo(left, top); ctx.lineTo(left, bottom); ctx.lineTo(right, bottom); ctx.stroke();
+        [[64, "64"], [512, "512"], [2048, "2048"], [8192, "8192"]].forEach(function (tick) {
+          var x = xOf(tick[0]);
+          ctx.beginPath(); ctx.moveTo(x, bottom); ctx.lineTo(x, bottom + 4); ctx.stroke();
+          ctx.fillStyle = MUTED; ctx.font = MONO; ctx.fillText(tick[1], x - 12, bottom + 18);
+        });
+        function curve(fn, color) {
+          ctx.beginPath();
+          for (var i = 0; i <= 200; i += 1) {
+            var n = Math.exp(Math.log(minN) + (Math.log(maxN) - Math.log(minN)) * i / 200);
+            var y = yOf(fn(n));
+            if (i === 0) { ctx.moveTo(xOf(n), y); } else { ctx.lineTo(xOf(n), y); }
+          }
+          ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+        }
+        curve(function (n) { return n * n * d + n * d * d; }, ACCENT);
+        curve(function (n) { return n * d * d; }, COOL);
+        var cross = clamp(xOf(d), left, right);
+        ctx.strokeStyle = MUTED; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(cross, top); ctx.lineTo(cross, bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = ACCENT; ctx.fillText("自注意力 O(n²·d)", left + 8, top + 16);
+        ctx.fillStyle = COOL; ctx.fillText("循环层 O(n·d²)", left + 8, top + 34);
+        ctx.fillStyle = MUTED;
+        ctx.fillText("n = d = " + d, clamp(cross + 6, left, right - 90), top + 52);
+        readout.textContent = "当 n < d 时自注意力每层计算量更低；交叉点在 n = d = " + d + "。";
+      }
+      draw();
+    },
+
+    "variance-saturation": function (lab, canvas, params) {
+      var dk = params.dk || 64;
+      var n = params.keys || 50;
+      var controls = lab.querySelector(".lab-controls");
+      var readout = lab.querySelector(".lab-readout");
+      controls.appendChild(slider("键维度 d_k", 4, 512, dk, 4, function (value) { dk = value; draw(); }).node);
+      function draw() {
+        var view = setupCanvas(canvas);
+        var ctx = view.ctx, w = view.w, h = view.h;
+        frame(ctx, w, h, "缩放前后的点积尺度（k 的数量 n=" + n + "）");
+        var points = [];
+        var i;
+        for (i = 0; i < 400; i += 1) {
+          var dki = 4 + (512 - 4) * i / 399;
+          var raw = Math.sqrt(2 * dki * Math.log(n));
+          var scaled = Math.sqrt(2 * 1 * Math.log(n)) * Math.sqrt(dki) / Math.sqrt(dki);
+          points.push([dki, raw, scaled]);
+        }
+        var maxY = Math.sqrt(2 * 512 * Math.log(n)) * 1.1;
+        var left = 54, right = w - 16, top = 34, bottom = h - 34;
+        function xOf(v) { return left + (v - 4) / (512 - 4) * (right - left); }
+        function yOf(v) { return bottom - v / maxY * (bottom - top); }
+        ctx.strokeStyle = LINE;
+        ctx.beginPath(); ctx.moveTo(left, top); ctx.lineTo(left, bottom); ctx.lineTo(right, bottom); ctx.stroke();
+        ctx.beginPath();
+        points.forEach(function (point, order) {
+          if (order === 0) { ctx.moveTo(xOf(point[0]), yOf(point[1])); } else { ctx.lineTo(xOf(point[0]), yOf(point[1])); }
+        });
+        ctx.strokeStyle = ACCENT; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(left, yOf(Math.sqrt(2 * Math.log(n)))); ctx.lineTo(right, yOf(Math.sqrt(2 * Math.log(n))));
+        ctx.strokeStyle = COOL; ctx.stroke(); ctx.lineWidth = 1;
+        var x = xOf(clamp(dk, 4, 512));
+        ctx.strokeStyle = MUTED; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = ACCENT; ctx.fillText("未缩放：典型最大 logit ≈ √(2·d_k·ln n)", left + 8, top + 16);
+        ctx.fillStyle = COOL; ctx.fillText("除以 √d_k 后：典型最大 logit 与 d_k 无关", left + 8, top + 34);
+        readout.textContent = "d_k = " + dk + "：q·k 的方差为 " + dk + "；除以 √d_k 后方差回到 1。";
+      }
+      draw();
+    },
+
+    "sinusoidal-rotation": function (lab, canvas, params) {
+      var k = params.k || 5;
+      var dim = params.dim || 0;
+      var controls = lab.querySelector(".lab-controls");
+      var readout = lab.querySelector(".lab-readout");
+      controls.appendChild(slider("位置偏移 k", 1, 40, k, 1, function (value) { k = value; draw(); }).node);
+      controls.appendChild(slider("维度对 i", 0, 7, dim, 1, function (value) { dim = value; draw(); }).node);
+      function draw() {
+        var view = setupCanvas(canvas);
+        var ctx = view.ctx, w = view.w, h = view.h;
+        frame(ctx, w, h, "同一维度对上的相位旋转（p = 0 与 p = k）");
+        var cx = w / 2, cy = h / 2 + 8, radius = Math.min(w, h) / 2 - 44;
+        var omega = Math.pow(10000, -2 * dim / 512);
+        ctx.strokeStyle = LINE;
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy); ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius); ctx.stroke();
+        function vector(angle, color, label) {
+          var x = cx + Math.cos(angle) * radius * 0.82;
+          var y = cy - Math.sin(angle) * radius * 0.82;
+          ctx.strokeStyle = color; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke(); ctx.lineWidth = 1;
+          ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.fillText(label, x + 6, y - 6);
+        }
+        vector(0, COOL, "PE(0)");
+        vector(k * omega, ACCENT, "PE(k)，相位差 k·ω_i");
+        ctx.fillStyle = MUTED;
+        ctx.fillText("ω_i = 10000^(-2i/d_model) = " + omega.toExponential(3), 12, h - 12);
+        readout.textContent = "i = " + dim + "，k = " + k + "：把位置向量旋转 " + (k * omega).toFixed(3) + " 弧度，模长不变。";
+      }
+      draw();
+    },
+
+    "cost-comparison": function (lab, canvas, params) {
+      var rows = [
+        ["ConvS2S Ensemble", 7.7e19, 1.2e21],
+        ["GNMT + RL Ensemble", 1.8e20, 1.1e21],
+        ["ConvS2S", 9.6e18, 1.5e20],
+        ["GNMT + RL", 2.3e19, 1.4e20],
+        ["Transformer (base)", 3.3e18, 2.3e19],
+        ["Transformer (big)", 2.3e19, 1.0e21]
+      ];
+      var direction = params.direction || 0;
+      var controls = lab.querySelector(".lab-controls");
+      var readout = lab.querySelector(".lab-readout");
+      controls.appendChild(slider("方向（0 = EN-DE，1 = EN-FR）", 0, 1, direction, 1, function (value) { direction = value; draw(); }).node);
+      function draw() {
+        var view = setupCanvas(canvas);
+        var ctx = view.ctx, w = view.w, h = view.h;
+        frame(ctx, w, h, "训练算力（FLOPs，对数刻度）");
+        var values = rows.map(function (row) { return [row[0], row[1 + direction]]; });
+        var max = Math.log(2e21);
+        var left = 190, right = w - 70, top = 34, bottom = h - 30;
+        var barHeight = (bottom - top) / values.length;
+        values.forEach(function (row, order) {
+          var value = row[1];
+          var width = (Math.log(value) / max) * (right - left);
+          var y = top + order * barHeight + 2;
+          ctx.fillStyle = row[0].indexOf("Transformer") === 0 ? ACCENT : "#c9bfae";
+          ctx.fillRect(left, y, Math.max(2, width), barHeight - 6);
+          ctx.fillStyle = INK;
+          ctx.font = MONO;
+          ctx.fillText(row[0], 10, y + barHeight / 2 + 4);
+          ctx.fillText(value.toExponential(1), Math.min(left + width + 6, right + 4), y + barHeight / 2 + 4);
+          ctx.font = SANS;
+        });
+        readout.textContent = direction === 0 ? "EN-DE：base 用 3.3e18 FLOPs，比同质量的集成模型低一个数量级以上。" : "EN-FR：big 用 1.0e21 FLOPs，质量提升的代价可以逐行比较。";
+      }
+      draw();
+    }
+  };
+
+  function setupLab(lab) {
+    var canvas = lab.querySelector("canvas");
+    var scene = SCENES[lab.getAttribute("data-scene")];
+    if (!canvas || !scene) { return; }
+    var params = {};
+    try { params = JSON.parse(lab.getAttribute("data-params") || "{}"); } catch (error) { params = {}; }
+    var controls = lab.querySelector(".lab-controls");
+    if (controls) { controls.innerHTML = ""; }
+    scene(lab, canvas, params);
+  }
+
+  // A lab lives on a slide that is display:none until visited. Initialising it
+  // at load would size the canvas from a zero-width box and stretch the drawing
+  // later, so labs are (re)built when their scene becomes visible.
+  function refreshLabs() {
+    var active = slides[index];
+    if (!active) { return; }
+    Array.prototype.forEach.call(active.querySelectorAll(".lab"), setupLab);
+  }
+
+  window.addEventListener("hashchange", function () {
+    var parts = location.hash ? location.hash.slice(1).split("/") : [""];
+    var id = parts[0];
+    var step = parts.length > 1 ? parseInt(parts[1], 10) : null;
+    if (isNaN(step)) { step = null; }
+    var position = slides.map(function (slide) { return slide.id; }).indexOf(id);
+    if (position >= 0) { show(position, false, step); }
+  });
+
+  window.__lces = {
+    get sceneId() { return runtime.sceneId; },
+    get step() { return runtime.step; },
+    get total() { return runtime.total; },
+    get durations() {
+      return runtime.scene
+        ? runtime.scene.steps.map(function (step) { return step.duration_ms; })
+        : [];
+    },
+    get playing() { return runtime.playing; },
+    get state() { return runtime.state; },
+    get record() { return recordMode; },
+    get ready() { return document.documentElement.getAttribute("data-ready") === "true"; },
+    play: playScene,
+    pause: pauseScene,
+    replay: replayScene,
+    reset: resetScene,
+    seekStep: seekStep,
+    advance: advanceScene,
+    next: function () { return seekStep(runtime.step + 1); },
+    prev: function () { return seekStep(runtime.step - 1); },
+    gotoScene: function (id) {
+      var position = slides.map(function (slide) { return slide.id; }).indexOf(id);
+      if (position < 0) { return false; }
+      show(position);
+      return true;
+    },
+    setRecord: setRecord
+  };
+
+  var rawHash = location.hash ? location.hash.slice(1) : "";
+  var hashParts = rawHash.split("/");
+  var initial = hashParts[0];
+  var initialStep = hashParts.length > 1 ? parseInt(hashParts[1], 10) : null;
+  if (isNaN(initialStep)) { initialStep = null; }
+  var start = slides.findIndex ? slides.findIndex(function (slide) { return slide.id === initial; })
+    : slides.map(function (slide) { return slide.id; }).indexOf(initial);
+  var params = new URLSearchParams(location.search);
+  setRecord(params.get("record") === "1");
+  show(start >= 0 ? start : 0, false, initialStep);
+  fit();
+  waitForAssets();
+  // The deck replaces a document-flow layout at load; scroll anchoring can
+  // otherwise leave the page scrolled by the bar height, clipping the slide.
+  window.scrollTo(0, 0);
+})();
+</script>
 </body>
 </html>

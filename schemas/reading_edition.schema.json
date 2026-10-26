@@ -1,8 +1,447 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "AnimationBlock": {
+      "additionalProperties": false,
+      "description": "An animation backed by a structured scene file, never generated code.\n\nP2.1 admits one animation per course and one scene per animation. The\nscene file lives under ``content/scenes/`` and is validated by the\nrenderer's contract before any frames are produced.",
+      "properties": {
+        "type": {
+          "const": "animation",
+          "default": "animation",
+          "title": "Type",
+          "type": "string"
+        },
+        "scene_file": {
+          "minLength": 1,
+          "title": "Scene File",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_file",
+        "alt"
+      ],
+      "title": "AnimationBlock",
+      "type": "object"
+    },
+    "BulletsBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "bullets",
+          "default": "bullets",
+          "title": "Type",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "BulletsBlock",
+      "type": "object"
+    },
+    "CalloutBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "callout",
+          "default": "callout",
+          "title": "Type",
+          "type": "string"
+        },
+        "kind": {
+          "default": "note",
+          "enum": [
+            "note",
+            "warning",
+            "limitation",
+            "assumption"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "CalloutBlock",
+      "type": "object"
+    },
+    "ChartBlock": {
+      "additionalProperties": false,
+      "description": "A statistical chart described by data plus a Vega-Lite spec.\n\nThe rendered SVG is derived at build time; the block carries no markup.",
+      "properties": {
+        "type": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Type",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "spec": {
+          "additionalProperties": true,
+          "title": "Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "alt"
+      ],
+      "title": "ChartBlock",
+      "type": "object"
+    },
+    "CheckBlock": {
+      "additionalProperties": false,
+      "description": "A learning check with an answer and the reasoning behind it.",
+      "properties": {
+        "type": {
+          "const": "check",
+          "default": "check",
+          "title": "Type",
+          "type": "string"
+        },
+        "question": {
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "answer": {
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "rationale": {
+          "default": "",
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question",
+        "answer"
+      ],
+      "title": "CheckBlock",
+      "type": "object"
+    },
+    "CodeBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "code",
+          "default": "code",
+          "title": "Type",
+          "type": "string"
+        },
+        "language": {
+          "default": "text",
+          "title": "Language",
+          "type": "string"
+        },
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "CodeBlock",
+      "type": "object"
+    },
+    "DiagramBlock": {
+      "additionalProperties": false,
+      "description": "A flowchart or sequence diagram written in Mermaid source.",
+      "properties": {
+        "type": {
+          "const": "diagram",
+          "default": "diagram",
+          "title": "Type",
+          "type": "string"
+        },
+        "mermaid": {
+          "minLength": 1,
+          "title": "Mermaid",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mermaid",
+        "alt"
+      ],
+      "title": "DiagramBlock",
+      "type": "object"
+    },
+    "FigureBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "figure",
+          "default": "figure",
+          "title": "Type",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "alt"
+      ],
+      "title": "FigureBlock",
+      "type": "object"
+    },
+    "FormulaBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "formula",
+          "default": "formula",
+          "title": "Type",
+          "type": "string"
+        },
+        "latex": {
+          "minLength": 1,
+          "title": "Latex",
+          "type": "string"
+        },
+        "explanation": {
+          "default": "",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "latex"
+      ],
+      "title": "FormulaBlock",
+      "type": "object"
+    },
+    "GraphBlock": {
+      "additionalProperties": false,
+      "description": "A relationship graph written in Graphviz DOT.",
+      "properties": {
+        "type": {
+          "const": "graph",
+          "default": "graph",
+          "title": "Type",
+          "type": "string"
+        },
+        "dot": {
+          "minLength": 1,
+          "title": "Dot",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dot",
+        "alt"
+      ],
+      "title": "GraphBlock",
+      "type": "object"
+    },
+    "InteractiveBlock": {
+      "additionalProperties": false,
+      "description": "A deterministic Canvas lab driven by the page's own runtime.\n\nThe block carries only a scene name and numeric parameters; the drawing\ncode is one fixed script shipped with the template. Content can therefore\nnever inject logic into the public page.",
+      "properties": {
+        "type": {
+          "const": "interactive",
+          "default": "interactive",
+          "title": "Type",
+          "type": "string"
+        },
+        "scene": {
+          "enum": [
+            "complexity-crossover",
+            "variance-saturation",
+            "sinusoidal-rotation",
+            "cost-comparison"
+          ],
+          "title": "Scene",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scene",
+        "title"
+      ],
+      "title": "InteractiveBlock",
+      "type": "object"
+    },
+    "NomenclatureEntry": {
+      "additionalProperties": false,
+      "description": "One row of the reading edition's symbol and tensor-shape table.",
+      "properties": {
+        "symbol": {
+          "minLength": 1,
+          "title": "Symbol",
+          "type": "string"
+        },
+        "meaning": {
+          "minLength": 1,
+          "title": "Meaning",
+          "type": "string"
+        },
+        "shape": {
+          "default": "",
+          "title": "Shape",
+          "type": "string"
+        }
+      },
+      "required": [
+        "symbol",
+        "meaning"
+      ],
+      "title": "NomenclatureEntry",
+      "type": "object"
+    },
+    "ParagraphBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "paragraph",
+          "default": "paragraph",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "ParagraphBlock",
+      "type": "object"
+    },
+    "QuoteBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "quote",
+          "default": "quote",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "attribution": {
+          "default": "",
+          "title": "Attribution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "QuoteBlock",
+      "type": "object"
+    },
     "ReadingSection": {
       "additionalProperties": false,
+      "description": "One deep-reading section.\n\n``body`` reuses the public block vocabulary so the reading edition can be\nmore detailed than the slides (formulas, tables, quotes), which is the\npoint of a reading edition. ``paragraphs`` stays for older editions and\nfor the simple prose case; when ``body`` is present the template renders\nit instead.",
       "properties": {
         "slide_id": {
           "pattern": "^slide-[0-9]{3,}$",
@@ -18,8 +457,80 @@
           "items": {
             "type": "string"
           },
-          "minItems": 1,
           "title": "Paragraphs",
+          "type": "array"
+        },
+        "body": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "animation": "#/$defs/AnimationBlock",
+                "bullets": "#/$defs/BulletsBlock",
+                "callout": "#/$defs/CalloutBlock",
+                "chart": "#/$defs/ChartBlock",
+                "check": "#/$defs/CheckBlock",
+                "code": "#/$defs/CodeBlock",
+                "diagram": "#/$defs/DiagramBlock",
+                "figure": "#/$defs/FigureBlock",
+                "formula": "#/$defs/FormulaBlock",
+                "graph": "#/$defs/GraphBlock",
+                "interactive": "#/$defs/InteractiveBlock",
+                "paragraph": "#/$defs/ParagraphBlock",
+                "quote": "#/$defs/QuoteBlock",
+                "svg": "#/$defs/SvgBlock",
+                "table": "#/$defs/TableBlock"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ParagraphBlock"
+              },
+              {
+                "$ref": "#/$defs/BulletsBlock"
+              },
+              {
+                "$ref": "#/$defs/FormulaBlock"
+              },
+              {
+                "$ref": "#/$defs/CodeBlock"
+              },
+              {
+                "$ref": "#/$defs/FigureBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/ChartBlock"
+              },
+              {
+                "$ref": "#/$defs/DiagramBlock"
+              },
+              {
+                "$ref": "#/$defs/GraphBlock"
+              },
+              {
+                "$ref": "#/$defs/AnimationBlock"
+              },
+              {
+                "$ref": "#/$defs/CalloutBlock"
+              },
+              {
+                "$ref": "#/$defs/CheckBlock"
+              },
+              {
+                "$ref": "#/$defs/QuoteBlock"
+              },
+              {
+                "$ref": "#/$defs/SvgBlock"
+              },
+              {
+                "$ref": "#/$defs/InteractiveBlock"
+              }
+            ]
+          },
+          "title": "Body",
           "type": "array"
         },
         "source_ids": {
@@ -32,10 +543,83 @@
       },
       "required": [
         "slide_id",
-        "title",
-        "paragraphs"
+        "title"
       ],
       "title": "ReadingSection",
+      "type": "object"
+    },
+    "SvgBlock": {
+      "additionalProperties": false,
+      "description": "A deterministic, authored SVG diagram inlined at build time.\n\nThe file lives under ``content/figures/`` so a diagram is reviewable as\nits own asset. Build inlines it after the same sanitisation the renderer\nregistry applies to custom SVG: no script, no external reference, no\ninline event handler. Nothing is fetched or generated at build time, so\nthe same source always produces the same page.",
+      "properties": {
+        "type": {
+          "const": "svg",
+          "default": "svg",
+          "title": "Type",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "alt": {
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "alt"
+      ],
+      "title": "SvgBlock",
+      "type": "object"
+    },
+    "TableBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "table",
+          "default": "table",
+          "title": "Type",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "TableBlock",
       "type": "object"
     }
   },
@@ -61,6 +645,13 @@
       },
       "minItems": 1,
       "title": "Sections",
+      "type": "array"
+    },
+    "nomenclature": {
+      "items": {
+        "$ref": "#/$defs/NomenclatureEntry"
+      },
+      "title": "Nomenclature",
       "type": "array"
     },
     "references": {

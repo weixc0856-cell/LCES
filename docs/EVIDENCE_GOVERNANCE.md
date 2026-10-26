@@ -1,7 +1,8 @@
 # Evidence Governance
 
-Phase 4 makes the source → evidence → claim → content chain explicit and
-keeps verification in human hands.
+Phase 4 makes the source → evidence → claim → content chain explicit.
+Verification state is always recorded; a named human review is optional for normal
+course production and required only when a course is published to `release/`.
 
 ## Status vocabulary
 

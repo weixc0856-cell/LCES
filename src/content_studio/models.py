@@ -146,7 +146,12 @@ class SourceChunk(StrictModel):
 
 class SourceDocumentMap(StrictModel):
     source_id: str = Field(pattern=r"^source-[0-9]{3,}$")
+    # ``sha256`` predates the explicit lineage fields and keeps recording the
+    # raw archive bytes for older maps. New maps fill all four.
     sha256: str = Field(default="", pattern=r"^(|[0-9a-f]{64})$")
+    raw_archive_sha256: str = Field(default="", pattern=r"^(|[0-9a-f]{64})$")
+    extracted_txt_sha256: str = Field(default="", pattern=r"^(|[0-9a-f]{64})$")
+    normalized_locator_sha256: str = Field(default="", pattern=r"^(|[0-9a-f]{64})$")
     parser: str = ""
     text_chars: int = Field(gt=0)
     chunks: list[SourceChunk] = Field(min_length=1)
@@ -459,6 +464,8 @@ class FormulaBlock(StrictModel):
     type: Literal["formula"] = "formula"
     latex: str = Field(min_length=1)
     explanation: str = ""
+    # Plain-language name for screen readers; the LaTeX source is never read out.
+    label: str = ""
 
 
 class CodeBlock(StrictModel):
@@ -559,6 +566,59 @@ class CalloutBlock(StrictModel):
     text: str = Field(min_length=1)
 
 
+class SvgBlock(StrictModel):
+    """A deterministic, authored SVG diagram inlined at build time.
+
+    The file lives under ``content/figures/`` so a diagram is reviewable as
+    its own asset. Build inlines it after the same sanitisation the renderer
+    registry applies to custom SVG: no script, no external reference, no
+    inline event handler. Nothing is fetched or generated at build time, so
+    the same source always produces the same page.
+    """
+
+    type: Literal["svg"] = "svg"
+    path: str = Field(min_length=1)
+    alt: str = Field(min_length=1)
+    caption: str = ""
+
+    @field_validator("path")
+    @classmethod
+    def _figure_path(cls, value: str) -> str:
+        normalized = value.replace("\\", "/")
+        parts = normalized.split("/")
+        if normalized.startswith("/") or ".." in parts or ":" in parts[0]:
+            raise ValueError("svg path must be relative to the project workspace")
+        if not normalized.startswith("content/figures/"):
+            raise ValueError("svg path must live under content/figures/")
+        if not normalized.endswith(".svg"):
+            raise ValueError("svg path must be a .svg file")
+        return normalized
+
+
+InteractiveScene = Literal[
+    "complexity-crossover",
+    "variance-saturation",
+    "sinusoidal-rotation",
+    "cost-comparison",
+]
+
+
+class InteractiveBlock(StrictModel):
+    """A deterministic Canvas lab driven by the page's own runtime.
+
+    The block carries only a scene name and numeric parameters; the drawing
+    code is one fixed script shipped with the template. Content can therefore
+    never inject logic into the public page.
+    """
+
+    type: Literal["interactive"] = "interactive"
+    scene: InteractiveScene
+    title: str = Field(min_length=1)
+    description: str = ""
+    caption: str = ""
+    params: dict[str, float] = Field(default_factory=dict)
+
+
 class CheckBlock(StrictModel):
     """A learning check with an answer and the reasoning behind it."""
 
@@ -589,6 +649,8 @@ PublicBlock = Annotated[
         CalloutBlock,
         CheckBlock,
         QuoteBlock,
+        SvgBlock,
+        InteractiveBlock,
     ],
     Field(discriminator="type"),
 ]
@@ -632,6 +694,14 @@ class LearningUnit(StrictModel):
     paper_item_ids: list[str] = Field(default_factory=list)
     visual_requirements: list[str] = Field(default_factory=list)
     estimated_minutes: float = Field(gt=0, le=120)
+    # Scenes this unit maps to. A materialised unit points at the delivered
+    # slides instead of copying their body/narration, so the scene remains the
+    # single source for what the learner sees.
+    scene_ids: list[str] = Field(default_factory=list)
+    # Hash of the inputs this unit was materialised from (slide, narration,
+    # referenced claims and evidence). Incremental generation compares it to
+    # the current inputs; an unchanged unit is not rewritten.
+    input_sha256: str = ""
     status: UnitStatus = "planned"
     revision: int = Field(default=0, ge=0)
     generated_at: datetime | None = None
@@ -641,6 +711,8 @@ class LearningUnit(StrictModel):
     def _content_matches_status(self) -> LearningUnit:
         if self.status in {"generated", "validating", "approved"} and not self.body:
             raise ValueError(f"unit {self.unit_id} is {self.status} but has no body")
+        if len(self.scene_ids) != len(set(self.scene_ids)):
+            raise ValueError(f"unit {self.unit_id} lists a scene twice")
         return self
 
 
@@ -757,6 +829,7 @@ AssetType = Literal[
 AssetStatus = Literal["pending", "rendered", "failed", "skipped"]
 TransitionKind = Literal["cut", "fade", "slide", "zoom", "none"]
 FallbackPolicy = Literal["fail", "skip", "placeholder"]
+ResetPolicy = Literal["replay", "restore-entry", "static"]
 _HASH = r"^[0-9a-f]{64}$"
 
 
@@ -839,6 +912,18 @@ class SceneContract(StrictModel):
     evidence_refs: list[str] = Field(default_factory=list)
     quality_profile: str = "default"
     fallback_policy: FallbackPolicy = "fail"
+    # --- Scene state contract (Q-01) -------------------------------------
+    # A scene is independently generatable and playable. These fields carry
+    # the teaching goal, the claims it depends on, and the state a player must
+    # be able to restore, so the HTML deck and the video pipeline share one
+    # contract instead of two incompatible notions of "scene".
+    objective_ids: list[str] = Field(default_factory=list)
+    claim_refs: list[str] = Field(default_factory=list)
+    scene_version: str = Field(default="1", pattern=r"^[0-9]+(\.[0-9]+){0,2}$")
+    entry_state: dict[str, Any] = Field(default_factory=dict)
+    exit_state: dict[str, Any] = Field(default_factory=dict)
+    reset_policy: ResetPolicy = "replay"
+    required_checks: list[str] = Field(default_factory=list)
     # Template payload (title text, accent colour, ...). Kept as data so the
     # contract does not hard-code one template's fields; the renderer's
     # validate_input() is what admits or rejects a template shape.
@@ -850,6 +935,23 @@ class SceneContract(StrictModel):
         if value.split(".", 1)[0] != VISUAL_SCHEMA_MAJOR:
             raise ValueError(f"unsupported scene schema_version '{value}'")
         return value
+
+    @field_validator("objective_ids", "claim_refs", "required_checks")
+    @classmethod
+    def _unique_non_empty_ids(cls, value: list[str]) -> list[str]:
+        if any(not item.strip() for item in value):
+            raise ValueError("scene references must not be empty")
+        if len(value) != len(set(value)):
+            raise ValueError("scene references must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def _reset_policy_is_playable(self) -> SceneContract:
+        if self.reset_policy == "restore-entry" and not self.entry_state:
+            raise ValueError("reset_policy 'restore-entry' requires a non-empty entry_state")
+        if self.reset_policy == "static" and self.entry_state != self.exit_state:
+            raise ValueError("reset_policy 'static' requires entry_state == exit_state")
+        return self
 
 
 class SceneSet(StrictModel):
@@ -1059,10 +1161,34 @@ class SpeakerScript(StrictModel):
 
 
 class ReadingSection(StrictModel):
+    """One deep-reading section.
+
+    ``body`` reuses the public block vocabulary so the reading edition can be
+    more detailed than the slides (formulas, tables, quotes), which is the
+    point of a reading edition. ``paragraphs`` stays for older editions and
+    for the simple prose case; when ``body`` is present the template renders
+    it instead.
+    """
+
     slide_id: str = Field(pattern=r"^slide-[0-9]{3,}$")
     title: str = Field(min_length=1)
-    paragraphs: list[str] = Field(min_length=1)
+    paragraphs: list[str] = Field(default_factory=list)
+    body: list[PublicBlock] = Field(default_factory=list)
     source_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _has_content(self) -> ReadingSection:
+        if not self.paragraphs and not self.body:
+            raise ValueError("reading section needs paragraphs or body blocks")
+        return self
+
+
+class NomenclatureEntry(StrictModel):
+    """One row of the reading edition's symbol and tensor-shape table."""
+
+    symbol: str = Field(min_length=1)
+    meaning: str = Field(min_length=1)
+    shape: str = ""
 
 
 class ReadingEdition(StrictModel):
@@ -1070,6 +1196,7 @@ class ReadingEdition(StrictModel):
     title: str = Field(min_length=1)
     abstract: str = Field(min_length=1)
     sections: list[ReadingSection] = Field(min_length=1)
+    nomenclature: list[NomenclatureEntry] = Field(default_factory=list)
     references: list[str] = Field(default_factory=list)
 
 
@@ -1087,6 +1214,11 @@ class QAReport(StrictModel):
     provider: str = ""
     model: str = ""
     checks: list[CheckResult] = Field(default_factory=list)
+    # Binding to the artefacts the checks actually read. An empty value means a
+    # report written before this binding existed; `build_release` refuses those
+    # instead of reusing a pass that may describe older content.
+    content_version: str = ""
+    content_files: list[dict[str, str]] = Field(default_factory=list)
 
     @property
     def blocking_failures(self) -> list[CheckResult]:
@@ -1136,6 +1268,16 @@ class ManifestFile(StrictModel):
 
 
 class ReleaseManifest(StrictModel):
+    """Version binding for a published course package.
+
+    ``manifest_schema_version`` 2.0 records the lineage SAD-001 §9.2 requires:
+    which course contract, build fingerprint, code revision, source registry,
+    Gate B report and human acceptance the decision was made against.
+    Version 1.0 manifests (all releases built before 2026-10-24) stay readable
+    and are verified with the older, weaker rule set.
+    """
+
+    manifest_schema_version: str = "1.0"
     project_id: str
     version: str
     generated_at: datetime = Field(default_factory=utc_now)
@@ -1147,3 +1289,14 @@ class ReleaseManifest(StrictModel):
     gates: dict[str, str] = Field(default_factory=dict)
     human_approval: ApprovalRecord | None = None
     files: list[ManifestFile] = Field(default_factory=list)
+    # 2.0 lineage (empty on 1.0 manifests).
+    course_version: str = ""
+    content_version: str = ""
+    code_version: str = ""
+    input_sha256: str = ""
+    quality_sha256: str = ""
+    acceptance_sha256: str = ""
+    course_product: str = ""
+    decision: str = ""
+    disclosures: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)

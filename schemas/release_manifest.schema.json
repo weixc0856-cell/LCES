@@ -74,7 +74,13 @@
     }
   },
   "additionalProperties": false,
+  "description": "Version binding for a published course package.\n\n``manifest_schema_version`` 2.0 records the lineage SAD-001 §9.2 requires:\nwhich course contract, build fingerprint, code revision, source registry,\nGate B report and human acceptance the decision was made against.\nVersion 1.0 manifests (all releases built before 2026-10-24) stay readable\nand are verified with the older, weaker rule set.",
   "properties": {
+    "manifest_schema_version": {
+      "default": "1.0",
+      "title": "Manifest Schema Version",
+      "type": "string"
+    },
     "project_id": {
       "title": "Project Id",
       "type": "string"
@@ -134,6 +140,60 @@
         "$ref": "#/$defs/ManifestFile"
       },
       "title": "Files",
+      "type": "array"
+    },
+    "course_version": {
+      "default": "",
+      "title": "Course Version",
+      "type": "string"
+    },
+    "content_version": {
+      "default": "",
+      "title": "Content Version",
+      "type": "string"
+    },
+    "code_version": {
+      "default": "",
+      "title": "Code Version",
+      "type": "string"
+    },
+    "input_sha256": {
+      "default": "",
+      "title": "Input Sha256",
+      "type": "string"
+    },
+    "quality_sha256": {
+      "default": "",
+      "title": "Quality Sha256",
+      "type": "string"
+    },
+    "acceptance_sha256": {
+      "default": "",
+      "title": "Acceptance Sha256",
+      "type": "string"
+    },
+    "course_product": {
+      "default": "",
+      "title": "Course Product",
+      "type": "string"
+    },
+    "decision": {
+      "default": "",
+      "title": "Decision",
+      "type": "string"
+    },
+    "disclosures": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Disclosures",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
       "type": "array"
     }
   },

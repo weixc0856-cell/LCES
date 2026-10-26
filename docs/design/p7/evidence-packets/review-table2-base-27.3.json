@@ -1,0 +1,96 @@
+{
+  "packet_version": "1.0",
+  "packet_sha256": "a75000f69debebc21d661b306a68188d253df35fa7621e2ebd5fa5e47a6de85c",
+  "review_id": "review-table2-base-27.3",
+  "generated_at": "2026-10-24T04:32:36.497450Z",
+  "claim": "Transformer (base) 在 WMT 2014 EN-DE newstest2014 测试集上：BLEU 27.3（Table 2，base 行）",
+  "evidence_kind": "table",
+  "paper_id": "paper-025",
+  "paper_title": "Table 2：BLEU 与训练成本对比",
+  "paper_locator": "§6.1 Table 2",
+  "source_id": "source-001",
+  "chunk_id": "source-001:b0048",
+  "locator": "§6.1 Machine Translation",
+  "program_status": "needs_review",
+  "program_reason": "column_semantics_unverified",
+  "research_finding": "verified",
+  "external_source_url": "https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf",
+  "external_source_version": "NeurIPS 2017 proceedings",
+  "external_source_locator": "Table 2, p.7",
+  "source": {
+    "source_id": "source-001",
+    "title": "Attention Is All You Need",
+    "origin": "https://arxiv.org/html/1706.03762v7",
+    "version": "arXiv HTML v7",
+    "locator": "§6.1 Machine Translation",
+    "chunk_id": "source-001:b0048",
+    "chunk_section": "5.4 Regularization",
+    "char_start": 26271,
+    "char_end": 26927,
+    "excerpt": "6.30\n41.16\n1.8\n⋅\n10\n20\n1.8\\cdot 10^{20}\n1.1\n⋅\n10\n21\n1.1\\cdot 10^{21}\nConvS2S Ensemble\n[\n9\n]\n26.36\n41.29\n7.7\n⋅\n10\n19\n7.7\\cdot 10^{19}\n1.2\n⋅\n10\n21\n1.2\\cdot 10^{21}\nTransformer (base model)\n27.3\n38.1\n3.3\n⋅\n𝟏𝟎\n𝟏𝟖\n3.3\\cdot 10^{18}\nTransformer (big)\n28.4\n41.8\n2.3\n⋅\n10\n19\n2.3\\cdot 10^{19}\nOn the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big) in Table\n2\n) outperforms the best previously reported models (including ensembles) by more than\n2.0\n2.0\nBLEU, establishing a new state-of-the-art BLEU score of\n28.4\n28.4\n. The configuration of this model is listed in the bottom",
+    "excerpt_sha256": "ef321f46b950e181fcb0848b4638ce4f720d33934136784dc865d8e0f4b59657",
+    "source_text_sha256": "c27a7d19619add42f30e61303d0b7e658a55d783b7353b1eb088e6243ba12c7d",
+    "unresolved": false,
+    "note": "excerpt sliced from the stored source around the reviewed locator"
+  },
+  "course_usage": [
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:paragraph[0]",
+      "text": "Table 2 在 WMT 2014 newstest2014 测试集上比较翻译质量与训练成本：EN-DE 方向 Transformer (base) 27.3 BLEU、Transformer (big) 28.4 BLEU；EN-FR 方向 big 报告 41.8 BLEU（arXiv v7 Table 2），但 §6.1 正文与 NeurIPS 2017 Table 2 写 41.0。成本列是训练消耗的浮点运算次数（FLOPs），不是推理成本。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:table[1]",
+      "text": "Transformer (base) | 27.3 | 38.1 | 3.3×10^18 | 2.3×10^19"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-009:paragraph[2]",
+      "text": "成本对比是这张表最容易被忽略的部分：ConvS2S Ensemble 用 7.7×10^19 FLOPs 取得 26.36 BLEU，而 Transformer (base) 只用 3.3×10^18 FLOPs 就取得 27.3 BLEU，算力低一个数量级以上。这是“质量与成本同时改善”的经验结果，不是架构优越性的证明。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-014:bullets[1]",
+      "text": "数字链：27.3/28.4 是测试集，25.8/26.4 是开发集，41.0/41.8 是版本冲突。"
+    },
+    {
+      "path": "content/public_content.json",
+      "location": "content/public_content.json#slide-014:bullets[1]",
+      "text": "成本链：base 用 3.3×10^18 FLOPs 取得 27.3 BLEU，成本列与质量列要一起读。"
+    },
+    {
+      "path": "internal/speaker_script.json",
+      "location": "internal/speaker_script.json#slide-009:narration",
+      "text": "Table 2 在 newstest2014 测试集上比较质量和成本。英德方向 base 是 27.3 BLEU，big 是 28.4；英法方向 big 在 arXiv v7 的 Table 2 写 41.8，但第六点一节正文和 NeurIPS 版本写 41.0。课程并列披露，不取平均，也不静默择一。成本列是训练 FLOPs：ConvS2S Ensemble 用 7.7 乘十的十九次方，得到 26.36 BLEU；Transformer base 只用 3.3 乘十的十八次方，就得到 27.3 BLEU。质量和成本要一起读。"
+    }
+  ],
+  "support_scope": "research_finding=verified；program=needs_review/column_semantics_unverified",
+  "counter_evidence": "",
+  "limitations": "External source confirms the value and column; the program cannot prove the column mapping. Human signature still required.",
+  "ambiguities": [
+    "正式人工签署；确认课程以 Table 2 / newstest2014 口径引用 27.3，而不是把 27.3 当作 big 模型结果。",
+    "原记录指向 b0050；当前 source map 把 Table 2 的 Transformer 行切在 b0048（该区块的 section 标签仍是 5.4）。程序状态保持 needs_review，未重新自动通过。"
+  ],
+  "reviewer_questions": [
+    "该数值是否确实属于该行、该列、该模型规模、该语言方向和该数据集？",
+    "表格脚注或正文是否改变了这个数值的适用范围？",
+    "该主张的限定语（模型规模、语言方向、数据集、指标）是否完整且与原文一致？",
+    "记录的来源、区块与 locator 是否能在原文中独立复核？"
+  ],
+  "conclusion_options": [
+    "pass",
+    "needs_revision",
+    "blocked",
+    "fail"
+  ],
+  "current_conclusion": "pending",
+  "signature": {
+    "reviewer": "",
+    "reviewed_at": "",
+    "conclusion": "pending",
+    "basis": "",
+    "conflict_acknowledged": "false"
+  },
+  "cli_command": "uv run lces review-evidence .\\projects\\attention-is-all-you-need --review-id review-table2-base-27.3 --by \"<审核者>\" --conclusion pass --basis \"<核对原文后的依据>\""
+}

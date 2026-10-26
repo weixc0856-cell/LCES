@@ -13,7 +13,7 @@ from content_studio.source_map import (
     detect_heading,
     ensure_source_map,
 )
-from content_studio.utils import write_json
+from content_studio.utils import normalize_quote, sha256_text, write_json
 
 LONG_PARAGRAPH = "这是一个很长的段落。" * 400
 
@@ -182,3 +182,19 @@ def test_source_map_roundtrip(tmp_path: Path):
     path = write_json(tmp_path / "map.json", source_map)
     loaded = SourceMap.model_validate_json(path.read_text(encoding="utf-8"))
     assert loaded == source_map
+
+
+def test_reg_008_three_hashes_name_three_byte_objects():
+    """TDD-001 REG-008: identity, extracted text and locator view are distinct."""
+
+    text = _text().replace("Title page", "“Title” page")
+    archive_hash = "b" * 64
+    document = build_document_map(
+        "source-001", text, sha256=archive_hash, raw_archive_sha256=archive_hash
+    )
+
+    assert document.raw_archive_sha256 == archive_hash
+    assert document.extracted_txt_sha256 == sha256_text(text)
+    assert document.normalized_locator_sha256 == sha256_text(normalize_quote(text))
+    # Normalisation is not a no-op on this fixture, so the locator view differs.
+    assert document.normalized_locator_sha256 != document.extracted_txt_sha256

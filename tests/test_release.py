@@ -19,7 +19,7 @@ from content_studio.models import (
 from content_studio.paths import ensure_project_layout
 from content_studio.release import approve, build_release, verify_release
 from content_studio.utils import sha256_file, write_json, write_text
-from content_studio.validation import run_release_checks
+from content_studio.validation import content_version, run_release_checks
 
 GATES = ("gate_1_research", "gate_2_content", "gate_3_engineering", "gate_4_release")
 
@@ -42,6 +42,7 @@ def _ready_project(tmp_path: Path) -> tuple[Path, ProjectConfig]:
     write_json(root / "content" / "public_content.json", content)
     write_text(root / "build" / "slides" / "index.html", "<html><body>公开正文</body></html>")
     write_text(root / "build" / "reading_edition.html", "<html><body>阅读版</body></html>")
+    _version, _bound = content_version(root)
     report = QAReport(
         project_id=config.project_id,
         provider="deepseek",
@@ -49,6 +50,8 @@ def _ready_project(tmp_path: Path) -> tuple[Path, ProjectConfig]:
             CheckResult(check_id=f"{gate}-ok", gate=gate, status="pass", message="ok")
             for gate in GATES
         ],
+        content_version=_version,
+        content_files=_bound,
     )
     write_json(root / "internal" / "qa" / "qa_report.json", report)
     return root, config
@@ -256,3 +259,95 @@ def test_gate4_detects_a_stale_encode_report(tmp_path, monkeypatch):
         item.check_id == "video_hash_matches_encode_report" and item.status == "fail"
         for item in checks
     )
+
+
+def test_release_refuses_a_qa_report_without_content_binding(tmp_path):
+    root, config = _ready_project(tmp_path)
+    approve(root, config, "v1", "reviewer")
+    # Simulate a report written before the binding existed.
+    report = QAReport(
+        project_id=config.project_id,
+        checks=[
+            CheckResult(check_id=f"{gate}-ok", gate=gate, status="pass", message="ok")
+            for gate in GATES
+        ],
+    )
+    write_json(root / "internal" / "qa" / "qa_report.json", report)
+    with pytest.raises(ValidationFailure, match="no content binding"):
+        build_release(root, config, "v1")
+
+
+def test_release_refuses_a_pass_after_content_changed(tmp_path):
+    root, config = _ready_project(tmp_path)
+    approve(root, config, "v1", "reviewer")
+    # Editing the built page after `validate` makes the old pass describe other bytes.
+    write_text(
+        root / "build" / "slides" / "index.html",
+        "<html><body>公开正文（未再验证）</body></html>",
+    )
+    with pytest.raises(ValidationFailure, match="changed after"):
+        build_release(root, config, "v1")
+
+
+def test_manifest_records_version_lineage(tmp_path):
+    root, config = _ready_project(tmp_path)
+    approve(root, config, "v1", "reviewer")
+
+    manifest = build_release(root, config, "v1")
+
+    current, _files = content_version(root)
+    assert manifest.manifest_schema_version == "2.0"
+    assert manifest.content_version == current
+    assert manifest.decision == "approved"
+    assert manifest.disclosures == []
+    assert manifest.course_product == "not_applicable"
+    assert manifest.acceptance_sha256 == ""
+    assert manifest.limitations == []
+    # The temporary project is not a Git worktree; absence is recorded, not invented.
+    assert manifest.code_version == "" or len(manifest.code_version) >= 40
+
+
+def test_release_check_rejects_incomplete_lineage(tmp_path):
+    root, config = _ready_project(tmp_path)
+    approve(root, config, "v1", "reviewer")
+    manifest = build_release(root, config, "v1")
+    broken = manifest.model_copy(update={"content_version": "", "decision": ""})
+    write_json(root / "release" / "v1" / "release_manifest.json", broken)
+
+    _manifest, errors = verify_release(root, "v1")
+
+    assert any("manifest_lineage" in error for error in errors)
+
+
+def test_manifest_discloses_not_run_checks(tmp_path):
+    """A release with NOT_RUN checks is `approved_with_disclosures`, not `approved`."""
+
+    root, config = _ready_project(tmp_path)
+    approve(root, config, "v1", "reviewer")
+    version, bound = content_version(root)
+    report = QAReport(
+        project_id=config.project_id,
+        checks=[
+            CheckResult(check_id=f"{gate}-ok", gate=gate, status="pass", message="ok")
+            for gate in GATES
+        ]
+        + [
+            CheckResult(
+                check_id="scientific_review",
+                gate="gate_1_research",
+                status="not_run",
+                message="需要专家复核",
+                blocking=False,
+            )
+        ],
+        content_version=version,
+        content_files=bound,
+    )
+    write_json(root / "internal" / "qa" / "qa_report.json", report)
+
+    manifest = build_release(root, config, "v1")
+
+    assert manifest.decision == "approved_with_disclosures"
+    assert any("scientific_review" in item for item in manifest.limitations)
+    _manifest, errors = verify_release(root, "v1")
+    assert errors == []
